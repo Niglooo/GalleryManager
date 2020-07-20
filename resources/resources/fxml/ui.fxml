@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.Scene?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.stage.Stage?>
+
+<fx:root title="Gallery Manager" type="Stage" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+    <scene>
+        <Scene>
+            <TabPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1200.0" tabClosingPolicy="UNAVAILABLE" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+              <tabs>
+                <Tab text="Gallery">
+                     <content>
+                     <SplitPane dividerPositions="0.5">
+                        <items>
+                              <VBox prefHeight="200.0" prefWidth="100.0">
+                                 <children>
+                                    <Label text="Scan result" />
+                                    <ComboBox prefWidth="150.0" />
+                                    <TreeView fx:id="fileSystemView" />
+                                 </children>
+                              </VBox>
+                           <Pane prefHeight="200.0" prefWidth="200.0" />
+                        </items>
+                     </SplitPane>
+                     </content></Tab>
+                <Tab text="Artists" />
+              </tabs>
+            </TabPane>
+        </Scene>
+    </scene>
+</fx:root>
