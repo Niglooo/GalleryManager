@@ -43,7 +43,7 @@ public class UIController extends Application
 		if (args.length < 1)
 			throw new RuntimeException("missing gallery file");
 			
-		galleryFile = Paths.get(args[0]);
+		galleryFile = Paths.get(args[0]).toAbsolutePath();
 		
 		launch(args);
 	}
