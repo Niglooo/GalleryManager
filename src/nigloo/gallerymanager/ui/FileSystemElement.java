@@ -46,6 +46,12 @@ public class FileSystemElement
 		this.status = Status.UNSET;
 	}
 	
+	@Override
+	public String toString()
+	{
+		return getPath().toString();
+	}
+	
 	public Path getPath()
 	{
 		return image != null ? image.getPath() : path;
