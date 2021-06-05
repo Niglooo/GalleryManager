@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -21,8 +23,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.stage.Stage;
@@ -39,7 +44,11 @@ import nigloo.tool.injection.impl.SingletonInjectionContext;
 
 public class UIController extends Application
 {
-	@FXML protected TreeView<FileSystemElement> fileSystemView;
+	@FXML
+	protected TreeView<FileSystemElement> fileSystemView;
+	
+	@FXML
+	protected LargeVerticalTilePane thumbnailsView;
 	
 	private Stage primaryStage;
 	
@@ -103,8 +112,23 @@ public class UIController extends Application
 		fxmlLoader.setRoot(primaryStage);
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
-		fileSystemView.setCellFactory(new FileSystemTreeCellFactory(this, gallery));
-		
+		fileSystemView.setCellFactory(new FileSystemTreeCellFactory(this));
+		fileSystemView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		fileSystemView.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TreeItem<FileSystemElement>>()
+		{
+			@Override
+			public void onChanged(Change<? extends TreeItem<FileSystemElement>> c)
+			{
+				while (c.next())
+					c.getRemoved()
+					 .stream()
+					 .flatMap(item -> getImages(item).stream())
+					 .forEach(Image::cancelLoadingThumbnail);
+				
+				List<Image> selectedImage = c.getList().stream().flatMap(item -> getImages(item).stream()).toList();
+				showThumbnails(selectedImage);
+			}
+		});
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);
 		fileSystemView.setRoot(root);
@@ -321,5 +345,41 @@ public class UIController extends Application
 		String extention = filename.substring(posExt + 1).toLowerCase();
 		return extention.equals("jpg") || extention.equals("jpeg") || extention.equals("png")
 		        || extention.equals("gif");
+	}
+	
+	private List<Image> getImages(TreeItem<FileSystemElement> rootItem)
+	{
+		if (rootItem == null)
+			return List.of();
+		else if (!rootItem.getValue().isDirectory())
+			return List.of(rootItem.getValue().getImage());
+		else
+			return rootItem.getChildren().stream().flatMap(item -> getImages(item).stream()).toList();
+	}
+	
+	private void showThumbnails(Collection<Image> images)
+	{
+		assert images != null;
+		
+		Platform.runLater(() ->
+		{
+			thumbnailsView.getTiles().setAll(images.stream().map(image ->
+			{
+				GalleryImageView imageView = new GalleryImageView(image, Image::getThumbnail);
+				
+				// Keep imageView instance in thumbnailsView to preserve selection
+				int index = thumbnailsView.getTiles().indexOf(imageView);
+				if (index != -1)
+					return thumbnailsView.getTiles().get(index);
+				
+				imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
+				imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
+				imageView.setPreserveRatio(true);
+				
+				imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
+				
+				return imageView;
+			}).toList());
+		});
 	}
 }

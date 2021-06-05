@@ -57,6 +57,11 @@ public class FileSystemElement
 		return image != null ? image.getPath() : path;
 	}
 	
+	public Image getImage()
+	{
+		return image;
+	}
+	
 	public boolean isDirectory() {
 		return image == null;
 	}
