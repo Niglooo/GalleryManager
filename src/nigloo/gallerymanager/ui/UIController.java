@@ -3,13 +3,18 @@ package nigloo.gallerymanager.ui;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -79,19 +84,7 @@ public class UIController extends Application
 		Injector.addContext(singletonCtx);
 		singletonCtx.setSingletonInstance(Gallery.class, new Gallery());
 		
-		Gson gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
-		                             .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
-		                             .registerTypeAdapter(ImageReference.class, ImageReference.typeAdapter())
-		                             .disableHtmlEscaping()
-		                             .setPrettyPrinting()
-		                             .create();
-		
-		try (Reader reader = Files.newBufferedReader(galleryFile, StandardCharsets.UTF_8))
-		{
-			gallery = gson.fromJson(reader, Gallery.class);
-		}
-		gallery.setRootFolder(galleryFile.getParent());
-		gallery.finishConstruct();
+		openGallery();
 		
 		// gallery.removeImagesNotHandledByAutoDowloader();
 		gallery.compactIds();
@@ -101,11 +94,8 @@ public class UIController extends Application
 		for (Artist artist : gallery.getArtists())
 			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
 				;// autoDownloader.download(config.getProperty("cookie"));
-		
-//		try (Writer writer = Files.newBufferedWriter(galleryFile, StandardCharsets.UTF_8))
-//		{
-//			gson.toJson(gallery, writer);
-//		}
+				
+		saveGallery();
 
 		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 		fxmlLoader.setController(this);
@@ -320,7 +310,7 @@ public class UIController extends Application
 			sort(item);
 	}
 	
-	void saveFileSystemItem(TreeItem<FileSystemElement> rootItem)
+	void syncFileSystemItem(TreeItem<FileSystemElement> rootItem)
 	{
 		System.out.println("Save : " + rootItem.getValue().getPath());
 		try
@@ -381,5 +371,46 @@ public class UIController extends Application
 				return imageView;
 			}).toList());
 		});
+	}
+	
+	private void openGallery() throws IOException
+	{
+		try (Reader reader = Files.newBufferedReader(galleryFile, StandardCharsets.UTF_8))
+		{
+			gallery = gson().fromJson(reader, Gallery.class);
+		}
+		gallery.setRootFolder(galleryFile.getParent());
+		gallery.finishConstruct();
+	}
+	
+	private void saveGallery() throws IOException
+	{
+		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
+		                                   .format(Instant.now().atZone(ZoneId.systemDefault()));
+		
+		Path tmpFile = galleryFile.getParent().resolve("gallery_" + datetime + ".json");
+		
+		try (Writer writer = Files.newBufferedWriter(tmpFile, StandardCharsets.UTF_8))
+		{
+			gson().toJson(gallery, writer);
+		}
+		
+		Files.move(tmpFile, galleryFile, StandardCopyOption.REPLACE_EXISTING);
+	}
+	
+	private Gson gson = null;
+	private Gson gson()
+	{
+		if (gson == null)
+		{
+			gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
+			                        .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
+			                        .registerTypeAdapter(ImageReference.class, ImageReference.typeAdapter())
+			                        .disableHtmlEscaping()
+			                        .setPrettyPrinting()
+			                        .create();
+		}
+		
+		return gson;
 	}
 }
