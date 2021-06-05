@@ -46,9 +46,9 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	}
 	
 	@FXML
-	protected void save()
+	protected void synchronize()
 	{
-		uiController.saveFileSystemItem(selectedItem);
+		uiController.syncFileSystemItem(selectedItem);
 	}
 	
 	@FXML
