@@ -3,9 +3,10 @@
 <?import javafx.scene.control.ContextMenu?>
 <?import javafx.scene.control.MenuItem?>
 
-<fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
   <items>
     <MenuItem mnemonicParsing="false" onAction="#refresh" text="Refresh" />
       <MenuItem mnemonicParsing="false" onAction="#save" text="Save" />
+      <MenuItem mnemonicParsing="false" onAction="#openInFileExplorer" text="Open" />
   </items>
 </fx:root>
