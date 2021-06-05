@@ -53,7 +53,7 @@ public class UIController extends Application
 	protected TreeView<FileSystemElement> fileSystemView;
 	
 	@FXML
-	protected LargeVerticalTilePane thumbnailsView;
+	protected ThumbnailsView thumbnailsView;
 	
 	private Stage primaryStage;
 	

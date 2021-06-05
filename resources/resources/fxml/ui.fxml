@@ -12,7 +12,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.stage.Stage?>
 
-<?import nigloo.gallerymanager.ui.LargeVerticalTilePane?>
+<?import nigloo.gallerymanager.ui.ThumbnailsView?>
 
 <fx:root title="Gallery Manager" type="Stage" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
     <scene>
@@ -30,11 +30,11 @@
                                  <TreeView fx:id="fileSystemView" />
                               </children>
                            </VBox>
-                           <LargeVerticalTilePane fx:id="thumbnailsView" tileWidth="150.0" tileHeight="150.0" hgap="20.0" vgap="20.0" tileAlignment="TOP_CENTER">
+                           <ThumbnailsView fx:id="thumbnailsView" tileWidth="150.0" tileHeight="150.0" hgap="20.0" vgap="20.0" tileAlignment="TOP_CENTER">
                               <padding>
                                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                               </padding>
-                           </LargeVerticalTilePane>
+                           </ThumbnailsView>
                         </items>
                      </SplitPane>
                    </content>
