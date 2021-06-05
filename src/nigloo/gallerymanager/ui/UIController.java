@@ -1,6 +1,8 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -13,7 +15,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import javafx.application.Application;
@@ -22,9 +26,16 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.stage.Stage;
+import nigloo.gallerymanager.autodownloader.FanboxDownloader;
+import nigloo.gallerymanager.autodownloader.ImageReference;
+import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
+import nigloo.tool.Utils;
+import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
+import nigloo.tool.injection.Injector;
+import nigloo.tool.injection.impl.SingletonInjectionContext;
 
 public class UIController extends Application
 {
@@ -36,30 +47,57 @@ public class UIController extends Application
 	
 	private Gallery gallery;
 	
-	public UIController() {
+	public UIController()
+	{
 	}
-
-	public static void main(String[] args) {
+	
+	public static void main(String[] args)
+	{
 		if (args.length < 1)
 			throw new RuntimeException("missing gallery file");
-			
+		
 		galleryFile = Paths.get(args[0]).toAbsolutePath();
 		
 		launch(args);
 	}
-
+	
 	@Override
-	public void start(Stage primaryStage) throws Exception {
+	public void start(Stage primaryStage) throws Exception
+	{
 		this.primaryStage = primaryStage;
 		
-		gallery = new GsonBuilder()
-				.registerTypeAdapter(Path.class, new PathTypeAdapter())
-				.disableHtmlEscaping()
-				.setPrettyPrinting()
-				.create()
-				.fromJson(Files.newBufferedReader(galleryFile, StandardCharsets.UTF_8), Gallery.class);
-		gallery.setRootFolder(galleryFile.getParent());
+		SingletonInjectionContext singletonCtx = new SingletonInjectionContext();
+		Injector.addContext(singletonCtx);
+		singletonCtx.setSingletonInstance(Gallery.class, new Gallery());
 		
+		Gson gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
+		                             .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
+		                             .registerTypeAdapter(ImageReference.class, ImageReference.typeAdapter())
+		                             .disableHtmlEscaping()
+		                             .setPrettyPrinting()
+		                             .create();
+		
+		try (Reader reader = Files.newBufferedReader(galleryFile, StandardCharsets.UTF_8))
+		{
+			gallery = gson.fromJson(reader, Gallery.class);
+		}
+		gallery.setRootFolder(galleryFile.getParent());
+		gallery.finishConstruct();
+		
+		// gallery.removeImagesNotHandledByAutoDowloader();
+		gallery.compactIds();
+		
+		Properties config = new Properties();
+		config.load(new FileInputStream("config.properties"));
+		for (Artist artist : gallery.getArtists())
+			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+				;// autoDownloader.download(config.getProperty("cookie"));
+		
+//		try (Writer writer = Files.newBufferedWriter(galleryFile, StandardCharsets.UTF_8))
+//		{
+//			gson.toJson(gallery, writer);
+//		}
+
 		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 		fxmlLoader.setController(this);
 		fxmlLoader.setRoot(primaryStage);
@@ -76,11 +114,11 @@ public class UIController extends Application
 		this.primaryStage.show();
 	}
 	
-	
 	void refreshFileSystemItem(TreeItem<FileSystemElement> rootItem)
 	{
-		System.out.println("Refresh : "+rootItem.getValue().getPath());
-		try {
+		System.out.println("Refresh : " + rootItem.getValue().getPath());
+		try
+		{
 			FileSystemElement rootElement = rootItem.getValue();
 			Path rootPath = rootElement.getPath();
 			Path absoluteRoot = gallery.toAbsolutePath(rootPath);
@@ -93,10 +131,11 @@ public class UIController extends Application
 			// Add files on disk
 			if (Files.exists(absoluteRoot))
 			{
-				Files.walkFileTree(absoluteRoot, new FileVisitor<Path>() {
-		
+				Files.walkFileTree(absoluteRoot, new FileVisitor<Path>()
+				{
 					@Override
-					public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException
+					{
 						if (dir.equals(absoluteRoot))
 							return FileVisitResult.CONTINUE;
 						
@@ -108,21 +147,24 @@ public class UIController extends Application
 						
 						return FileVisitResult.CONTINUE;
 					}
-		
+					
 					@Override
-					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-						if (!isImage(file))
-							return FileVisitResult.CONTINUE;
-						
+					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException
+					{
 						Path relativePath = gallery.toRelativePath(file);
 						
 						Image image = gallery.findImage(relativePath);
 						boolean isSyncronized;
-						if (image == null) {
+						if (image == null)
+						{
+							if (!isImage(file))
+								return FileVisitResult.CONTINUE;
+							
 							image = new Image(relativePath);
 							isSyncronized = false;
 						}
-						else {
+						else
+						{
 							isSyncronized = true;
 						}
 						
@@ -131,20 +173,24 @@ public class UIController extends Application
 						
 						TreeItem<FileSystemElement> parentItem = pathToItem.get(file.getParent());
 						TreeItem<FileSystemElement> item = new TreeItem<>(new FileSystemElement(image,
-								isSyncronized ? FileSystemElement.Status.SYNC : FileSystemElement.Status.UNSYNC));
-		
+						                                                                        isSyncronized
+						                                                                                ? FileSystemElement.Status.SYNC
+						                                                                                : FileSystemElement.Status.UNSYNC));
+						
 						parentItem.getChildren().add(item);
 						pathToItem.put(file, item);
 						return FileVisitResult.CONTINUE;
 					}
-		
+					
 					@Override
-					public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+					public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException
+					{
 						throw exc;
 					}
-		
+					
 					@Override
-					public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+					public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException
+					{
 						if (exc != null)
 							throw exc;
 						
@@ -164,7 +210,9 @@ public class UIController extends Application
 					continue;
 				
 				List<Path> ancestors = new ArrayList<>();
-				for (Path currentPath = absolutePath.getParent() ; pathToItem.containsKey(currentPath) == false ; currentPath = currentPath.getParent())
+				for (Path currentPath = absolutePath.getParent() ;
+				     pathToItem.containsKey(currentPath) == false ;
+				     currentPath = currentPath.getParent())
 				{
 					ancestors.add(0, currentPath);
 				}
@@ -177,19 +225,22 @@ public class UIController extends Application
 					pathToItem.put(currentPath, item);
 				}
 				
-				TreeItem<FileSystemElement> parentItem = pathToItem.get(ancestors.get(0).getParent());
+				TreeItem<FileSystemElement> parentItem = pathToItem.get(absolutePath.getParent());
 				if (parentItem.getValue().getStatus() == FileSystemElement.Status.SYNC)
 					parentItem.getValue().setStatus(FileSystemElement.Status.UNSYNC);
 				
-				parentItem = ancestors.isEmpty() ? parentItem : pathToItem.get(ancestors.get(ancestors.size()-1));
-				TreeItem<FileSystemElement> item = new TreeItem<>(new FileSystemElement(image, FileSystemElement.Status.DELETED));
+				parentItem = ancestors.isEmpty() ? parentItem : pathToItem.get(ancestors.get(ancestors.size() - 1));
+				TreeItem<FileSystemElement> item = new TreeItem<>(new FileSystemElement(image,
+				                                                                        FileSystemElement.Status.DELETED));
 				
 				parentItem.getChildren().add(item);
 			}
 			
 			removeEmptyDirectoriesandUpdateStatus(rootItem);
+			sort(rootItem);
 		}
-		catch (IOException e) {
+		catch (IOException e)
+		{
 			e.printStackTrace();
 		}
 	}
@@ -202,13 +253,15 @@ public class UIController extends Application
 		Iterator<TreeItem<FileSystemElement>> it = rootItem.getChildren().iterator();
 		FileSystemElement.Status updatedStatus = null;
 		
-		while (it.hasNext()) {
+		while (it.hasNext())
+		{
 			TreeItem<FileSystemElement> item = it.next();
 			boolean removed = false;
 			if (item.getValue().isDirectory())
 			{
 				removeEmptyDirectoriesandUpdateStatus(item);
-				if (item.getChildren().isEmpty()) {
+				if (item.getChildren().isEmpty())
+				{
 					it.remove();
 					removed = true;
 				}
@@ -226,20 +279,34 @@ public class UIController extends Application
 		
 		if (updatedStatus == null)
 			updatedStatus = FileSystemElement.Status.SYNC;
-		else if (updatedStatus == FileSystemElement.Status.DELETED && Files.exists(gallery.toAbsolutePath(rootItem.getValue().getPath())))
+		else if (updatedStatus == FileSystemElement.Status.DELETED
+		        && Files.exists(gallery.toAbsolutePath(rootItem.getValue().getPath())))
 			updatedStatus = FileSystemElement.Status.UNSYNC;
 		
 		rootItem.getValue().setStatus(updatedStatus);
 	}
 	
+	private void sort(TreeItem<FileSystemElement> rootItem)
+	{
+		rootItem.getChildren()
+		        .sort(Comparator.comparing(ti -> ti.getValue().getPath().getFileName().toString(),
+		                                   Utils.NATURAL_ORDER));
+		
+		for (TreeItem<FileSystemElement> item : rootItem.getChildren())
+			sort(item);
+	}
+	
 	void saveFileSystemItem(TreeItem<FileSystemElement> rootItem)
 	{
-		System.out.println("Save : "+rootItem.getValue().getPath());
-		try {
-			if (false)throw new IOException();
+		System.out.println("Save : " + rootItem.getValue().getPath());
+		try
+		{
+			if (false)
+				throw new IOException();
 			
 		}
-		catch (IOException e) {
+		catch (IOException e)
+		{
 			e.printStackTrace();
 		}
 	}
@@ -251,7 +318,8 @@ public class UIController extends Application
 		if (posExt == -1)
 			return false;
 		
-		String extention = filename.substring(posExt+1).toLowerCase();
-		return extention.equals("jpg") ||  extention.equals("jpeg") || extention.equals("png");
+		String extention = filename.substring(posExt + 1).toLowerCase();
+		return extention.equals("jpg") || extention.equals("jpeg") || extention.equals("png")
+		        || extention.equals("gif");
 	}
 }

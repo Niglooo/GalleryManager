@@ -61,6 +61,12 @@
 			<artifactId>Tools</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
+		
+		<dependency>
+			<groupId>com.github.mizosoft.methanol</groupId>
+			<artifactId>methanol</artifactId>
+			<version>1.4.1</version>
+		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
 		<dependency>

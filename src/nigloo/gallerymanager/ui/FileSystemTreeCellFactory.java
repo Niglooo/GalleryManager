@@ -1,21 +1,20 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.IOException;
+
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.util.Callback;
-import nigloo.gallerymanager.model.Gallery;
 
-class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemElement>, TreeCell<FileSystemElement>>
+public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemElement>, TreeCell<FileSystemElement>>
 {
-	private final Gallery gallery;
-	
 	private final FileSystemTreeContextMenu contextMenu;
 	
-	public FileSystemTreeCellFactory(UIController uiController, Gallery gallery) {
-		this.gallery = gallery;
+	public FileSystemTreeCellFactory(UIController uiController) throws IOException
+	{
 		this.contextMenu = new FileSystemTreeContextMenu(uiController);
 	}
 
@@ -57,7 +56,7 @@ class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemElement>,
 			if (event.getButton() == MouseButton.PRIMARY &&
 				event.getClickCount() == 2)
 			{
-				//TODO double click
+				// double clic
 			}
 			else if (event.getButton() == MouseButton.SECONDARY) {
 				contextMenu.setSelectedItem(item);
