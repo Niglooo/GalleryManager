@@ -795,8 +795,19 @@ public class ThumbnailsView extends Region
 			{
 				if (event.getButton() == MouseButton.PRIMARY)
 				{
-					selectionModel.click(content, event.isShiftDown(), event.isControlDown());
-					// event.consume();
+					if (event.getClickCount() == 2)
+					{
+						
+						new SlideShowStage(tiles.stream()
+						                        .map(GalleryImageView.class::cast)
+						                        .map(GalleryImageView::getGalleryImage)
+						                        .toList(),
+						                   tiles.indexOf(content)).show();
+					}
+					else
+					{
+						selectionModel.click(content, event.isShiftDown(), event.isControlDown());
+					}
 				}
 				else if (event.getButton() == MouseButton.SECONDARY)
 				{
