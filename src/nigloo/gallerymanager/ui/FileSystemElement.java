@@ -66,7 +66,6 @@ public class FileSystemElement
 		return image == null;
 	}
 	
-	@SuppressWarnings("incomplete-switch")
 	public javafx.scene.image.Image getIcon()
 	{
 		if (image != null)
@@ -78,6 +77,8 @@ public class FileSystemElement
 				return ICON_IMAGE_UNSYNC;
 			case DELETED:
 				return ICON_IMAGE_DELETED;
+			case UNSET:
+				return null;
 			}
 		}
 		else
@@ -89,6 +90,8 @@ public class FileSystemElement
 				return ICON_FOLDER_UNSYNC;
 			case DELETED:
 				return ICON_FOLDER_DELETED;
+			case UNSET:
+				return null;
 			}
 		}
 		
