@@ -163,6 +163,7 @@ public class ThumbnailsView extends Region
 		{
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
+				contextMenu.hide();
 				firstDragEvent = true;
 				selectionRegionOrigin = new Point2D(event.getX(), event.getY());
 				selectionRegionOriginYOffset = actualYOffset;
@@ -192,8 +193,6 @@ public class ThumbnailsView extends Region
 		{
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
-				contextMenu.hide();
-				
 				selectionRegionOrigin = null;
 				selectionRegion.setVisible(false);
 				lastSelectionRegionNodes = null;
