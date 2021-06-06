@@ -51,25 +51,15 @@ public class SlideShowStage extends Stage
 				close();
 			}
 			else if (event.getCode() == KeyCode.LEFT)
-				previous();
+				setCurrent(currentImageIdx - 1);
 			else if (event.getCode() == KeyCode.RIGHT)
-				next();
+				setCurrent(currentImageIdx + 1);
 		});
 		addEventHandler(WindowEvent.WINDOW_SHOWN, event -> fullImageUpdatingThread.start());
 		setFullScreenExitHint("");
 		setFullScreen(true);
 		
 		setCurrent(currentImageIdx);
-	}
-	
-	private void previous()
-	{
-		setCurrent(currentImageIdx + 1);
-	}
-	
-	private void next()
-	{
-		setCurrent(currentImageIdx - 1);
 	}
 	
 	int validIndex(int index)
