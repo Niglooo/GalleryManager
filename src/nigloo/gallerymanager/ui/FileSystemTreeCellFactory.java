@@ -13,9 +13,9 @@ public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemEl
 {
 	private final FileSystemTreeContextMenu contextMenu;
 	
-	public FileSystemTreeCellFactory(UIController uiController) throws IOException
+	public FileSystemTreeCellFactory() throws IOException
 	{
-		this.contextMenu = new FileSystemTreeContextMenu(uiController);
+		this.contextMenu = new FileSystemTreeContextMenu();
 	}
 
 	@Override

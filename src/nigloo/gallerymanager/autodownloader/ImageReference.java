@@ -19,7 +19,7 @@ public class ImageReference // serial as imageId
 	private Image image;
 	
 	@Inject
-	private Gallery gallery;
+	private final Gallery gallery = null;
 	
 	// For deserialization only
 	private ImageReference()

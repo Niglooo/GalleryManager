@@ -45,8 +45,10 @@ import nigloo.tool.Utils;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.injection.Injector;
+import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
 
+@Singleton
 public class UIController extends Application
 {
 	@FXML
@@ -82,6 +84,7 @@ public class UIController extends Application
 		
 		SingletonInjectionContext singletonCtx = new SingletonInjectionContext();
 		Injector.addContext(singletonCtx);
+		singletonCtx.setSingletonInstance(UIController.class, this);
 		singletonCtx.setSingletonInstance(Gallery.class, new Gallery());
 		
 		openGallery();
@@ -102,7 +105,7 @@ public class UIController extends Application
 		fxmlLoader.setRoot(primaryStage);
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
-		fileSystemView.setCellFactory(new FileSystemTreeCellFactory(this));
+		fileSystemView.setCellFactory(new FileSystemTreeCellFactory());
 		fileSystemView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		fileSystemView.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TreeItem<FileSystemElement>>()
 		{

@@ -15,7 +15,7 @@ public class Image
 	transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
 	
 	@Inject
-	private transient Gallery gallery;
+	private transient final Gallery gallery = null;
 	
 	private Image()
 	{

@@ -14,17 +14,16 @@ import nigloo.tool.injection.annotation.Inject;
 
 public class FileSystemTreeContextMenu extends ContextMenu
 {
-	
-	private final UIController uiController;
+	@Inject
+	private final UIController uiController = null;
 	
 	@Inject
-	private Gallery gallery;
+	private final Gallery gallery = null;
 	
 	private TreeItem<FileSystemElement> selectedItem;
 	
-	public FileSystemTreeContextMenu(UIController uiController) throws IOException
+	public FileSystemTreeContextMenu() throws IOException
 	{
-		this.uiController = uiController;
 		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 		fxmlLoader.setController(this);
 		fxmlLoader.setRoot(this);
