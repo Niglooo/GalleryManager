@@ -96,19 +96,18 @@ public class SlideShowStage extends Stage
 		@Override
 		public void run()
 		{
+			List<Integer> previousIndexesToLoad = List.of();
 			try
 			{
-				List<Integer> previousIndexesToLoad = List.of();
-				
 				mainLoop:
 				while (!Thread.interrupted())
 				{
 					int current = currentImageIdx;
 					List<Integer> indexesToLoad = List.of(current, validIndex(current+1), validIndex(current-1), validIndex(current+2));
 					
-					previousIndexesToLoad.forEach(i -> {
-						if (!indexesToLoad.contains(i))
-							images.get(i).cancelLoadingFXImage();
+					previousIndexesToLoad.forEach(index -> {
+						if (!indexesToLoad.contains(index))
+							images.get(index).cancelLoadingFXImage();
 					});
 					
 					for (int index : indexesToLoad)
@@ -139,11 +138,16 @@ public class SlideShowStage extends Stage
 							imageView.setImage(fxImage);
 					}
 					
-					previousIndexesToLoad = indexesToLoad;
+					while (current == currentImageIdx)
+						Thread.sleep(100);
 				}
 			}
 			catch (InterruptedException e)
 			{
+			}
+			finally
+			{
+				previousIndexesToLoad.forEach(i -> images.get(i).cancelLoadingFXImage());
 			}
 		}
 	}
