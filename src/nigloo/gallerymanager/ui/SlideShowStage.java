@@ -21,15 +21,16 @@ public class SlideShowStage extends Stage
 	static private Rectangle2D screenSize = Screen.getPrimary().getBounds();
 	
 	private List<Image> images = null;
-	private volatile int currentImageIdx = 0;
+	private volatile int currentImageIdx;
 	
 	private final ImageView imageView;
 	
 	private final FullImageUpdatingThread fullImageUpdatingThread;
 	
-	public SlideShowStage(List<Image> images)
+	public SlideShowStage(List<Image> images, int startingIndex)
 	{
 		this.images = List.copyOf(images);
+		this.currentImageIdx = validIndex(startingIndex);
 		
 		imageView = new ImageView();
 		imageView.setFitWidth(screenSize.getWidth());

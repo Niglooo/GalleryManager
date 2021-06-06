@@ -53,12 +53,16 @@ public class ThumbnailsContextMenu extends ContextMenu
 	@FXML
 	protected void startSlideShow()
 	{
-		new SlideShowStage(allImages).show();
+		int startingIndex = 0;
+		if (selectedImages.size() == 1)
+			startingIndex = allImages.indexOf(selectedImages.get(0));
+		
+		new SlideShowStage(allImages, startingIndex).show();
 	}
 	
 	@FXML
 	protected void startSlideShowSelection()
 	{
-		new SlideShowStage(selectedImages).show();
+		new SlideShowStage(selectedImages, 0).show();
 	}
 }
