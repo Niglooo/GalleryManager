@@ -20,6 +20,11 @@ public class GalleryImageView extends ImageView
 		this.displayed = false;
 	}
 	
+	public Image getGalleryImage()
+	{
+		return galleryImage;
+	}
+	
 	public boolean isDisplayed()
 	{
 		return displayed;

@@ -87,10 +87,15 @@ public class SimpleMultipleSelectionModel<T> extends MultipleSelectionModel<T>
 		if (index < 0 || index >= source.size())
 			return;
 		
-		focusItem = source.get(index);
-		setSelectedIndex(index);
-		setSelectedItem(focusItem);
-		selection.setAll(List.of(focusItem));
+		clearAndSelect(source.get(index));
+	}
+	
+	public void clearAndSelect(T item)
+	{
+		focusItem = item;
+		setSelectedIndex(source.indexOf(item));
+		setSelectedItem(item);
+		selection.setAll(List.of(item));
 	}
 	
 	@Override

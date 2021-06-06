@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -36,6 +37,7 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.autodownloader.FanboxDownloader;
 import nigloo.gallerymanager.autodownloader.ImageReference;
 import nigloo.gallerymanager.model.Artist;
@@ -81,6 +83,7 @@ public class UIController extends Application
 	public void start(Stage primaryStage) throws Exception
 	{
 		this.primaryStage = primaryStage;
+		this.primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
 		
 		SingletonInjectionContext singletonCtx = new SingletonInjectionContext();
 		Injector.addContext(singletonCtx);
@@ -350,6 +353,8 @@ public class UIController extends Application
 			return rootItem.getChildren().stream().flatMap(item -> getImages(item).stream()).toList();
 	}
 	
+	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
+	
 	private void showThumbnails(Collection<Image> images)
 	{
 		assert images != null;
@@ -358,7 +363,7 @@ public class UIController extends Application
 		{
 			thumbnailsView.getTiles().setAll(images.stream().map(image ->
 			{
-				GalleryImageView imageView = new GalleryImageView(image, Image::getThumbnail);
+				GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC);
 				
 				// Keep imageView instance in thumbnailsView to preserve selection
 				int index = thumbnailsView.getTiles().indexOf(imageView);

@@ -1,8 +1,10 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
@@ -42,9 +44,11 @@ import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.stage.WindowEvent;
+import nigloo.gallerymanager.model.Image;
 import nigloo.tool.Utils;
 
-public class LargeVerticalTilePane extends Region
+public class ThumbnailsView extends Region
 {
 	private static final double DEFAULT_TILE_WIDTH = 100;
 	private static final double DEFAULT_TILE_HEIGHT = 100;
@@ -54,8 +58,9 @@ public class LargeVerticalTilePane extends Region
 	
 	private static final int TILE_LIST_OFFSET = 2;
 	private final ScrollBar vScrollBar;
-	private final SimpleMultipleSelectionModel<Node> selectionModel;
 	private final ObservableList<Node> tiles;
+	private final SimpleMultipleSelectionModel<Node> selectionModel;
+	private final ThumbnailsContextMenu contextMenu;
 
 	private final Region selectionRegion;
 	private Point2D selectionRegionOrigin = null;
@@ -63,10 +68,11 @@ public class LargeVerticalTilePane extends Region
 	private Point2D currentMousePosition = null;
 	private List<Node> lastSelectionRegionNodes = null;
 	
+	private boolean firstDragEvent = true;
 	private boolean invertingSelection = false;
 	private List<Node> selectedWhenStartSelectionDrag = null;
 	
-	public LargeVerticalTilePane()
+	public ThumbnailsView() throws IOException
 	{
 		super();
 		vScrollBar = new ScrollBar();
@@ -119,6 +125,22 @@ public class LargeVerticalTilePane extends Region
 		selectionModel = new SimpleMultipleSelectionModel<>(tiles);
 		selectionModel.getSelectedItems().addListener((Observable observable) -> requestLayout());
 		
+		contextMenu = new ThumbnailsContextMenu();
+		contextMenu.addEventHandler(WindowEvent.WINDOW_SHOWING, event ->
+		{
+			List<Image> allImages = tiles.stream()
+			                             .map(GalleryImageView.class::cast)
+			                             .map(GalleryImageView::getGalleryImage)
+			                             .toList();
+			List<Image> selectedImages = selectionModel.getSelectedItems()
+			                                           .stream()
+			                                           .map(GalleryImageView.class::cast)
+			                                           .map(GalleryImageView::getGalleryImage)
+			                                           .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
+			                                           .toList();
+			contextMenu.update(allImages, selectedImages);
+		});
+		
 		selectionRegion = new Region();
 		BorderStroke stroke = new BorderStroke(Color.rgb(0, 120, 215),
 		                                       BorderStrokeStyle.SOLID,
@@ -141,20 +163,14 @@ public class LargeVerticalTilePane extends Region
 		{
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
-				if (!event.isShiftDown() && !event.isControlDown())
-					selectionModel.clearSelection();
-				
-				if (event.isControlDown())
-				{
-					invertingSelection = true;
-					selectedWhenStartSelectionDrag = List.copyOf(selectionModel.getSelectedItems());
-				}
-				else
-					invertingSelection = false;
-				
+				firstDragEvent = true;
 				selectionRegionOrigin = new Point2D(event.getX(), event.getY());
 				selectionRegionOriginYOffset = actualYOffset;
 				lastSelectionRegionNodes = null;
+			}
+			else if (event.getButton() == MouseButton.SECONDARY)
+			{
+				contextMenu.show(this, event.getScreenX(), event.getScreenY());
 			}
 		});
 		
@@ -176,6 +192,8 @@ public class LargeVerticalTilePane extends Region
 		{
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
+				contextMenu.hide();
+				
 				selectionRegionOrigin = null;
 				selectionRegion.setVisible(false);
 				lastSelectionRegionNodes = null;
@@ -186,6 +204,22 @@ public class LargeVerticalTilePane extends Region
 		{
 			if (event.isPrimaryButtonDown() && selectionRegionOrigin != null)
 			{
+				if (firstDragEvent)
+				{
+					firstDragEvent = false;
+					
+					if (!event.isShiftDown() && !event.isControlDown())
+						selectionModel.clearSelection();
+					
+					if (event.isControlDown())
+					{
+						invertingSelection = true;
+						selectedWhenStartSelectionDrag = List.copyOf(selectionModel.getSelectedItems());
+					}
+					else
+						invertingSelection = false;
+				}
+				
 				currentMousePosition = new Point2D(event.getX(), event.getY());
 				updateSelectionRegion();
 				
@@ -276,7 +310,7 @@ public class LargeVerticalTilePane extends Region
 				}
 				
 				@Override
-				public CssMetaData<LargeVerticalTilePane, Number> getCssMetaData()
+				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
 				{
 					return StyleableProperties.TILE_WIDTH;
 				}
@@ -284,7 +318,7 @@ public class LargeVerticalTilePane extends Region
 				@Override
 				public Object getBean()
 				{
-					return LargeVerticalTilePane.this;
+					return ThumbnailsView.this;
 				}
 				
 				@Override
@@ -327,7 +361,7 @@ public class LargeVerticalTilePane extends Region
 				}
 				
 				@Override
-				public CssMetaData<LargeVerticalTilePane, Number> getCssMetaData()
+				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
 				{
 					return StyleableProperties.TILE_HEIGHT;
 				}
@@ -335,7 +369,7 @@ public class LargeVerticalTilePane extends Region
 				@Override
 				public Object getBean()
 				{
-					return LargeVerticalTilePane.this;
+					return ThumbnailsView.this;
 				}
 				
 				@Override
@@ -378,7 +412,7 @@ public class LargeVerticalTilePane extends Region
 				}
 				
 				@Override
-				public CssMetaData<LargeVerticalTilePane, Number> getCssMetaData()
+				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
 				{
 					return StyleableProperties.HGAP;
 				}
@@ -386,7 +420,7 @@ public class LargeVerticalTilePane extends Region
 				@Override
 				public Object getBean()
 				{
-					return LargeVerticalTilePane.this;
+					return ThumbnailsView.this;
 				}
 				
 				@Override
@@ -429,7 +463,7 @@ public class LargeVerticalTilePane extends Region
 				}
 				
 				@Override
-				public CssMetaData<LargeVerticalTilePane, Number> getCssMetaData()
+				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
 				{
 					return StyleableProperties.VGAP;
 				}
@@ -437,7 +471,7 @@ public class LargeVerticalTilePane extends Region
 				@Override
 				public Object getBean()
 				{
-					return LargeVerticalTilePane.this;
+					return ThumbnailsView.this;
 				}
 				
 				@Override
@@ -481,7 +515,7 @@ public class LargeVerticalTilePane extends Region
 				}
 				
 				@Override
-				public CssMetaData<LargeVerticalTilePane, Pos> getCssMetaData()
+				public CssMetaData<ThumbnailsView, Pos> getCssMetaData()
 				{
 					return StyleableProperties.TILE_ALIGNMENT;
 				}
@@ -489,7 +523,7 @@ public class LargeVerticalTilePane extends Region
 				@Override
 				public Object getBean()
 				{
-					return LargeVerticalTilePane.this;
+					return ThumbnailsView.this;
 				}
 				
 				@Override
@@ -760,10 +794,15 @@ public class LargeVerticalTilePane extends Region
 			
 			addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 			{
-				if (event.isPrimaryButtonDown())
+				if (event.getButton() == MouseButton.PRIMARY)
 				{
 					selectionModel.click(content, event.isShiftDown(), event.isControlDown());
-					event.consume();
+					// event.consume();
+				}
+				else if (event.getButton() == MouseButton.SECONDARY)
+				{
+					if (!event.isControlDown() || event.isShiftDown())
+						selectionModel.clearAndSelect(content);
 				}
 			});
 		}
@@ -804,96 +843,96 @@ public class LargeVerticalTilePane extends Region
 	 */
 	private static class StyleableProperties
 	{
-		private static final CssMetaData<LargeVerticalTilePane, Number> TILE_WIDTH = new CssMetaData<LargeVerticalTilePane, Number>("-fx-tile-width",
+		private static final CssMetaData<ThumbnailsView, Number> TILE_WIDTH = new CssMetaData<ThumbnailsView, Number>("-fx-tile-width",
 		                                                                                                                  SizeConverter.getInstance(),
 		                                                                                                                  DEFAULT_TILE_WIDTH)
 		{
 			
 			@Override
-			public boolean isSettable(LargeVerticalTilePane node)
+			public boolean isSettable(ThumbnailsView node)
 			{
 				return node.tileWidth == null || !node.tileWidth.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(LargeVerticalTilePane node)
+			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
 			{
 				return (StyleableProperty<Number>) node.tileWidthProperty();
 			}
 		};
 		
-		private static final CssMetaData<LargeVerticalTilePane, Number> TILE_HEIGHT = new CssMetaData<LargeVerticalTilePane, Number>("-fx-tile-height",
+		private static final CssMetaData<ThumbnailsView, Number> TILE_HEIGHT = new CssMetaData<ThumbnailsView, Number>("-fx-tile-height",
 		                                                                                                                   SizeConverter.getInstance(),
 		                                                                                                                   DEFAULT_TILE_HEIGHT)
 		{
 			
 			@Override
-			public boolean isSettable(LargeVerticalTilePane node)
+			public boolean isSettable(ThumbnailsView node)
 			{
 				return node.tileHeight == null || !node.tileHeight.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(LargeVerticalTilePane node)
+			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
 			{
 				return (StyleableProperty<Number>) node.tileHeightProperty();
 			}
 		};
 		
-		private static final CssMetaData<LargeVerticalTilePane, Number> HGAP = new CssMetaData<LargeVerticalTilePane, Number>("-fx-hgap",
+		private static final CssMetaData<ThumbnailsView, Number> HGAP = new CssMetaData<ThumbnailsView, Number>("-fx-hgap",
 		                                                                                                            SizeConverter.getInstance(),
 		                                                                                                            DEFAULT_HGAP)
 		{
 			
 			@Override
-			public boolean isSettable(LargeVerticalTilePane node)
+			public boolean isSettable(ThumbnailsView node)
 			{
 				return node.hgap == null || !node.hgap.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(LargeVerticalTilePane node)
+			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
 			{
 				return (StyleableProperty<Number>) node.hgapProperty();
 			}
 		};
 		
-		private static final CssMetaData<LargeVerticalTilePane, Number> VGAP = new CssMetaData<LargeVerticalTilePane, Number>("-fx-vgap",
+		private static final CssMetaData<ThumbnailsView, Number> VGAP = new CssMetaData<ThumbnailsView, Number>("-fx-vgap",
 		                                                                                                            SizeConverter.getInstance(),
 		                                                                                                            DEFAULT_VGAP)
 		{
 			
 			@Override
-			public boolean isSettable(LargeVerticalTilePane node)
+			public boolean isSettable(ThumbnailsView node)
 			{
 				return node.vgap == null || !node.vgap.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(LargeVerticalTilePane node)
+			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
 			{
 				return (StyleableProperty<Number>) node.vgapProperty();
 			}
 		};
 		
-		private static final CssMetaData<LargeVerticalTilePane, Pos> TILE_ALIGNMENT = new CssMetaData<LargeVerticalTilePane, Pos>("-fx-tile-alignment",
+		private static final CssMetaData<ThumbnailsView, Pos> TILE_ALIGNMENT = new CssMetaData<ThumbnailsView, Pos>("-fx-tile-alignment",
 		                                                                                                                new EnumConverter<Pos>(Pos.class),
 		                                                                                                                DEFAULT_TILE_ALIGNMENT)
 		{
 			
 			@Override
-			public boolean isSettable(LargeVerticalTilePane node)
+			public boolean isSettable(ThumbnailsView node)
 			{
 				return node.tileAlignment == null || !node.tileAlignment.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Pos> getStyleableProperty(LargeVerticalTilePane node)
+			public StyleableProperty<Pos> getStyleableProperty(ThumbnailsView node)
 			{
 				return (StyleableProperty<Pos>) node.tileAlignmentProperty();
 			}

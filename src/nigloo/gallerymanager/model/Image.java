@@ -13,6 +13,7 @@ public class Image
 	private Path path;
 	
 	transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
+	transient SoftReference<javafx.scene.image.Image> fxImageCache = null;
 	
 	@Inject
 	private transient final Gallery gallery = null;
@@ -43,7 +44,7 @@ public class Image
 		return path;
 	}
 	
-	public javafx.scene.image.Image getThumbnail()
+	public javafx.scene.image.Image getThumbnail(boolean async)
 	{
 		javafx.scene.image.Image thumbnail = (thumbnailCache == null) ? null : thumbnailCache.get();
 		if (thumbnail == null || thumbnail.isError())
@@ -51,7 +52,7 @@ public class Image
 			try
 			{
 				String imageUrl = gallery.toAbsolutePath(path).toUri().toURL().toString();
-				thumbnail = new javafx.scene.image.Image(imageUrl, 300, 300, true, true, true);
+				thumbnail = new javafx.scene.image.Image(imageUrl, 300, 300, true, true, async);
 				thumbnailCache = new SoftReference<javafx.scene.image.Image>(thumbnail);
 			}
 			catch (MalformedURLException e)
@@ -68,5 +69,32 @@ public class Image
 		javafx.scene.image.Image thumbnail = (thumbnailCache == null) ? null : thumbnailCache.get();
 		if (thumbnail != null)
 			thumbnail.cancel();
+	}
+	
+	public javafx.scene.image.Image getFXImage(boolean async)
+	{
+		javafx.scene.image.Image fxImage = (fxImageCache == null) ? null : fxImageCache.get();
+		if (fxImage == null || fxImage.isError())
+		{
+			try
+			{
+				String imageUrl = gallery.toAbsolutePath(path).toUri().toURL().toString();
+				fxImage = new javafx.scene.image.Image(imageUrl, async);
+				fxImageCache = new SoftReference<javafx.scene.image.Image>(fxImage);
+			}
+			catch (MalformedURLException e)
+			{
+				throw new RuntimeException(e);
+			}
+		}
+		
+		return fxImage;
+	}
+	
+	public void cancelLoadingFXImage()
+	{
+		javafx.scene.image.Image fxImage = (fxImageCache == null) ? null : fxImageCache.get();
+		if (fxImage != null)
+			fxImage.cancel();
 	}
 }
