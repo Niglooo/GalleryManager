@@ -206,8 +206,6 @@ public class FanboxDownloader
 					
 					request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
 					maxConcurrentStreams.acquire();
-					// TODO if imageReference==null then add image and mapping to gallery after
-					// download?
 					CompletableFuture<?> asyncResponse = httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
 					                                               .thenApply(saveInGallery(postId, imageId))
 					                                               .thenApply(r -> print(r,

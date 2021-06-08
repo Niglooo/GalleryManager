@@ -87,7 +87,6 @@ public class Gallery {
 //			}
 //			catch (java.io.IOException e)
 //			{
-//				// TODO Auto-generated catch block
 //				e.printStackTrace();
 //			}
 //		images.sort(java.util.Comparator.comparing(i -> time.get(i.getPath())));

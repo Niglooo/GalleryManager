@@ -9,8 +9,6 @@ public class Artist {
 	private String tag;
 	private String name;
 	
-	//TODO twitter, pixiv, etc
-	
 	private List<FanboxDownloader> autodownloaders;
 	
 	public Artist() {
