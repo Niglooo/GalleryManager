@@ -2,6 +2,7 @@ package nigloo.gallerymanager.model;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -55,7 +56,16 @@ public class Gallery {
 	
 	public Image findImage(Path path)
 	{
-		return images.stream().filter(image -> image.getPath().equals(path)).findAny().orElse(null);
+		final Path relPath = toRelativePath(path);
+		
+		return images.stream().filter(image -> image.getPath().equals(relPath)).findAny().orElse(null);
+	}
+	
+	public Collection<Image> findImagesIn(Path path)
+	{
+		final Path absPath = toAbsolutePath(path);
+		
+		return images.stream().filter(image -> toAbsolutePath(image.getPath()).startsWith(absPath)).toList();
 	}
 	
 	public void saveImage(Image image)

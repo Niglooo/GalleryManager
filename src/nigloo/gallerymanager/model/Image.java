@@ -97,4 +97,43 @@ public class Image
 		if (fxImage != null)
 			fxImage.cancel();
 	}
+	
+	@Override
+	public String toString()
+	{
+		javafx.scene.image.Image img;
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("{id=");
+		sb.append(id);
+		sb.append(", path=");
+		sb.append(path);
+		if (thumbnailCache != null && (img = thumbnailCache.get()) != null)
+		{
+			sb.append(", thumbnail(");
+			sb.append((int) (img.getProgress() * 100));
+			sb.append("%)");
+		}
+		if (fxImageCache != null && (img = fxImageCache.get()) != null)
+		{
+			sb.append(", fxImage(");
+			sb.append((int) (img.getProgress() * 100));
+			sb.append("%)");
+		}
+		sb.append("}");
+		
+		return sb.toString();
+	}
+	
+	public static boolean isImage(Path file)
+	{
+		String filename = file.getFileName().toString();
+		int posExt = filename.lastIndexOf('.');
+		if (posExt == -1)
+			return false;
+		
+		String extention = filename.substring(posExt + 1).toLowerCase();
+		return extention.equals("jpg") || extention.equals("jpeg") || extention.equals("jfif")
+		        || extention.equals("png") || extention.equals("gif");
+	}
 }

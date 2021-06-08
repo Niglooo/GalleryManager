@@ -60,6 +60,7 @@ public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemEl
 			}
 			else if (event.getButton() == MouseButton.SECONDARY) {
 				contextMenu.setSelectedItem(item);
+				contextMenu.setSelectedItems(fileSystemView.getSelectionModel().getSelectedItems());
 			}
 		});
 		
