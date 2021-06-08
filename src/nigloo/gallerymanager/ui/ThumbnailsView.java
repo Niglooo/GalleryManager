@@ -8,6 +8,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
+import javafx.animation.Animation.Status;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.Observable;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
@@ -27,6 +30,7 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ScrollBar;
@@ -45,8 +49,10 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 import nigloo.gallerymanager.model.Image;
 import nigloo.tool.Utils;
+import nigloo.tool.javafx.ExtraCursors;
 
 public class ThumbnailsView extends Region
 {
@@ -61,16 +67,13 @@ public class ThumbnailsView extends Region
 	private final ObservableList<Node> tiles;
 	private final SimpleMultipleSelectionModel<Node> selectionModel;
 	private final ThumbnailsContextMenu contextMenu;
-
-	private final Region selectionRegion;
-	private Point2D selectionRegionOrigin = null;
-	private double selectionRegionOriginYOffset = 0;
-	private Point2D currentMousePosition = null;
-	private List<Node> lastSelectionRegionNodes = null;
 	
-	private boolean firstDragEvent = true;
-	private boolean invertingSelection = false;
-	private List<Node> selectedWhenStartSelectionDrag = null;
+	private static final double MIDDLE_SCROLL_DEAD_AREA_SIZE = 20;
+	private static final double MIDDLE_SCROLL_FPS = 60;
+	private static final double MIDDLE_SCROLL_SPEED_FACTOR = 16;
+	private Point2D middleScrollOrigin = null;
+	private double middleScrollDeltaY = 0;
+	private final Timeline autoMiddleScroll;
 	
 	public ThumbnailsView() throws IOException
 	{
@@ -154,28 +157,86 @@ public class ThumbnailsView extends Region
 		selectionRegion.setViewOrder(-1);
 		getChildren().add(selectionRegion);
 		
-		addEventHandler(ScrollEvent.SCROLL, event ->
+		autoMiddleScroll = new Timeline(new KeyFrame(Duration.millis(1000 / MIDDLE_SCROLL_FPS), event ->
 		{
-			vScrollBar.setValue(vScrollBar.getValue() - event.getDeltaY());
-		});
+			vScrollBar.setValue(vScrollBar.getValue()
+			        - (middleScrollDeltaY * MIDDLE_SCROLL_SPEED_FACTOR / MIDDLE_SCROLL_FPS));
+		}));
+		autoMiddleScroll.setCycleCount(Timeline.INDEFINITE);
+		
+		addEventHandler(ScrollEvent.SCROLL, event -> vScrollBar.setValue(vScrollBar.getValue() - event.getDeltaY()));
 		
 		addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 		{
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
 				contextMenu.hide();
-				firstDragEvent = true;
-				selectionRegionOrigin = new Point2D(event.getX(), event.getY());
-				selectionRegionOriginYOffset = actualYOffset;
-				lastSelectionRegionNodes = null;
+				starAreaSelection(event.getX(), event.getY());
 			}
 			else if (event.getButton() == MouseButton.SECONDARY)
 			{
-				contextMenu.show(this, event.getScreenX(), event.getScreenY());
+				if (isAreaSelectionActive() && getNodeInSelectionArea().isEmpty())
+					stopAreaSelection();
+			}
+			else if (event.getButton() == MouseButton.MIDDLE)
+			{
+				setCursor(ExtraCursors.SCROLL_MIDDLE);
+				middleScrollOrigin = new Point2D(event.getX(), event.getY());
 			}
 		});
 		
-		// Region are not focusTraversable by defaut so they don't receive key events.
+		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
+		{
+			stopAreaSelection();
+			
+			if (event.getButton() == MouseButton.SECONDARY)
+			{
+				contextMenu.show(this, event.getScreenX(), event.getScreenY());
+			}
+			else if (event.getButton() == MouseButton.MIDDLE)
+			{
+				setCursor(Cursor.DEFAULT);
+				middleScrollOrigin = null;
+				autoMiddleScroll.stop();
+			}
+		});
+		
+		addEventHandler(MouseEvent.MOUSE_DRAGGED, event ->
+		{
+			if (event.isPrimaryButtonDown() && isAreaSelectionActive())
+			{
+				updateSelectionArea(event.getX(), event.getY(), event.isShiftDown(), event.isControlDown());
+			}
+			
+			if (event.isMiddleButtonDown() && middleScrollOrigin != null)
+			{
+				double deltaY = middleScrollOrigin.getY() - event.getY();
+				
+				if (deltaY > MIDDLE_SCROLL_DEAD_AREA_SIZE)
+				{
+					deltaY -= MIDDLE_SCROLL_DEAD_AREA_SIZE;
+					setCursor(ExtraCursors.SCROLL_UP);
+				}
+				else if (deltaY < -MIDDLE_SCROLL_DEAD_AREA_SIZE)
+				{
+					deltaY += MIDDLE_SCROLL_DEAD_AREA_SIZE;
+					setCursor(ExtraCursors.SCROLL_DOWN);
+				}
+				else
+				{
+					deltaY = 0;
+					setCursor(ExtraCursors.SCROLL_MIDDLE);
+				}
+				
+				middleScrollDeltaY = deltaY;
+				if (middleScrollDeltaY == 0)
+					autoMiddleScroll.stop();
+				else if (autoMiddleScroll.getStatus() != Status.RUNNING)
+					autoMiddleScroll.playFromStart();
+			}
+		});
+		
+		// Region are not focusTraversable by default so they don't receive key events.
 		// Register the event listener on the scene instead
 		sceneProperty().addListener((obs, oldValue, newValue) ->
 		{
@@ -187,94 +248,6 @@ public class ThumbnailsView extends Region
 					selectedWhenStartSelectionDrag = null;
 				}
 			});
-		});
-		
-		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
-		{
-			if (event.getButton() == MouseButton.PRIMARY)
-			{
-				selectionRegionOrigin = null;
-				selectionRegion.setVisible(false);
-				lastSelectionRegionNodes = null;
-			}
-		});
-		
-		addEventHandler(MouseEvent.MOUSE_DRAGGED, event ->
-		{
-			if (event.isPrimaryButtonDown() && selectionRegionOrigin != null)
-			{
-				if (firstDragEvent)
-				{
-					firstDragEvent = false;
-					
-					if (!event.isShiftDown() && !event.isControlDown())
-						selectionModel.clearSelection();
-					
-					if (event.isControlDown())
-					{
-						invertingSelection = true;
-						selectedWhenStartSelectionDrag = List.copyOf(selectionModel.getSelectedItems());
-					}
-					else
-						invertingSelection = false;
-				}
-				
-				currentMousePosition = new Point2D(event.getX(), event.getY());
-				updateSelectionRegion();
-				
-				List<Node> selectionRegionNode = getManagedChildren().stream()
-				                                                     .skip(TILE_LIST_OFFSET)
-				                                                     .filter(n -> n.getBoundsInParent()
-				                                                                   .intersects(selectionRegion.getBoundsInParent()))
-				                                                     .map(TileWrapper.class::cast)
-				                                                     .map(this::unwrapNode)
-				                                                     .toList();
-				
-				if (lastSelectionRegionNodes == null)
-					lastSelectionRegionNodes = List.of();
-				
-				List<Node> enteringNodes = new ArrayList<>(selectionRegionNode);
-				enteringNodes.removeAll(lastSelectionRegionNodes);
-				
-				List<Node> exitingNodes = new ArrayList<>(lastSelectionRegionNodes);
-				exitingNodes.removeAll(selectionRegionNode);
-				
-				List<Node> toSelect = new ArrayList<>();
-				List<Node> toUnselect = new ArrayList<>();
-				
-				enteringNodes.forEach(node ->
-				{
-					if (invertingSelection)
-					{
-						if (selectedWhenStartSelectionDrag.contains(node))
-							toUnselect.add(node);
-						else
-							toSelect.add(node);
-					}
-					else if (!selectionModel.getSelectedItems().contains(node))
-						toSelect.add(node);
-				});
-				
-				exitingNodes.forEach(node ->
-				{
-					if (invertingSelection)
-					{
-						if (selectedWhenStartSelectionDrag.contains(node))
-							toSelect.add(node);
-						else
-							toUnselect.add(node);
-					}
-					else
-						toUnselect.add(node);
-				});
-				
-				lastSelectionRegionNodes = selectionRegionNode;
-				
-				selectionModel.getSelectedItems().addAll(toSelect);
-				selectionModel.getSelectedItems().removeAll(toUnselect);
-				
-				selectionRegion.setVisible(true);
-			}
 		});
 		
 		//TODO css
@@ -553,6 +526,10 @@ public class ThumbnailsView extends Region
 		return localPos == null ? DEFAULT_TILE_ALIGNMENT : localPos;
 	}
 	
+	/***************************************************************************
+	 * * Layout Handling * *
+	 **************************************************************************/
+	
 	@Override
 	protected double computeMinWidth(double height)
 	{
@@ -830,7 +807,7 @@ public class ThumbnailsView extends Region
 	
 	private void updateSelectionRegion()
 	{
-		if (selectionRegionOrigin == null)
+		if (!isAreaSelectionActive())
 			return;
 		
 		double yOrigin = selectionRegionOrigin.getY() - selectionRegionOriginYOffset + actualYOffset;
@@ -842,6 +819,123 @@ public class ThumbnailsView extends Region
 		selectionRegion.setPrefHeight(Math.abs(yOrigin - currentMousePosition.getY()));
 		
 		selectionRegion.autosize();
+	}
+	
+	/***************************************************************************
+	 * * Selection Handling * *
+	 **************************************************************************/
+	
+	// Set when stating and area selection
+	private final Region selectionRegion;
+	private Point2D selectionRegionOrigin = null;
+	private double selectionRegionOriginYOffset = 0;
+	
+	// Set at first drag event
+	private boolean firstDragEvent = true;
+	private boolean invertingSelection = false;
+	private List<Node> selectedWhenStartSelectionDrag = null;
+	
+	// Updated every drag event
+	private Point2D currentMousePosition = null;
+	private List<Node> lastSelectionRegionNodes = null;
+	
+	private boolean isAreaSelectionActive()
+	{
+		return selectionRegionOrigin != null;
+	}
+	
+	private void starAreaSelection(double x, double y)
+	{
+		firstDragEvent = true;
+		selectionRegionOrigin = new Point2D(x, y);
+		selectionRegionOriginYOffset = actualYOffset;
+		lastSelectionRegionNodes = null;
+	}
+	
+	private void stopAreaSelection()
+	{
+		selectionRegionOrigin = null;
+		selectionRegion.setVisible(false);
+		lastSelectionRegionNodes = null;
+	}
+
+	private List<Node> getNodeInSelectionArea()
+	{
+		return getManagedChildren().stream()
+		                           .skip(TILE_LIST_OFFSET)
+		                           .filter(n -> n.getBoundsInParent().intersects(selectionRegion.getBoundsInParent()))
+		                           .map(TileWrapper.class::cast)
+		                           .map(this::unwrapNode)
+		                           .toList();
+	}
+	
+	private void updateSelectionArea(double x, double y, boolean shiftDown, boolean controlDown)
+	{
+		if (firstDragEvent)
+		{
+			firstDragEvent = false;
+			
+			if (!shiftDown && !controlDown)
+				selectionModel.clearSelection();
+			
+			if (controlDown)
+			{
+				invertingSelection = true;
+				selectedWhenStartSelectionDrag = List.copyOf(selectionModel.getSelectedItems());
+			}
+			else
+				invertingSelection = false;
+		}
+		
+		currentMousePosition = new Point2D(x, y);
+		updateSelectionRegion();
+		
+		List<Node> selectionRegionNode = getNodeInSelectionArea();
+		
+		if (lastSelectionRegionNodes == null)
+			lastSelectionRegionNodes = List.of();
+		
+		List<Node> enteringNodes = new ArrayList<>(selectionRegionNode);
+		enteringNodes.removeAll(lastSelectionRegionNodes);
+		
+		List<Node> exitingNodes = new ArrayList<>(lastSelectionRegionNodes);
+		exitingNodes.removeAll(selectionRegionNode);
+		
+		List<Node> toSelect = new ArrayList<>();
+		List<Node> toUnselect = new ArrayList<>();
+		
+		enteringNodes.forEach(node ->
+		{
+			if (invertingSelection)
+			{
+				if (selectedWhenStartSelectionDrag.contains(node))
+					toUnselect.add(node);
+				else
+					toSelect.add(node);
+			}
+			else if (!selectionModel.getSelectedItems().contains(node))
+				toSelect.add(node);
+		});
+		
+		exitingNodes.forEach(node ->
+		{
+			if (invertingSelection)
+			{
+				if (selectedWhenStartSelectionDrag.contains(node))
+					toSelect.add(node);
+				else
+					toUnselect.add(node);
+			}
+			else
+				toUnselect.add(node);
+		});
+		
+		lastSelectionRegionNodes = selectionRegionNode;
+		
+		selectionModel.getSelectedItems().addAll(toSelect);
+		selectionModel.getSelectedItems().removeAll(toUnselect);
+		
+		selectionRegion.setVisible(true);
 	}
 	
 	/***************************************************************************
