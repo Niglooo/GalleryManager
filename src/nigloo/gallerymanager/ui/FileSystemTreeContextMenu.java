@@ -19,10 +19,10 @@ import nigloo.tool.injection.annotation.Inject;
 public class FileSystemTreeContextMenu extends ContextMenu
 {
 	@Inject
-	private final UIController uiController = null;
+	private UIController uiController;
 	
 	@Inject
-	private final Gallery gallery = null;
+	private Gallery gallery;
 	
 	private TreeItem<FileSystemElement> selectedItem;
 	private Collection<TreeItem<FileSystemElement>> selectedItems;

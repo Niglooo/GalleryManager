@@ -25,7 +25,7 @@ import nigloo.tool.injection.annotation.Inject;
 public class FileSystemTreeManager
 {
 	@Inject
-	private final Gallery gallery = null;
+	private Gallery gallery;
 	
 	private final ForkJoinPool pool;
 	

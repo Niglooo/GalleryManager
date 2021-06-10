@@ -59,7 +59,7 @@ import nigloo.tool.injection.annotation.Inject;
 public class FanboxDownloader
 {
 	@Inject
-	private transient final Gallery gallery = null;
+	private transient Gallery gallery;
 	
 	private final String creatorId;
 	private String imagePathPattern;

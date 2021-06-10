@@ -16,9 +16,9 @@ import nigloo.tool.injection.annotation.Inject;
 public class ThumbnailsContextMenu extends ContextMenu
 {
 	@Inject
-	private final UIController uiController = null;
+	private UIController uiController;
 	@Inject
-	private final Gallery gallery = null;
+	private Gallery gallery;
 	
 	@FXML
 	private MenuItem startSlideShowAllImagesItem;
