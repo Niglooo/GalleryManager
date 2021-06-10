@@ -17,6 +17,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
 import javafx.css.Styleable;
@@ -34,6 +35,7 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ScrollBar;
+import javafx.scene.input.GestureEvent;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -69,11 +71,12 @@ public class ThumbnailsView extends Region
 	private final ThumbnailsContextMenu contextMenu;
 	
 	private static final double MIDDLE_SCROLL_DEAD_AREA_SIZE = 20;
-	private static final double MIDDLE_SCROLL_FPS = 60;
+	private static final double MIDDLE_SCROLL_REFRESH_RATE = 60;
 	private static final double MIDDLE_SCROLL_SPEED_FACTOR = 16;
 	private Point2D middleScrollOrigin = null;
-	private double middleScrollDeltaY = 0;
-	private final Timeline autoMiddleScroll;
+	
+	private final DoubleProperty autoScrollDeltaY;
+	private final Timeline autoScroll;
 	
 	public ThumbnailsView() throws IOException
 	{
@@ -85,9 +88,8 @@ public class ThumbnailsView extends Region
 		vScrollBar.valueProperty().addListener((obs, oldValue, newValue) ->
 		{
 			upadteTilesDisposition();
-			updateSelectionRegion();
+			updateSelectionArea();
 			requestLayout();
-			
 		});
 		getChildren().add(vScrollBar);
 		
@@ -144,30 +146,43 @@ public class ThumbnailsView extends Region
 			contextMenu.update(allImages, selectedImages);
 		});
 		
-		selectionRegion = new Region();
+		selectionArea = new Region();
 		BorderStroke stroke = new BorderStroke(Color.rgb(0, 120, 215),
 		                                       BorderStrokeStyle.SOLID,
 		                                       null,
 		                                       new BorderWidths(1));
-		selectionRegion.setBorder(new Border(stroke, stroke, stroke, stroke));
-		selectionRegion.setBackground(new Background(new BackgroundFill(Color.rgb(0, 120, 215, 0.4),
+		selectionArea.setBorder(new Border(stroke, stroke, stroke, stroke));
+		selectionArea.setBackground(new Background(new BackgroundFill(Color.rgb(0, 120, 215, 0.4),
 		                                                                null,
 		                                                                null)));
-		selectionRegion.setVisible(false);
-		selectionRegion.setViewOrder(-1);
-		getChildren().add(selectionRegion);
+		selectionArea.setVisible(false);
+		selectionArea.setViewOrder(-1);
+		getChildren().add(selectionArea);
 		
-		autoMiddleScroll = new Timeline(new KeyFrame(Duration.millis(1000 / MIDDLE_SCROLL_FPS), event ->
+		autoScrollDeltaY = new SimpleDoubleProperty(this, "autoScrollDeltaY", 0);
+		autoScroll = new Timeline(new KeyFrame(Duration.millis(1000 / MIDDLE_SCROLL_REFRESH_RATE), event ->
 		{
 			vScrollBar.setValue(vScrollBar.getValue()
-			        - (middleScrollDeltaY * MIDDLE_SCROLL_SPEED_FACTOR / MIDDLE_SCROLL_FPS));
+			        - (autoScrollDeltaY.get() * MIDDLE_SCROLL_SPEED_FACTOR / MIDDLE_SCROLL_REFRESH_RATE));
 		}));
-		autoMiddleScroll.setCycleCount(Timeline.INDEFINITE);
+		autoScroll.setCycleCount(Timeline.INDEFINITE);
+		autoScrollDeltaY.addListener((obs, oldValue, newValue) ->
+		{
+			if (newValue.doubleValue() == 0 && autoScroll.getStatus() == Status.RUNNING)
+				autoScroll.stop();
+			else if (newValue.doubleValue() != 0 && autoScroll.getStatus() != Status.RUNNING)
+				autoScroll.playFromStart();
+		});
 		
-		addEventHandler(ScrollEvent.SCROLL, event -> vScrollBar.setValue(vScrollBar.getValue() - event.getDeltaY()));
+		addEventHandler(ScrollEvent.SCROLL, event ->
+		{
+			updateInputState(event);
+			vScrollBar.setValue(vScrollBar.getValue() - event.getDeltaY());
+		});
 		
 		addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 		{
+			updateInputState(event);
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
 				contextMenu.hide();
@@ -187,6 +202,23 @@ public class ThumbnailsView extends Region
 		
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
+			updateInputState(event);
+			
+			/*
+			 * Use selectionRegion.isVisible() instead of isAreaSelectionActive() because
+			 * isAreaSelectionActive() pretty much always return true here since it
+			 * activates as soon as the mouse is pressed. But the area become visible only
+			 * when its size is non zero (after the mouse move or there is a scroll)
+			 */
+			if (!selectionArea.isVisible()
+			        && !lastVisibleTiles.stream()
+			                            .map(TileWrapper::getBoundsInParent)
+			                            .anyMatch(bounds -> bounds.contains(currentMousePosition)))
+			{
+				selectionModel.clearSelection();
+				requestLayout();
+			}
+			
 			stopAreaSelection();
 			
 			if (event.getButton() == MouseButton.SECONDARY)
@@ -197,15 +229,28 @@ public class ThumbnailsView extends Region
 			{
 				setCursor(Cursor.DEFAULT);
 				middleScrollOrigin = null;
-				autoMiddleScroll.stop();
+				autoScrollDeltaY.set(0);
 			}
 		});
 		
 		addEventHandler(MouseEvent.MOUSE_DRAGGED, event ->
 		{
+			updateInputState(event);
+			
 			if (event.isPrimaryButtonDown() && isAreaSelectionActive())
 			{
-				updateSelectionArea(event.getX(), event.getY(), event.isShiftDown(), event.isControlDown());
+				updateSelectionArea();
+				
+				// Autoscroll when selecting and the mouse of out of bound
+				if (middleScrollOrigin == null)
+				{
+					if (event.getY() < 0)
+						autoScrollDeltaY.set(-event.getY());
+					else if (event.getY() >= getHeight())
+						autoScrollDeltaY.set(getHeight() - event.getY());
+					else 
+						autoScrollDeltaY.set(0);
+				}
 			}
 			
 			if (event.isMiddleButtonDown() && middleScrollOrigin != null)
@@ -228,11 +273,7 @@ public class ThumbnailsView extends Region
 					setCursor(ExtraCursors.SCROLL_MIDDLE);
 				}
 				
-				middleScrollDeltaY = deltaY;
-				if (middleScrollDeltaY == 0)
-					autoMiddleScroll.stop();
-				else if (autoMiddleScroll.getStatus() != Status.RUNNING)
-					autoMiddleScroll.playFromStart();
+				autoScrollDeltaY.set(deltaY);
 			}
 		});
 		
@@ -242,11 +283,21 @@ public class ThumbnailsView extends Region
 		{
 			newValue.addEventHandler(KeyEvent.KEY_RELEASED, event ->
 			{
+				updateInputState(event);
+				
 				if (invertingSelection && !event.isControlDown())
 				{
 					invertingSelection = false;
 					selectedWhenStartSelectionDrag = null;
 				}
+			});
+		});
+		
+		sceneProperty().addListener((obs, oldValue, newValue) ->
+		{
+			newValue.addEventHandler(KeyEvent.KEY_PRESSED, event ->
+			{
+				updateInputState(event);
 			});
 		});
 		
@@ -629,7 +680,7 @@ public class ThumbnailsView extends Region
 		             HPos.RIGHT,
 		             VPos.TOP);
 		
-		Collection<TileWrapper> visibleNodes = new ArrayList<>();
+		Collection<TileWrapper> visibleTiles = new ArrayList<>();
 		
 		int c = 0;
 		int r = 0;
@@ -655,7 +706,7 @@ public class ThumbnailsView extends Region
 				             getTileAlignmentInternal().getHpos(),
 				             getTileAlignmentInternal().getVpos());
 				
-				visibleNodes.add(tile);
+				visibleTiles.add(tile);
 			}
 			else
 				tile.setVisible(false);
@@ -667,10 +718,10 @@ public class ThumbnailsView extends Region
 			}
 		}
 		
-		lastVisibleTiles.removeAll(visibleNodes);
+		lastVisibleTiles.removeAll(visibleTiles);
 		for (Node node : lastVisibleTiles)
 			node.setVisible(false);
-		lastVisibleTiles = visibleNodes;
+		lastVisibleTiles = visibleTiles;
 	}
 	
 	private TileWrapper wrapNode(Node unwrapped)
@@ -812,30 +863,15 @@ public class ThumbnailsView extends Region
 		}
 	}
 	
-	private void updateSelectionRegion()
-	{
-		if (!isAreaSelectionActive())
-			return;
-		
-		double yOrigin = selectionRegionOrigin.getY() - selectionRegionOriginYOffset + actualYOffset;
-		
-		selectionRegion.setLayoutX(Math.min(selectionRegionOrigin.getX(), currentMousePosition.getX()));
-		selectionRegion.setLayoutY(Math.min(yOrigin, currentMousePosition.getY()));
-		
-		selectionRegion.setPrefWidth(Math.abs(selectionRegionOrigin.getX() - currentMousePosition.getX()));
-		selectionRegion.setPrefHeight(Math.abs(yOrigin - currentMousePosition.getY()));
-		
-		selectionRegion.autosize();
-	}
 	
 	/***************************************************************************
 	 * * Selection Handling * *
 	 **************************************************************************/
 	
-	// Set when stating and area selection
-	private final Region selectionRegion;
-	private Point2D selectionRegionOrigin = null;
-	private double selectionRegionOriginYOffset = 0;
+	// Set when starting an area selection
+	private final Region selectionArea;
+	private Point2D selectionAreaOrigin = null;
+	private double selectionAreaOriginYOffset = 0;
 	
 	// Set at first drag event
 	private boolean firstDragEvent = true;
@@ -843,41 +879,75 @@ public class ThumbnailsView extends Region
 	private List<Node> selectedWhenStartSelectionDrag = null;
 	
 	// Updated every drag event
-	private Point2D currentMousePosition = null;
 	private List<Node> lastSelectionRegionNodes = null;
 	
 	private boolean isAreaSelectionActive()
 	{
-		return selectionRegionOrigin != null;
+		return selectionAreaOrigin != null;
 	}
 	
 	private void starAreaSelection(double x, double y)
 	{
 		firstDragEvent = true;
-		selectionRegionOrigin = new Point2D(x, y);
-		selectionRegionOriginYOffset = actualYOffset;
+		selectionAreaOrigin = new Point2D(x, y);
+		selectionAreaOriginYOffset = actualYOffset;
 		lastSelectionRegionNodes = null;
 	}
 	
 	private void stopAreaSelection()
 	{
-		selectionRegionOrigin = null;
-		selectionRegion.setVisible(false);
+		selectionAreaOrigin = null;
+		selectionArea.setVisible(false);
 		lastSelectionRegionNodes = null;
+		
+		if (middleScrollOrigin == null)
+			autoScrollDeltaY.set(0);
 	}
 
+	// Don't rely on layoutChildren() having been called before
+	// (updateTilesDisposition is enough)
 	private List<Node> getNodeInSelectionArea()
 	{
-		return getManagedChildren().stream()
-		                           .skip(TILE_LIST_OFFSET)
-		                           .filter(n -> n.getBoundsInParent().intersects(selectionRegion.getBoundsInParent()))
-		                           .map(TileWrapper.class::cast)
-		                           .map(this::unwrapNode)
-		                           .toList();
+		List<Node> managed = getManagedChildren();
+		double top = snapSpaceY(getInsets().getTop());
+		double left = snapSpaceX(getInsets().getLeft());
+		double vgap = snapSpaceY(getVgap());
+		double hgap = snapSpaceX(getHgap());
+		
+		double tileWidth = getTileWidth();
+		double tileHeight = getTileHeight();
+		
+		List<Node> nodeInSelectionArea = new ArrayList<>();
+		
+		int c = 0;
+		int r = 0;
+		for (int i = TILE_LIST_OFFSET ; i < managed.size() ; i++)
+		{
+			TileWrapper tile = (TileWrapper) managed.get(i);
+			
+			double tileX = left + (c * (tileWidth + hgap));
+			double tileY = actualYOffset + top + (r * (tileHeight + vgap));
+			
+			if (selectionArea.getBoundsInParent().intersects(tileX, tileY, tileWidth, tileHeight))
+			{
+				nodeInSelectionArea.add(unwrapNode(tile));
+			}
+			
+			if (++c == actualColumns)
+			{
+				++r;
+				c = 0;
+			}
+		}
+		
+		return nodeInSelectionArea;
 	}
 	
-	private void updateSelectionArea(double x, double y, boolean shiftDown, boolean controlDown)
+	private void updateSelectionArea()
 	{
+		if (!isAreaSelectionActive())
+			return;
+		
 		if (firstDragEvent)
 		{
 			firstDragEvent = false;
@@ -894,9 +964,14 @@ public class ThumbnailsView extends Region
 				invertingSelection = false;
 		}
 		
-		currentMousePosition = new Point2D(x, y);
-		updateSelectionRegion();
-		
+		// Updating selectionRegion bounds
+		double yOrigin = selectionAreaOrigin.getY() - selectionAreaOriginYOffset + actualYOffset;
+		selectionArea.setLayoutX(Math.min(selectionAreaOrigin.getX(), currentMousePosition.getX()));
+		selectionArea.setLayoutY(Math.min(yOrigin, currentMousePosition.getY()));
+		selectionArea.setPrefWidth(Math.abs(selectionAreaOrigin.getX() - currentMousePosition.getX()));
+		selectionArea.setPrefHeight(Math.abs(yOrigin - currentMousePosition.getY()));
+		selectionArea.autosize();
+
 		List<Node> selectionRegionNode = getNodeInSelectionArea();
 		
 		if (lastSelectionRegionNodes == null)
@@ -942,7 +1017,31 @@ public class ThumbnailsView extends Region
 		selectionModel.getSelectedItems().addAll(toSelect);
 		selectionModel.getSelectedItems().removeAll(toUnselect);
 		
-		selectionRegion.setVisible(true);
+		selectionArea.setVisible(true);
+	}
+	
+	private boolean controlDown = false;
+	private boolean shiftDown = false;
+	private Point2D currentMousePosition = null;
+	
+	private void updateInputState(GestureEvent event)
+	{
+		controlDown = event.isControlDown();
+		shiftDown = event.isShiftDown();
+		currentMousePosition = new Point2D(event.getX(), event.getY());
+	}
+	
+	private void updateInputState(MouseEvent event)
+	{
+		controlDown = event.isControlDown();
+		shiftDown = event.isShiftDown();
+		currentMousePosition = new Point2D(event.getX(), event.getY());
+	}
+	
+	private void updateInputState(KeyEvent event)
+	{
+		controlDown = event.isControlDown();
+		shiftDown = event.isShiftDown();
 	}
 	
 	/***************************************************************************
