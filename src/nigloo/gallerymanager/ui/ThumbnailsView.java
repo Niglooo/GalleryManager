@@ -775,11 +775,18 @@ public class ThumbnailsView extends Region
 					if (event.getClickCount() == 2)
 					{
 						
-						new SlideShowStage(tiles.stream()
-						                        .map(GalleryImageView.class::cast)
-						                        .map(GalleryImageView::getGalleryImage)
-						                        .toList(),
-						                   tiles.indexOf(content)).show();
+						try
+						{
+							new SlideShowStage(tiles.stream()
+							                        .map(GalleryImageView.class::cast)
+							                        .map(GalleryImageView::getGalleryImage)
+							                        .toList(),
+							                   tiles.indexOf(content)).show();
+						}
+						catch (IOException e)
+						{
+							throw new RuntimeException(e);
+						}
 					}
 					else
 					{

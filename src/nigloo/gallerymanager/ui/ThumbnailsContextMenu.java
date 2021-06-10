@@ -51,7 +51,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 	}
 	
 	@FXML
-	protected void startSlideShow()
+	protected void startSlideShow() throws IOException
 	{
 		int startingIndex = 0;
 		if (selectedImages.size() == 1)
@@ -61,7 +61,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 	}
 	
 	@FXML
-	protected void startSlideShowSelection()
+	protected void startSlideShowSelection() throws IOException
 	{
 		new SlideShowStage(selectedImages, 0).show();
 	}

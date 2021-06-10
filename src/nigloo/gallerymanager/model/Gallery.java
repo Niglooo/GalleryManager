@@ -16,7 +16,7 @@ public class Gallery {
 	
 	private List<Artist> artists = new ArrayList<>();
 	private List<Image> images = new ArrayList<>();
-	//Tags are free
+	private SlideShowParameters slideShowParameter = new SlideShowParameters();
 	
 	private transient long nextId = 1;
 	
@@ -85,6 +85,11 @@ public class Gallery {
 	public List<Artist> getArtists()
 	{
 		return artists;
+	}
+	
+	public SlideShowParameters getSlideShowParameter()
+	{
+		return slideShowParameter;
 	}
 	
 	public void compactIds()

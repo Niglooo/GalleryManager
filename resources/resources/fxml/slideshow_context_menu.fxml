@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.CheckMenuItem?>
+<?import javafx.scene.control.ContextMenu?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+
+<fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+   <items>
+      <MenuItem fx:id="playItem" mnemonicParsing="false" onAction="#play" text="Play" />
+      <MenuItem fx:id="pauseItem" mnemonicParsing="false" onAction="#pause" text="Pause" />
+      <MenuItem mnemonicParsing="false" onAction="#next" text="Next" />
+      <MenuItem mnemonicParsing="false" onAction="#previous" text="Back" />
+      <SeparatorMenuItem />
+      <CheckMenuItem fx:id="shuffleItem" mnemonicParsing="false" onAction="#shuffle" text="Shuffle" />
+      <CheckMenuItem fx:id="loopItem" mnemonicParsing="false" onAction="#loop" text="Loop" />
+   </items>
+</fx:root>
