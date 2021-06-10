@@ -14,5 +14,9 @@
       <SeparatorMenuItem />
       <CheckMenuItem fx:id="shuffleItem" mnemonicParsing="false" onAction="#shuffle" text="Shuffle" />
       <CheckMenuItem fx:id="loopItem" mnemonicParsing="false" onAction="#loop" text="Loop" />
+      <SeparatorMenuItem />
+      <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="10" text="Slide Show Speed - Slow" />
+      <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="5" text="Slide Show Speed - Medium" />
+      <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="3" text="Slide Show Speed - Fast" />
    </items>
 </fx:root>

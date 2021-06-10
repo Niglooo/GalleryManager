@@ -4,7 +4,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import javafx.animation.Animation.Status;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
@@ -21,6 +25,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.tool.injection.Injector;
@@ -41,6 +46,7 @@ public class SlideShowStage extends Stage
 	
 	private final ImageView imageView;
 	
+	private final Timeline autoplay;
 	private final FullImageUpdatingThread fullImageUpdatingThread;
 	
 	public SlideShowStage(List<Image> images, int startingIndex) throws IOException
@@ -71,6 +77,10 @@ public class SlideShowStage extends Stage
 		imageView.setSmooth(true);
 		
 		fullImageUpdatingThread = new FullImageUpdatingThread();
+		
+		autoplay = new Timeline(new KeyFrame(Duration.seconds(1), event -> next()));
+		autoplay.setCycleCount(Timeline.INDEFINITE);
+		setAutoplayDelay(gallery.getSlideShowParameter().getAutoplayDelay());
 		
 		StackPane contentRoot = new StackPane(imageView);
 		contentRoot.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
@@ -112,11 +122,14 @@ public class SlideShowStage extends Stage
 		setFullScreen(true);
 		
 		setCurrent(currentImageIdx);
+		
+		autoplay.playFromStart();
 	}
 	
 	@Override
 	public void close()
 	{
+		// TODO Scroll to last slideshow image visible in thumbnailview
 		fullImageUpdatingThread.safeStop();
 		super.close();
 	}
@@ -131,6 +144,14 @@ public class SlideShowStage extends Stage
 		setCurrent(validIndex(currentImageIdx, -1));
 	}
 	
+	public void setAutoPlay(boolean autoplay)
+	{
+		if (autoplay && this.autoplay.getStatus() != Status.RUNNING)
+			this.autoplay.playFromStart();
+		else if (!autoplay && this.autoplay.getStatus() == Status.RUNNING)
+			this.autoplay.stop();
+	}
+	
 	public void setShuffled(boolean shuffled)
 	{
 		if (shuffled == gallery.getSlideShowParameter().isShuffled())
@@ -138,7 +159,8 @@ public class SlideShowStage extends Stage
 		
 		gallery.getSlideShowParameter().setShuffled(shuffled);
 		
-		// TODO reset image auto next
+		boolean playing = autoplay.getStatus() == Status.RUNNING;
+		autoplay.stop();
 		if (shuffled) // ordered -> shuffled
 		{
 			List<Image> shuffledImages = new ArrayList<>(imagesOrdered);
@@ -152,6 +174,9 @@ public class SlideShowStage extends Stage
 			images = imagesOrdered;
 			setCurrent(index);
 		}
+		if (playing)
+			autoplay.playFromStart();
+		fullImageUpdatingThread.forceRefresh();
 	}
 	
 	public boolean isShuffled()
@@ -169,13 +194,28 @@ public class SlideShowStage extends Stage
 		gallery.getSlideShowParameter().setLooped(looped);
 	}
 	
+	public double getAutoplayDelay()
+	{
+		return gallery.getSlideShowParameter().getAutoplayDelay();
+	}
+	
+	public void setAutoplayDelay(double autoplayDelay)
+	{
+		assert autoplayDelay > 0;
+		
+		gallery.getSlideShowParameter().setAutoplayDelay(autoplayDelay);
+		boolean playing = autoplay.getStatus() == Status.RUNNING;
+		autoplay.stop();
+		autoplay.setRate(1 / autoplayDelay);
+		if (playing)
+			autoplay.playFromStart();
+	}
+	
 	int validIndex(int index, int offset)
 	{
+		assert index >= 0 && index < images.size();
+		
 		int nbImages = images.size();
-		
-		if (index < 0 || index >= nbImages)
-			throw new IndexOutOfBoundsException(index);
-		
 		index += offset;
 		
 		if (index < 0)
@@ -218,10 +258,17 @@ public class SlideShowStage extends Stage
 	
 	private class FullImageUpdatingThread extends SafeThread
 	{
+		private final AtomicBoolean forceRefresh = new AtomicBoolean(false);
+		
 		public FullImageUpdatingThread()
 		{
 			super("slide-show-deamon");
 			setDaemon(true);
+		}
+		
+		public void forceRefresh()
+		{
+			forceRefresh.set(true);
 		}
 		
 		@Override
@@ -253,7 +300,7 @@ public class SlideShowStage extends Stage
 						
 						javafx.scene.image.Image fxImage = image.getFXImage(true);
 						
-						if (current != currentImageIdx)
+						if (current != currentImageIdx || forceRefresh.compareAndSet(true, false))
 						{
 							previousImagesToLoad = imagesToLoad;
 							continue mainLoop;
@@ -264,7 +311,7 @@ public class SlideShowStage extends Stage
 							checkThreadState();
 							Thread.sleep(100);
 							
-							if (current != currentImageIdx)
+							if (current != currentImageIdx || forceRefresh.compareAndSet(true, false))
 							{
 								previousImagesToLoad = imagesToLoad;
 								continue mainLoop;
@@ -275,7 +322,7 @@ public class SlideShowStage extends Stage
 							imageView.setImage(fxImage);
 					}
 					
-					while (current == currentImageIdx)
+					while (current == currentImageIdx && !forceRefresh.get())
 					{
 						checkThreadState();
 						Thread.sleep(100);
