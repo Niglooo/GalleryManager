@@ -139,7 +139,7 @@ public class UIController extends Application
 	{
 		if (rootItem == null || rootItem.getValue() == null)
 			return List.of();
-		else if (!rootItem.getValue().isDirectory())
+		else if (rootItem.getValue().isImage())
 			return List.of(rootItem.getValue().getImage());
 		else
 			return rootItem.getChildren().stream().flatMap(item -> getImages(item).stream()).toList();
