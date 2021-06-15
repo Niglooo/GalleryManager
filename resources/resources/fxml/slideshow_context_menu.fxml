@@ -18,5 +18,7 @@
       <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="10" text="Slide Show Speed - Slow" />
       <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="5" text="Slide Show Speed - Medium" />
       <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="3" text="Slide Show Speed - Fast" />
+      <SeparatorMenuItem />
+      <MenuItem mnemonicParsing="false" onAction="#exit" text="Exit" />
    </items>
 </fx:root>

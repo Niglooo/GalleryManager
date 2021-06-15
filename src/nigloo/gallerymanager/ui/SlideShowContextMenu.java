@@ -112,4 +112,10 @@ public class SlideShowContextMenu extends ContextMenu
 		
 		slideShow.setAutoplayDelay(selectSpeed);
 	}
+	
+	@FXML
+	protected void exit()
+	{
+		slideShow.close();
+	}
 }
