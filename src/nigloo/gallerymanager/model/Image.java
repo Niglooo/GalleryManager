@@ -28,6 +28,7 @@ public class Image
 		this();
 		this.id = -1;
 		this.path = path;
+		assert !path.isAbsolute();
 	}
 	
 	public boolean isSaved()
@@ -42,6 +43,11 @@ public class Image
 	
 	public Path getPath() {
 		return path;
+	}
+	
+	public Path getAbsolutePath()
+	{
+		return gallery.toAbsolutePath(path);
 	}
 	
 	public javafx.scene.image.Image getThumbnail(boolean async)

@@ -80,6 +80,6 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void openInFileExplorer() throws IOException
 	{
-		Desktop.getDesktop().open(gallery.toAbsolutePath(selectedItem.getValue().getPath()).toFile());
+		Desktop.getDesktop().open(selectedItem.getValue().getPath().toFile());
 	}
 }

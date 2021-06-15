@@ -58,7 +58,8 @@ public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemEl
 			{
 				// double clic
 			}
-			else if (event.getButton() == MouseButton.SECONDARY) {
+			else if (event.getButton() == MouseButton.SECONDARY)
+			{
 				contextMenu.setSelectedItem(item);
 				contextMenu.setSelectedItems(fileSystemView.getSelectionModel().getSelectedItems());
 			}

@@ -89,7 +89,7 @@ public class FileSystemTreeManager
 							Image image = gallery.findImage(subPath);
 							
 							fsElem = (image != null) ? new FileSystemElement(image, Status.SYNC)
-							        : new FileSystemElement(new Image(subPath), Status.UNSYNC);
+							        : new FileSystemElement(new Image(gallery.toRelativePath(subPath)), Status.UNSYNC);
 						}
 						else
 						{

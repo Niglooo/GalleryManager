@@ -61,6 +61,8 @@ public class FileSystemElement
 	{
 		this.image = null;
 		this.path = Objects.requireNonNull(path, "path");
+		if (!path.isAbsolute())
+			throw new IllegalArgumentException("path must be absolute. Got: " + path);
 		this.status = Status.NOT_LOADED;
 	}
 	
@@ -72,7 +74,7 @@ public class FileSystemElement
 	
 	public Path getPath()
 	{
-		return image != null ? image.getPath() : path;
+		return image != null ? image.getAbsolutePath() : path;
 	}
 	
 	public Image getImage()

@@ -65,7 +65,7 @@ public class Gallery {
 	{
 		final Path absPath = toAbsolutePath(path);
 		
-		return images.stream().filter(image -> toAbsolutePath(image.getPath()).startsWith(absPath)).toList();
+		return images.stream().filter(image -> image.getAbsolutePath().startsWith(absPath)).toList();
 	}
 	
 	public void saveImage(Image image)
