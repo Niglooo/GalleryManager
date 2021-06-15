@@ -131,6 +131,7 @@ public class SlideShowStage extends Stage
 	{
 		// TODO Scroll to last slideshow image visible in thumbnailview
 		fullImageUpdatingThread.safeStop();
+		autoplay.stop();
 		super.close();
 	}
 	
