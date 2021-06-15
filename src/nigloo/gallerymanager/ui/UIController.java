@@ -117,8 +117,7 @@ public class UIController extends Application
 					 .flatMap(item -> getImages(item).stream())
 					 .forEach(Image::cancelLoadingThumbnail);
 				
-				List<Image> selectedImage = c.getList().stream().flatMap(item -> getImages(item).stream()).toList();
-				showThumbnails(selectedImage);
+				refreshThumbnails();
 			}
 		});
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
@@ -131,7 +130,15 @@ public class UIController extends Application
 		this.primaryStage.show();
 	}
 	
-	
+	public void refreshThumbnails()
+	{
+		List<Image> selectedImage = fileSystemView.getSelectionModel()
+		                                          .getSelectedItems()
+		                                          .stream()
+		                                          .flatMap(item -> getImages(item).stream())
+		                                          .toList();
+		showThumbnails(selectedImage);
+	}
 	
 	
 	

@@ -25,6 +25,9 @@ import nigloo.tool.injection.annotation.Inject;
 public class FileSystemTreeManager
 {
 	@Inject
+	private UIController uiController;
+	
+	@Inject
 	private Gallery gallery;
 	
 	private final ForkJoinPool pool;
@@ -39,9 +42,11 @@ public class FileSystemTreeManager
 	public void refresh(TreeItem<FileSystemElement> item, boolean deep)
 	{
 		pool.invoke(getTask(item, deep));
+		
+		uiController.refreshThumbnails();
 	}
 	
-	// Make it async
+	// TODO Make it async
 	private RecursiveAction getTask(TreeItem<FileSystemElement> item, boolean deep)
 	{
 		RecursiveAction task = new RecursiveAction()
@@ -65,7 +70,7 @@ public class FileSystemTreeManager
 				
 				List<TreeItem<FileSystemElement>> subDirectoryItems = new ArrayList<>();
 				
-				// Add files on disk
+				// Add files that are on disk
 				try
 				{
 					Files.list(path).forEach(subPath ->
@@ -235,7 +240,7 @@ public class FileSystemTreeManager
 			if (expanded && item.getValue().getStatus() == Status.NOT_LOADED)
 			{
 				item.expandedProperty().removeListener(this);
-				refresh(item, false);
+				refresh(item, true);
 			}
 		}
 	}
