@@ -44,6 +44,8 @@ import nigloo.tool.injection.impl.SingletonInjectionContext;
 @Singleton
 public class UIController extends Application
 {
+	private static javafx.scene.image.Image THUMBNAIL_PLACEHOLDER;
+	
 	@FXML
 	protected TreeView<FileSystemElement> fileSystemView;
 	private FileSystemTreeManager fileSystemTreeManager;
@@ -74,6 +76,9 @@ public class UIController extends Application
 	@Override
 	public void start(Stage primaryStage) throws Exception
 	{
+		THUMBNAIL_PLACEHOLDER = new javafx.scene.image.Image(ThumbnailsView.class.getModule()
+		                                                                         .getResourceAsStream("resources/images/loading.gif"));
+		
 		this.primaryStage = primaryStage;
 		this.primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
 		
@@ -162,7 +167,7 @@ public class UIController extends Application
 		{
 			thumbnailsView.getTiles().setAll(images.stream().map(image ->
 			{
-				GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC);
+				GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
 				
 				// Keep imageView instance in thumbnailsView to preserve selection
 				int index = thumbnailsView.getTiles().indexOf(imageView);

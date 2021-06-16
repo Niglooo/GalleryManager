@@ -12,12 +12,18 @@ public class GalleryImageView extends ImageView
 	private final Function<Image, javafx.scene.image.Image> getFXImage;
 	private boolean displayed;
 	
-	public GalleryImageView(Image galleryImage, Function<Image, javafx.scene.image.Image> getFXImage)
+	private javafx.scene.image.Image fxImage;
+	
+	public GalleryImageView(Image galleryImage,
+	                        Function<Image, javafx.scene.image.Image> getFXImage,
+	                        javafx.scene.image.Image placeholder)
 	{
 		super();
 		this.galleryImage = Objects.requireNonNull(galleryImage, "galleryImage");
 		this.getFXImage = Objects.requireNonNull(getFXImage, "getFXImage");
 		this.displayed = false;
+		this.fxImage = null;
+		setImage(placeholder);
 	}
 	
 	public Image getGalleryImage()
@@ -36,9 +42,24 @@ public class GalleryImageView extends ImageView
 		{
 			this.displayed = displayed;
 			if (displayed)
-				setImage(getFXImage.apply(galleryImage));
-			else if (getImage() != null)
-				getImage().cancel();
+			{
+				fxImage = getFXImage.apply(galleryImage);
+				if (fxImage.getProgress() == 1)
+					setImage(fxImage);
+				else
+				{
+					fxImage.progressProperty().addListener((obs, oldValue, newValue) ->
+					{
+						if (newValue.doubleValue() == 1)
+							setImage(fxImage);
+					});
+				}
+			}
+			else if (fxImage != null)
+			{
+				fxImage.cancel();
+				fxImage = null;
+			}
 		}
 	}
 	
