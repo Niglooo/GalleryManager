@@ -47,7 +47,7 @@ public class SlideShowStage extends Stage
 	private final ImageView imageView;
 	
 	private final Timeline autoplay;
-	private final FullImageUpdatingThread fullImageUpdatingThread;
+	private final ImageLoaderDaemon fullImageUpdatingThread;
 	
 	public SlideShowStage(List<Image> images, int startingIndex) throws IOException
 	{
@@ -76,7 +76,7 @@ public class SlideShowStage extends Stage
 		imageView.setPreserveRatio(true);
 		imageView.setSmooth(true);
 		
-		fullImageUpdatingThread = new FullImageUpdatingThread();
+		fullImageUpdatingThread = new ImageLoaderDaemon();
 		
 		autoplay = new Timeline(new KeyFrame(Duration.seconds(1), event -> next()));
 		autoplay.setCycleCount(Timeline.INDEFINITE);
@@ -264,13 +264,13 @@ public class SlideShowStage extends Stage
 		}
 	}
 	
-	private class FullImageUpdatingThread extends SafeThread
+	private class ImageLoaderDaemon extends SafeThread
 	{
 		private final AtomicBoolean forceRefresh = new AtomicBoolean(false);
 		
-		public FullImageUpdatingThread()
+		public ImageLoaderDaemon()
 		{
-			super("slide-show-deamon");
+			super("slide-show-image-loader");
 			setDaemon(true);
 		}
 		
