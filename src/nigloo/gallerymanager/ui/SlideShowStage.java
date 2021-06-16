@@ -125,7 +125,8 @@ public class SlideShowStage extends Stage
 		
 		setCurrent(currentImageIdx);
 		
-		autoplay.playFromStart();
+		if (isAutoPlay())
+			autoplay.playFromStart();
 	}
 	
 	@Override
@@ -153,11 +154,13 @@ public class SlideShowStage extends Stage
 			this.autoplay.playFromStart();
 		else if (!autoplay && isAutoPlay())
 			this.autoplay.stop();
+		
+		gallery.getSlideShowParameter().setAutoplay(autoplay);
 	}
 	
 	public boolean isAutoPlay()
 	{
-		return autoplay.getStatus() == Status.RUNNING;
+		return gallery.getSlideShowParameter().isAutoplay();
 	}
 	
 	public void setShuffled(boolean shuffled)

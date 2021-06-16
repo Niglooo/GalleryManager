@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.Double?>
+
 <?import javafx.scene.control.CheckMenuItem?>
 <?import javafx.scene.control.ContextMenu?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.RadioMenuItem?>
 <?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.ToggleGroup?>
 
 <fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
    <items>
@@ -15,9 +19,24 @@
       <CheckMenuItem fx:id="shuffleItem" mnemonicParsing="false" onAction="#shuffle" text="Shuffle" />
       <CheckMenuItem fx:id="loopItem" mnemonicParsing="false" onAction="#loop" text="Loop" />
       <SeparatorMenuItem />
-      <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="10" text="Slide Show Speed - Slow" />
-      <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="5" text="Slide Show Speed - Medium" />
-      <CheckMenuItem styleClass="speed-control" mnemonicParsing="false" onAction="#updateSpeed" userData="3" text="Slide Show Speed - Fast" />
+      <fx:define>
+         <ToggleGroup fx:id="speedGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed" text="Slide Show Speed - Slow">
+         <userData>
+            <Double fx:value="10" />
+         </userData>
+      </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed" text="Slide Show Speed - Medium">
+         <userData>
+            <Double fx:value="5" />
+         </userData>
+      </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed" text="Slide Show Speed - Fast">
+         <userData>
+            <Double fx:value="3" />
+         </userData>
+      </RadioMenuItem>
       <SeparatorMenuItem />
       <MenuItem mnemonicParsing="false" onAction="#exit" text="Exit" />
    </items>
