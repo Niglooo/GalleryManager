@@ -1,7 +1,6 @@
 package nigloo.gallerymanager.autodownloader;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -150,40 +149,8 @@ public class FanboxDownloader
 						imageReference = mapping.get(imageKey);
 						if (imageReference == null)
 							continue;
-						else
-						{
-							imageDest = imageReference.getImage().getPath();
-							
-							if (creatorId.equals("bubukka___"))
-							{
-								Path newDest = Paths.get("bubukka\\{postDatetime} {postTitle}\\{imageNumber}{imageFilename}".replace("{creatorId}",
-								                                                                                                     creatorId)
-								                                                                                            .replace("{postId}",
-								                                                                                                     postId)
-								                                                                                            .replace("{postDatetime}",
-								                                                                                                     publishedDatetimeISO)
-								                                                                                            .replace("{postTitle}",
-								                                                                                                     postTitle)
-								                                                                                            .replace("{imageNumber}",
-								                                                                                                     imageNumber)
-								                                                                                            .replace("{imageFilename}",
-								                                                                                                     imageFilename));
-								Field pathField = Image.class.getDeclaredField("path");
-								pathField.setAccessible(true);
-								pathField.set(imageReference.getImage(), newDest);
-								
-								imageDest = gallery.toAbsolutePath(imageDest);
-								newDest = gallery.toAbsolutePath(newDest);
-								
-								Files.createDirectories(newDest.getParent());
-								Files.move(imageDest, newDest);
-								
-								if (Files.list(imageDest.getParent()).findAny().isEmpty())
-									Files.deleteIfExists(imageDest.getParent());
-								
-								continue;
-							}
-						}
+						
+						imageDest = imageReference.getImage().getAbsolutePath();
 					}
 					else
 					{
@@ -193,11 +160,9 @@ public class FanboxDownloader
 						                                      .replace("{postTitle}", postTitle)
 						                                      .replace("{imageNumber}", imageNumber)
 						                                      .replace("{imageFilename}", imageFilename));
-						
+						imageDest = gallery.toAbsolutePath(imageDest);
 						imageReference = null;
 					}
-					
-					imageDest = gallery.toAbsolutePath(imageDest);
 					
 					if (Files.exists(imageDest))
 						continue;

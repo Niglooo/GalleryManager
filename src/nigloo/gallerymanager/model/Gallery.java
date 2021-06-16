@@ -106,6 +106,7 @@ public class Gallery {
 //			}
 //		images.sort(java.util.Comparator.comparing(i -> time.get(i.getPath())));
 		
+		// FIXME broken, ImageReference are not updated!
 		nextId = 1;
 		for (Image image : images)
 			image.id = nextId++;
