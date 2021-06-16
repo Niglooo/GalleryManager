@@ -9,19 +9,21 @@ import nigloo.gallerymanager.model.Image;
 
 public class FileSystemElement
 {
+	private static final javafx.scene.image.Image ICON_FOLDER_NOT_LOADED;
+	private static final javafx.scene.image.Image ICON_FOLDER_LOADING;
 	private static final javafx.scene.image.Image ICON_FOLDER_SYNC;
 	private static final javafx.scene.image.Image ICON_FOLDER_UNSYNC;
 	private static final javafx.scene.image.Image ICON_FOLDER_DELETED;
-	private static final javafx.scene.image.Image ICON_FOLDER_NOT_LOADED;
 	private static final javafx.scene.image.Image ICON_IMAGE_SYNC;
 	private static final javafx.scene.image.Image ICON_IMAGE_UNSYNC;
 	private static final javafx.scene.image.Image ICON_IMAGE_DELETED;
 	static
 	{
+		ICON_FOLDER_NOT_LOADED = loadIcon("folder_not_loaded.png");
+		ICON_FOLDER_LOADING = loadIcon("folder_loading.png");
 		ICON_FOLDER_SYNC = loadIcon("folder_sync.png");
 		ICON_FOLDER_UNSYNC = loadIcon("folder_unsync.png");
 		ICON_FOLDER_DELETED = loadIcon("folder_deleted.png");
-		ICON_FOLDER_NOT_LOADED = loadIcon("folder_not_loaded.png");
 		ICON_IMAGE_SYNC = loadIcon("image_sync.png");
 		ICON_IMAGE_UNSYNC = loadIcon("image_unsync.png");
 		ICON_IMAGE_DELETED = loadIcon("image_deleted.png");
@@ -43,7 +45,25 @@ public class FileSystemElement
 	
 	public enum Status
 	{
-		NOT_LOADED, NOT_FULLY_LOADED, EMPTY, SYNC, UNSYNC, DELETED
+		NOT_LOADED(false),
+		LOADING(false),
+		NOT_FULLY_LOADED(false),
+		EMPTY(true),
+		SYNC(true),
+		UNSYNC(true),
+		DELETED(true);
+		
+		private final boolean fullyLoaded;
+
+		private Status(boolean fullyLoaded)
+		{
+			this.fullyLoaded = fullyLoaded;
+		}
+
+		public boolean isFullyLoaded()
+		{
+			return fullyLoaded;
+		}
 	}
 	
 	private final Image image;
@@ -55,6 +75,9 @@ public class FileSystemElement
 		this.image = Objects.requireNonNull(image, "image");
 		this.path = null;
 		this.status = Objects.requireNonNull(status, "status");
+		if (status != Status.SYNC && status != Status.UNSYNC && status != Status.DELETED)
+			throw new IllegalArgumentException("Invalid status. Must be one of " + Status.SYNC + ", " + Status.UNSYNC
+			        + ", " + Status.DELETED + ". Got: " + status);
 	}
 	
 	public FileSystemElement(Path path)
@@ -70,6 +93,26 @@ public class FileSystemElement
 	public String toString()
 	{
 		return getPath().toString();
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return image != null ? image.hashCode() : path.hashCode();
+	}
+	
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		
+		FileSystemElement other = (FileSystemElement) obj;
+		return (image != null) ? image.equals(other.image) : path.equals(other.path);
 	}
 	
 	public Path getPath()
@@ -105,6 +148,7 @@ public class FileSystemElement
 				case DELETED:
 					return ICON_IMAGE_DELETED;
 				case NOT_LOADED:
+				case LOADING:
 				case NOT_FULLY_LOADED:
 				case EMPTY:
 					throw new IllegalStateException("{image=" + image + ", status=" + status + "}");
@@ -114,6 +158,8 @@ public class FileSystemElement
 		{
 			switch (status)
 			{
+				case LOADING:
+					return ICON_FOLDER_LOADING;
 				case SYNC:
 					return ICON_FOLDER_SYNC;
 				case UNSYNC:

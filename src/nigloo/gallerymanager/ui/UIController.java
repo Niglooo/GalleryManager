@@ -12,10 +12,9 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -25,6 +24,7 @@ import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -40,6 +40,8 @@ import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
+import nigloo.tool.thread.SafeThread;
+import nigloo.tool.thread.ThreadStopException;
 
 @Singleton
 public class UIController extends Application
@@ -52,6 +54,7 @@ public class UIController extends Application
 	
 	@FXML
 	protected ThumbnailsView thumbnailsView;
+	private ThumbnailUpdaterThread thumbnailUpdater;
 	
 	private Stage primaryStage;
 	
@@ -119,70 +122,133 @@ public class UIController extends Application
 				while (c.next())
 					c.getRemoved()
 					 .stream()
-					 .flatMap(item -> getImages(item).stream())
+					 .flatMap(item -> getImages(item))
 					 .forEach(Image::cancelLoadingThumbnail);
 				
-				refreshThumbnails();
+				requestRefreshThumbnails();
 			}
 		});
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);
 		fileSystemView.setRoot(root);
 		
-		fileSystemTreeManager = new FileSystemTreeManager();
+		fileSystemTreeManager = new FileSystemTreeManager(fileSystemView);
 		fileSystemTreeManager.refresh(root, false);
+		
+		thumbnailUpdater = new ThumbnailUpdaterThread(500);
+		thumbnailUpdater.start();
 		
 		this.primaryStage.show();
 	}
 	
-	public void refreshThumbnails()
+	@Override
+	public void stop() throws Exception
 	{
-		List<Image> selectedImage = fileSystemView.getSelectionModel()
-		                                          .getSelectedItems()
-		                                          .stream()
-		                                          .flatMap(item -> getImages(item).stream())
-		                                          .toList();
-		showThumbnails(selectedImage);
+		thumbnailUpdater.safeStop();
 	}
 	
+	public void requestRefreshThumbnails()
+	{
+		thumbnailUpdater.requestUpdate();
+	}
 	
+	private class ThumbnailUpdaterThread extends SafeThread
+	{
+		private final long UPDATE_INTERVAL;
+		
+		private long lastUpdate = 0;
+		private volatile boolean updateRequested = false;
+		
+		public ThumbnailUpdaterThread(long updateInterval)
+		{
+			super("thumbnail-updater");
+			setDaemon(true);
+			UPDATE_INTERVAL = updateInterval;
+		}
+		
+		public void requestUpdate()
+		{
+			updateRequested = true;
+			safeResume();
+		}
+		
+		@Override
+		public void run()
+		{
+			try
+			{
+				while (true)
+				{
+					checkThreadState();
+					
+					if (updateRequested)
+					{
+						long waitFor = lastUpdate + UPDATE_INTERVAL - System.currentTimeMillis();
+						
+						if (waitFor <= 0)
+						{
+							doUpdate();
+							lastUpdate = System.currentTimeMillis();
+							updateRequested = false;
+						}
+						else
+						{
+							uninterruptedSleep(waitFor);
+						}
+					}
+					else
+						safeSuspend();
+				}
+			}
+			catch (ThreadStopException e)
+			{
+			}
+		}
+		
+		private void doUpdate()
+		{
+			Platform.runLater(() ->
+			{
+				thumbnailsView.getTiles()
+				              .setAll(fileSystemView.getSelectionModel()
+				                                    .getSelectedItems()
+				                                    .stream()
+				                                    .flatMap(UIController::getImages)
+				                                    .map(UIController.this::getImageView)
+				                                    .toList());
+			});
+		}
+	}
 	
-	private List<Image> getImages(TreeItem<FileSystemElement> rootItem)
+	private static Stream<Image> getImages(TreeItem<FileSystemElement> rootItem)
 	{
 		if (rootItem == null || rootItem.getValue() == null)
-			return List.of();
+			return Stream.empty();
 		else if (rootItem.getValue().isImage())
-			return List.of(rootItem.getValue().getImage());
+			return Stream.of(rootItem.getValue().getImage());
 		else
-			return rootItem.getChildren().stream().flatMap(item -> getImages(item).stream()).toList();
+			return rootItem.getChildren().stream().flatMap(UIController::getImages);
 	}
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
 	
-	private void showThumbnails(Collection<Image> images)
+	private Node getImageView(Image image)
 	{
-		assert images != null;
+		GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
 		
-		Platform.runLater(() ->
-		{
-			thumbnailsView.getTiles().setAll(images.stream().map(image ->
-			{
-				GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
-				
-				// Keep imageView instance in thumbnailsView to preserve selection
-				int index = thumbnailsView.getTiles().indexOf(imageView);
-				if (index != -1)
-					return thumbnailsView.getTiles().get(index);
-				
-				imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
-				imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
-				imageView.setPreserveRatio(true);
-				
-				imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
-				
-				return imageView;
-			}).toList());
-		});
+		// Keep imageView instance in thumbnailsView to preserve
+		// selection
+		int index = thumbnailsView.getTiles().indexOf(imageView);
+		if (index != -1)
+			return thumbnailsView.getTiles().get(index);
+		
+		imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
+		imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
+		imageView.setPreserveRatio(true);
+		
+		imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
+		
+		return imageView;
 	}
 	
 	private void openGallery() throws IOException
