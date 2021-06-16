@@ -37,8 +37,8 @@ public class SlideShowContextMenu extends ContextMenu
 		
 		double delay = slideShow.getAutoplayDelay();
 		
-		playItem.setDisable(delay != 0);
-		pauseItem.setDisable(delay == 0);
+		playItem.setDisable(slideShow.isAutoPlay());
+		pauseItem.setDisable(!slideShow.isAutoPlay());
 		
 		shuffleItem.setSelected(slideShow.isShuffled());
 		loopItem.setSelected(slideShow.isLooped());

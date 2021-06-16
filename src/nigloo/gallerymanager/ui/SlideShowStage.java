@@ -100,6 +100,8 @@ public class SlideShowStage extends Stage
 				previous();
 			else if (event.getCode() == KeyCode.RIGHT)
 				next();
+			else if (event.getCode() == KeyCode.SPACE)
+				setAutoPlay(!isAutoPlay());
 		});
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
@@ -147,10 +149,15 @@ public class SlideShowStage extends Stage
 	
 	public void setAutoPlay(boolean autoplay)
 	{
-		if (autoplay && this.autoplay.getStatus() != Status.RUNNING)
+		if (autoplay && !isAutoPlay())
 			this.autoplay.playFromStart();
-		else if (!autoplay && this.autoplay.getStatus() == Status.RUNNING)
+		else if (!autoplay && isAutoPlay())
 			this.autoplay.stop();
+	}
+	
+	public boolean isAutoPlay()
+	{
+		return autoplay.getStatus() == Status.RUNNING;
 	}
 	
 	public void setShuffled(boolean shuffled)
