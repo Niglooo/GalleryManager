@@ -3,10 +3,7 @@ package nigloo.gallerymanager.ui;
 import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -45,30 +42,13 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	
 	public void setSelectedItems(Collection<TreeItem<FileSystemElement>> selectedItems)
 	{
-		// Appure (remove element with parent in selection)
-		this.selectedItems = new ArrayList<>(selectedItems);
-		
-		Iterator<TreeItem<FileSystemElement>> it = this.selectedItems.iterator();
-		while (it.hasNext())
-		{
-			Path path = it.next().getValue().getPath();
-			
-			boolean parentInSelection = selectedItems.stream()
-			                                         .map(TreeItem::getValue)
-			                                         .map(FileSystemElement::getPath)
-			                                         .filter(p -> path.startsWith(p) && !path.equals(p))
-			                                         .findAny()
-			                                         .isPresent();
-			if (parentInSelection)
-				it.remove();
-		}
+		this.selectedItems = selectedItems;
 	}
 	
 	@FXML
 	protected void refresh()
 	{
-		for (TreeItem<FileSystemElement> item : selectedItems)
-			uiController.refreshFileSystemItem(item);
+		uiController.refreshFileSystem(selectedItems.stream().map(i -> i.getValue().getPath()).toList(), true);
 	}
 	
 	@FXML

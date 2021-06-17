@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -43,9 +44,13 @@ public class FileSystemTreeManager
 		this.asyncPool = Executors.newCachedThreadPool();
 	}
 	
-	public void refresh(TreeItem<FileSystemElement> item, boolean deep)
+	public void refresh(Collection<Path> paths, boolean deep)
 	{
-		getAsyncAction(item.getValue().getPath(), deep);
+		assert paths != null;
+		assert paths.stream().allMatch(Path::isAbsolute);
+		
+		for (Path path : (deep ? commonParents(paths) : paths))
+			getAsyncAction(path, deep);
 	}
 	
 	private CompletableFuture<Void> getAsyncAction(Path path, boolean deep)
@@ -96,7 +101,6 @@ public class FileSystemTreeManager
 				return !subPaths.contains(p.getRoot().resolve(p.subpath(0, nameCountSub)));
 			}).toList();
 			
-
 			Platform.runLater(() ->
 			{
 				TreeItem<FileSystemElement> item = findTreeItem(path);
@@ -189,27 +193,27 @@ public class FileSystemTreeManager
 				                 .thenRun(() -> Platform.runLater(() -> updateFolderAndParentStatus(findTreeItem(path),
 				                                                                                    deep)));
 			}
-
+			
 		}, asyncPool);
 	}
 	
 	private FileSystemElement toFileSystemElement(Path path)
 	{
+		if (!path.startsWith(treeView.getRoot().getValue().getPath()))
+			return null;
+		
 		if (Files.isDirectory(path))
-		{
 			return new FileSystemElement(path);
-		}
-		else if (Image.isImage(path))
+		
+		if (Image.isImage(path))
 		{
 			Image image = gallery.findImage(path);
 			
 			return (image != null) ? new FileSystemElement(image, Status.SYNC)
 			        : new FileSystemElement(new Image(gallery.toRelativePath(path)), Status.UNSYNC);
 		}
-		else
-		{
-			return null;
-		}
+		
+		return null;
 	}
 	
 	private TreeItem<FileSystemElement> findTreeItem(Path path)
@@ -217,14 +221,14 @@ public class FileSystemTreeManager
 		return findTreeItem(treeView.getRoot(), path);
 	}
 	
-	private TreeItem<FileSystemElement> findTreeItem(TreeItem<FileSystemElement> fromItem, Path path)
+	private static TreeItem<FileSystemElement> findTreeItem(TreeItem<FileSystemElement> fromItem, Path path)
 	{
 		if (fromItem.getValue() == null)
 			return null;
 		
 		if (path.equals(fromItem.getValue().getPath()))
 			return fromItem;
-			
+		
 		for (TreeItem<FileSystemElement> subItem : fromItem.getChildren())
 		{
 			if (subItem.getValue() != null && path.startsWith(subItem.getValue().getPath()))
@@ -234,7 +238,8 @@ public class FileSystemTreeManager
 		return null;
 	}
 	
-	private static void removeNotProcessed(TreeItem<FileSystemElement> item, Collection<TreeItem<FileSystemElement>> processedItems)
+	private static void removeNotProcessed(TreeItem<FileSystemElement> item,
+	                                       Collection<TreeItem<FileSystemElement>> processedItems)
 	{
 		Iterator<TreeItem<FileSystemElement>> it = item.getChildren().iterator();
 		while (it.hasNext())
@@ -247,7 +252,7 @@ public class FileSystemTreeManager
 		}
 	}
 	
-	private void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean updateOnlyIfFullyLoaded)
+	private static void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean updateOnlyIfFullyLoaded)
 	{
 		if (item == null)
 			return;
@@ -285,22 +290,6 @@ public class FileSystemTreeManager
 			updateFolderAndParentStatus(item.getParent(), updateOnlyIfFullyLoaded);
 	}
 	
-	// TODO syncFileSystemItem
-	public void syncFileSystemItem(TreeItem<FileSystemElement> rootItem)
-	{
-		System.out.println("Save : " + rootItem.getValue().getPath());
-		try
-		{
-			if (false)
-				throw new IOException();
-			
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-		}
-	}
-	
 	private class NewFolderExpandListener implements ChangeListener<Boolean>
 	{
 		private final TreeItem<FileSystemElement> item;
@@ -320,9 +309,30 @@ public class FileSystemTreeManager
 				if (item.getChildren().size() == 1 && item.getChildren().get(0).getValue() == null)
 				{
 					item.getChildren().clear();
-					refresh(item, true);
+					refresh(List.of(item.getValue().getPath()), true);
 				}
 			}
 		}
+	}
+	
+	// TODO syncFileSystemItem
+	public void syncFileSystemItem(TreeItem<FileSystemElement> rootItem)
+	{
+		System.out.println("Save : " + rootItem.getValue().getPath());
+		try
+		{
+			if (false)
+				throw new IOException();
+			
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+	
+	private static Collection<Path> commonParents(Collection<Path> paths)
+	{
+		return paths.stream().filter(p -> paths.stream().noneMatch(p2 -> p != p2 && p.startsWith(p2))).toList();
 	}
 }

@@ -133,7 +133,7 @@ public class UIController extends Application
 		fileSystemView.setRoot(root);
 		
 		fileSystemTreeManager = new FileSystemTreeManager(fileSystemView);
-		fileSystemTreeManager.refresh(root, false);
+		fileSystemTreeManager.refresh(List.of(root.getValue().getPath()), false);
 		
 		thumbnailUpdater = new ThumbnailUpdaterThread(500);
 		thumbnailUpdater.start();
@@ -292,8 +292,8 @@ public class UIController extends Application
 		return gson;
 	}
 	
-	public void refreshFileSystemItem(TreeItem<FileSystemElement> item)
+	public void refreshFileSystem(Collection<Path> paths, boolean deep)
 	{
-		fileSystemTreeManager.refresh(item, true);
+		fileSystemTreeManager.refresh(paths, deep);
 	}
 }
