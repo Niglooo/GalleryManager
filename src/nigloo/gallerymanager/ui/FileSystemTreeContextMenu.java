@@ -3,11 +3,13 @@ package nigloo.gallerymanager.ui;
 import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
+import java.nio.file.Path;
+import java.util.List;
 
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.TreeItem;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.tool.injection.Injector;
@@ -21,8 +23,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@Inject
 	private Gallery gallery;
 	
-	private TreeItem<FileSystemElement> selectedItem;
-	private Collection<TreeItem<FileSystemElement>> selectedItems;
+	private MultipleSelectionModel<TreeItem<FileSystemElement>> selection;
 	
 	public FileSystemTreeContextMenu() throws IOException
 	{
@@ -35,20 +36,20 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		Injector.init(this);
 	}
 	
-	public void setSelectedItem(TreeItem<FileSystemElement> selectedItem)
+	public void setSelection(MultipleSelectionModel<TreeItem<FileSystemElement>> selection)
 	{
-		this.selectedItem = selectedItem;
+		this.selection = selection;
 	}
 	
-	public void setSelectedItems(Collection<TreeItem<FileSystemElement>> selectedItems)
+	private List<Path> selectedPaths()
 	{
-		this.selectedItems = selectedItems;
+		return selection.getSelectedItems().stream().map(TreeItem::getValue).map(FileSystemElement::getPath).toList();
 	}
 	
 	@FXML
 	protected void refresh()
 	{
-		uiController.refreshFileSystem(selectedItems.stream().map(i -> i.getValue().getPath()).toList(), true);
+		uiController.refreshFileSystem(selectedPaths(), true);
 	}
 	
 	@FXML
@@ -60,12 +61,12 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void openInFileExplorer() throws IOException
 	{
-		Desktop.getDesktop().open(selectedItem.getValue().getPath().toFile());
+		Desktop.getDesktop().open(selection.getSelectedItem().getValue().getPath().toFile());
 	}
 	
 	@FXML
 	protected void delete()
 	{
-		uiController.delete(selectedItems.stream().map(i -> i.getValue().getPath()).toList(), true);
+		uiController.delete(selectedPaths(), true);
 	}
 }

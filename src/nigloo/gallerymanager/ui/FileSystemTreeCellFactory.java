@@ -3,15 +3,14 @@ package nigloo.gallerymanager.ui;
 import java.io.IOException;
 
 import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseButton;
 import javafx.util.Callback;
 
 public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemElement>, TreeCell<FileSystemElement>>
 {
 	private final FileSystemTreeContextMenu contextMenu;
+	private boolean contextMenuListenerSet = false;
 	
 	public FileSystemTreeCellFactory() throws IOException
 	{
@@ -21,6 +20,12 @@ public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemEl
 	@Override
 	public TreeCell<FileSystemElement> call(TreeView<FileSystemElement> fileSystemView)
 	{
+		if (!contextMenuListenerSet)
+		{
+			contextMenu.setSelection(fileSystemView.getSelectionModel());
+			contextMenuListenerSet = true;
+		}
+		
 		TreeCell<FileSystemElement> cell = new TreeCell<FileSystemElement> ()
 		{
 			@Override
@@ -46,24 +51,6 @@ public class FileSystemTreeCellFactory implements Callback<TreeView<FileSystemEl
 		};
 		
 		cell.setContextMenu(contextMenu);
-		cell.setOnMouseClicked(event ->
-		{
-			if (cell.isEmpty())
-				return;
-			
-			TreeItem<FileSystemElement> item = cell.getTreeItem();
-			
-			if (event.getButton() == MouseButton.PRIMARY &&
-				event.getClickCount() == 2)
-			{
-				// double clic
-			}
-			else if (event.getButton() == MouseButton.SECONDARY)
-			{
-				contextMenu.setSelectedItem(item);
-				contextMenu.setSelectedItems(fileSystemView.getSelectionModel().getSelectedItems());
-			}
-		});
 		
 		return cell;
 	}
