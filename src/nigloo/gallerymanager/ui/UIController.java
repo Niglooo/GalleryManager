@@ -103,8 +103,6 @@ public class UIController extends Application
 			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
 				;// autoDownloader.download(config.getProperty("cookie"));
 				
-		// saveGallery();
-
 		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 		fxmlLoader.setController(this);
 		fxmlLoader.setRoot(primaryStage);
@@ -145,6 +143,7 @@ public class UIController extends Application
 	public void stop() throws Exception
 	{
 		thumbnailUpdater.safeStop();
+		saveGallery();
 	}
 	
 	public void requestRefreshThumbnails()
