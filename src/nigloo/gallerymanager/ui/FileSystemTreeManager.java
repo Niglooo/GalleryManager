@@ -385,9 +385,12 @@ public class FileSystemTreeManager
 			
 			for (TreeItem<FileSystemElement> item : itemsToDelete)
 			{
-				item.getParent().getChildren().remove(item);
-				updateFolderAndParentStatus(item.getParent(), false);
+				TreeItem<FileSystemElement> parent = item.getParent();
+				parent.getChildren().remove(item);
+				updateFolderAndParentStatus(parent, false);
 			}
+			
+			uiController.requestRefreshThumbnails();
 			
 			CompletableFuture.runAsync(() ->
 			{
