@@ -24,6 +24,8 @@ public class ThumbnailsContextMenu extends ContextMenu
 	private MenuItem startSlideShowAllImagesItem;
 	@FXML
 	private MenuItem startSlideShowSelectionItem;
+	@FXML
+	private MenuItem deleteItem;
 
 	private List<Image> allImages;
 	private List<Image> selectedImages;
@@ -48,6 +50,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 		
 		startSlideShowAllImagesItem.setDisable(allImages == null || allImages.isEmpty());
 		startSlideShowSelectionItem.setDisable(selectedImages == null || selectedImages.isEmpty());
+		deleteItem.setDisable(selectedImages == null || selectedImages.isEmpty());
 	}
 	
 	@FXML
@@ -64,5 +67,11 @@ public class ThumbnailsContextMenu extends ContextMenu
 	protected void startSlideShowSelection() throws IOException
 	{
 		new SlideShowStage(selectedImages, 0).show();
+	}
+	
+	@FXML
+	protected void delete() throws IOException
+	{
+		uiController.delete(selectedImages.stream().map(Image::getAbsolutePath).toList(), true);
 	}
 }

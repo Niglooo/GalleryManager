@@ -7,5 +7,6 @@
   <items>
     <MenuItem fx:id="startSlideShowAllImagesItem" mnemonicParsing="false" onAction="#startSlideShow" text="Slide show" />
     <MenuItem fx:id="startSlideShowSelectionItem" mnemonicParsing="false" onAction="#startSlideShowSelection" text="Slide show selection" />
+    <MenuItem fx:id="deleteItem" mnemonicParsing="false" onAction="#delete" text="Delete" />
   </items>
 </fx:root>
