@@ -362,7 +362,7 @@ public class FileSystemTreeManager
 		{
 			List<TreeItem<FileSystemElement>> itemsToDelete = pathsToDelete.stream()
 			                                                               .map(this::findTreeItem)
-			                                                               .filter(item -> item == null)
+			                                                               .filter(item -> item != null)
 			                                                               .filter(item -> item.getParent() != null)
 			                                                               .toList();
 			
