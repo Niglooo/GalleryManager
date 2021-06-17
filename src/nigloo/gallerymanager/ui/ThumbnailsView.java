@@ -846,7 +846,7 @@ public class ThumbnailsView extends Region
 				}
 				else if (event.getButton() == MouseButton.SECONDARY)
 				{
-					if (!event.isControlDown() || event.isShiftDown())
+					if (!selected.get() && !(event.isControlDown() && !event.isShiftDown()))
 						selectionModel.clearAndSelect(content);
 				}
 			});
