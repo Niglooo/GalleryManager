@@ -8,5 +8,6 @@
     <MenuItem mnemonicParsing="false" onAction="#refresh" text="Refresh" />
       <MenuItem mnemonicParsing="false" onAction="#synchronize" text="Sync" />
       <MenuItem mnemonicParsing="false" onAction="#openInFileExplorer" text="Open" />
+      <MenuItem mnemonicParsing="false" onAction="#delete" text="Delete" />
   </items>
 </fx:root>

@@ -498,4 +498,19 @@ public class FanboxDownloader
 			
 		return false;
 	}
+	
+	public void stopHandling(Collection<Image> images)
+	{
+		Map<Image, FanboxImageKey> imageToKey = mapping.entrySet()
+		                                               .stream()
+		                                               .filter(e -> e.getValue() != null)
+		                                               .collect(Collectors.toMap(e -> e.getValue().getImage(),
+		                                                                         e -> e.getKey()));
+		for (Image image : images)
+		{
+			FanboxImageKey key = imageToKey.get(image);
+			if (key != null)
+				mapping.remove(key);
+		}
+	}
 }

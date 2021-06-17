@@ -77,6 +77,16 @@ public class Gallery {
 		images.add(image);
 	}
 	
+	public void deleteImages(Collection<Image> images)
+	{
+		for (Artist artist : artists)
+			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+				autoDownloader.stopHandling(images);
+			
+		// This last or we break every ImageReference
+		this.images.removeAll(images);
+	}
+	
 	public List<Image> getImages()
 	{
 		return Collections.unmodifiableList(images);

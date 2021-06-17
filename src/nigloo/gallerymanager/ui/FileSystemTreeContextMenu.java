@@ -62,4 +62,10 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	{
 		Desktop.getDesktop().open(selectedItem.getValue().getPath().toFile());
 	}
+	
+	@FXML
+	protected void delete()
+	{
+		uiController.delete(selectedItems.stream().map(i -> i.getValue().getPath()).toList(), true);
+	}
 }

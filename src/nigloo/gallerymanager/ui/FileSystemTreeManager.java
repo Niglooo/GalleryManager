@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -16,6 +17,8 @@ import java.util.stream.Stream;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import nigloo.gallerymanager.model.Gallery;
@@ -23,6 +26,7 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
+import nigloo.tool.javafx.component.dialog.AlertWithIcon;
 
 public class FileSystemTreeManager
 {
@@ -329,6 +333,85 @@ public class FileSystemTreeManager
 		{
 			e.printStackTrace();
 		}
+	}
+	
+	public void delete(Collection<Path> paths, boolean deleteOnDisk)
+	{
+		assert paths != null;
+		assert paths.stream().allMatch(Path::isAbsolute);
+		
+		final Collection<Path> pathsToDelete = commonParents(paths);
+		
+		Platform.runLater(() ->
+		{
+			List<TreeItem<FileSystemElement>> itemsToDelete = pathsToDelete.stream()
+			                                                               .map(this::findTreeItem)
+			                                                               .filter(item -> item == null)
+			                                                               .filter(item -> item.getParent() != null)
+			                                                               .toList();
+			
+			List<FileSystemElement> elements = itemsToDelete.stream()
+			                                                .flatMap(FileSystemTreeManager::getElements)
+			                                                .toList();
+			
+			long nbImages = elements.stream().filter(FileSystemElement::isImage).count();
+			
+			AlertWithIcon warningPopup = new AlertWithIcon(AlertType.WARNING);
+			warningPopup.setTitle("Delete images");
+			warningPopup.setHeaderText("Delete " + nbImages + " image(s)?");
+			warningPopup.setContentText("This action cannot be undone!");
+			warningPopup.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+			warningPopup.setDefaultButton(ButtonType.NO);
+			
+			Optional<ButtonType> button = warningPopup.showAndWait();
+			if (button.isEmpty() || button.get() != ButtonType.YES)
+				return;
+			
+			for (TreeItem<FileSystemElement> item : itemsToDelete)
+			{
+				item.getParent().getChildren().remove(item);
+				updateFolderAndParentStatus(item.getParent(), false);
+			}
+			
+			CompletableFuture.runAsync(() ->
+			{
+				gallery.deleteImages(elements.stream()
+				                             .filter(FileSystemElement::isImage)
+				                             .map(FileSystemElement::getImage)
+				                             .toList());
+				
+				if (deleteOnDisk)
+				{
+					for (FileSystemElement element : elements)
+					{
+						// DON'T remove until with have a confirmation box
+						if (element.getPath().toString().contains("Bartolomeobari - Copie") == false)
+							continue;
+						
+						try
+						{
+							if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
+								Files.delete(element.getPath());
+						}
+						catch (IOException e)
+						{
+							// TODO Handle error
+							e.printStackTrace();
+						}
+					}
+				}
+				
+			}, asyncPool);
+		});
+	}
+	
+	private static Stream<FileSystemElement> getElements(TreeItem<FileSystemElement> item)
+	{
+		if (item.getValue() == null)
+			return Stream.of();
+		
+		return Stream.concat(item.getChildren().stream().flatMap(FileSystemTreeManager::getElements),
+		                     Stream.of(item.getValue()));
 	}
 	
 	private static Collection<Path> commonParents(Collection<Path> paths)

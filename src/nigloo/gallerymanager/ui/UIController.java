@@ -12,6 +12,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -109,8 +111,6 @@ public class UIController extends Application
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
 		// TODO custom ordering from each folder (saved in json)
-		// TODO Delete file/directory (one disk, in gallery/treeview and downloader
-		// mapping)
 		// TODO Move file/directory
 		fileSystemView.setCellFactory(new FileSystemTreeCellFactory());
 		fileSystemView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -299,5 +299,10 @@ public class UIController extends Application
 	public void refreshFileSystem(Collection<Path> paths, boolean deep)
 	{
 		fileSystemTreeManager.refresh(paths, deep);
+	}
+	
+	public void delete(Collection<Path> paths, boolean deleteOnDisk)
+	{
+		fileSystemTreeManager.delete(paths, deleteOnDisk);
 	}
 }
