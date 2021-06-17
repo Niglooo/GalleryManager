@@ -158,6 +158,7 @@ public class UIController extends Application
 		
 		private long lastUpdate = 0;
 		private volatile boolean updateRequested = false;
+		private volatile boolean isUpdating = false;
 		
 		public ThumbnailUpdaterThread(long updateInterval)
 		{
@@ -181,15 +182,13 @@ public class UIController extends Application
 				{
 					checkThreadState();
 					
-					if (updateRequested)
+					if (updateRequested && !isUpdating)
 					{
 						long waitFor = lastUpdate + UPDATE_INTERVAL - System.currentTimeMillis();
 						
 						if (waitFor <= 0)
 						{
 							doUpdate();
-							lastUpdate = System.currentTimeMillis();
-							updateRequested = false;
 						}
 						else
 						{
@@ -207,6 +206,7 @@ public class UIController extends Application
 		
 		private void doUpdate()
 		{
+			isUpdating = true;
 			Platform.runLater(() ->
 			{
 				thumbnailsView.getTiles()
@@ -214,8 +214,12 @@ public class UIController extends Application
 				                                    .getSelectedItems()
 				                                    .stream()
 				                                    .flatMap(UIController::getImages)
+				                                    .distinct()
 				                                    .map(UIController.this::getImageView)
 				                                    .toList());
+				lastUpdate = System.currentTimeMillis();
+				updateRequested = false;
+				isUpdating = false;
 			});
 		}
 	}
