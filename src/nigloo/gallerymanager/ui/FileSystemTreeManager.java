@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
@@ -24,6 +25,7 @@ import javafx.scene.control.TreeView;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.component.dialog.AlertWithIcon;
@@ -182,6 +184,7 @@ public class FileSystemTreeManager
 				}
 				
 				removeNotProcessed(item, itemProcessed);
+				sort(item);
 				
 				updateFolderAndParentStatus(item, deep);
 				
@@ -254,6 +257,19 @@ public class FileSystemTreeManager
 			else if (subItem.getValue().getStatus() == Status.DELETED)
 				removeNotProcessed(subItem, processedItems);
 		}
+	}
+	
+	private void sort(TreeItem<FileSystemElement> item)
+	{
+		// TODO custom ordering from each folder (saved in json)
+		Comparator<FileSystemElement> comparator = Comparator.comparing((FileSystemElement element) -> element.getPath()
+		                                                                                                      .toString(),
+		                                                                Utils.NATURAL_ORDER);
+		
+		item.getChildren().sort(Comparator.comparing(TreeItem::getValue, comparator));
+		for (TreeItem<FileSystemElement> subItem : item.getChildren())
+			if (subItem.getValue().getStatus() == Status.DELETED)
+				sort(subItem);
 	}
 	
 	private static void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean updateOnlyIfFullyLoaded)
@@ -400,7 +416,6 @@ public class FileSystemTreeManager
 						}
 					}
 				}
-				
 			}, asyncPool);
 		});
 	}

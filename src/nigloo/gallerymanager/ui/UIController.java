@@ -108,7 +108,6 @@ public class UIController extends Application
 		fxmlLoader.setRoot(primaryStage);
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
-		// TODO custom ordering from each folder (saved in json)
 		// TODO Move file/directory
 		fileSystemView.setCellFactory(new FileSystemTreeCellFactory());
 		fileSystemView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
