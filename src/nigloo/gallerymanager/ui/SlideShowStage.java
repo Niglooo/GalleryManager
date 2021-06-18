@@ -101,7 +101,10 @@ public class SlideShowStage extends Stage
 			else if (event.getCode() == KeyCode.RIGHT)
 				next();
 			else if (event.getCode() == KeyCode.SPACE)
+			{
 				setAutoPlay(!isAutoPlay());
+				contextMenu.updateItems();
+			}
 		});
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{

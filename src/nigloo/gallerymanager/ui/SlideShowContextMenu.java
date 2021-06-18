@@ -34,8 +34,11 @@ public class SlideShowContextMenu extends ContextMenu
 		fxmlLoader.setRoot(this);
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/slideshow_context_menu.fxml"));
 		
-		double delay = slideShow.getAutoplayDelay();
-		
+		updateItems();
+	}
+	
+	void updateItems()
+	{
 		playItem.setDisable(slideShow.isAutoPlay());
 		pauseItem.setDisable(!slideShow.isAutoPlay());
 		
@@ -44,7 +47,7 @@ public class SlideShowContextMenu extends ContextMenu
 		
 		speedGroup.selectToggle(speedGroup.getToggles()
 		                                  .stream()
-		                                  .filter(item -> ((Double) item.getUserData()) == delay)
+		                                  .filter(item -> ((Double) item.getUserData()) == slideShow.getAutoplayDelay())
 		                                  .findFirst()
 		                                  .orElse(speedGroup.getToggles().get(0)));
 	}
