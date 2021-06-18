@@ -1,4 +1,4 @@
-package nigloo.gallerymanager.autodownloader;
+package nigloo.gallerymanager.model;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -8,8 +8,6 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
-import nigloo.gallerymanager.model.Gallery;
-import nigloo.gallerymanager.model.Image;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
@@ -21,30 +19,34 @@ public class ImageReference // serial as imageId
 	@Inject
 	private Gallery gallery;
 	
-	// For deserialization only
-	private ImageReference()
-	{
-		Injector.init(this);
-	}
-	
 	public ImageReference(long imageId)
 	{
-		this();
+		Injector.init(this);
 		this.imageId = imageId;
 		this.image = null;
 		
 		if (imageId <= 0)
 			throw new IllegalArgumentException("imageId must be strictly positive. Got: " + imageId);
+		
+		registerInstance();
 	}
 	
 	public ImageReference(Image image)
 	{
-		this();
+		Injector.init(this);
 		this.image = Objects.requireNonNull(image, "image");
 		this.imageId = image.getId();
 		
 		if (!image.isSaved())
 			throw new IllegalArgumentException("Image not saved : " + image.getPath());
+		
+		registerInstance();
+	}
+	
+	// MUST be the LAST instruction of ANY constructor
+	private void registerInstance()
+	{
+		gallery.allImageReferences.add(this);
 	}
 	
 	public Image getImage()

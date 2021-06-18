@@ -50,6 +50,7 @@ import com.google.gson.stream.JsonWriter;
 
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.model.ImageReference;
 import nigloo.tool.Utils;
 import nigloo.tool.gson.JsonHelper;
 import nigloo.tool.injection.Injector;

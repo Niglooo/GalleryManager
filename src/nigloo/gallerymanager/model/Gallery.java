@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import nigloo.gallerymanager.autodownloader.FanboxDownloader;
+import nigloo.tool.collection.WeakIdentityHashSet;
 
 
 public class Gallery {
@@ -19,6 +20,7 @@ public class Gallery {
 	private SlideShowParameters slideShowParameter = new SlideShowParameters();
 	
 	private transient long nextId = 1;
+	transient WeakIdentityHashSet<ImageReference> allImageReferences = new WeakIdentityHashSet<>();
 	
 	/*
 	 * Need to be called just after deserialization
@@ -116,7 +118,11 @@ public class Gallery {
 //			}
 //		images.sort(java.util.Comparator.comparing(i -> time.get(i.getPath())));
 		
-		// FIXME broken, ImageReference are not updated!
+		// Force all references to load their image so updating image.id will update
+		// the reference
+		for (ImageReference ref : allImageReferences)
+			ref.getImage();
+		
 		nextId = 1;
 		for (Image image : images)
 			image.id = nextId++;
