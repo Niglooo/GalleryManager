@@ -10,34 +10,37 @@
 <?import javafx.scene.control.ToggleGroup?>
 
 <fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
-   <items>
-      <MenuItem fx:id="playItem" mnemonicParsing="false" onAction="#play" text="Play" />
-      <MenuItem fx:id="pauseItem" mnemonicParsing="false" onAction="#pause" text="Pause" />
-      <MenuItem mnemonicParsing="false" onAction="#next" text="Next" />
-      <MenuItem mnemonicParsing="false" onAction="#previous" text="Back" />
-      <SeparatorMenuItem />
-      <CheckMenuItem fx:id="shuffleItem" mnemonicParsing="false" onAction="#shuffle" text="Shuffle" />
-      <CheckMenuItem fx:id="loopItem" mnemonicParsing="false" onAction="#loop" text="Loop" />
-      <SeparatorMenuItem />
-      <fx:define>
-         <ToggleGroup fx:id="speedGroup" />
-      </fx:define>
-      <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed" text="Slide Show Speed - Slow">
-         <userData>
-            <Double fx:value="10" />
-         </userData>
-      </RadioMenuItem>
-      <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed" text="Slide Show Speed - Medium">
-         <userData>
-            <Double fx:value="5" />
-         </userData>
-      </RadioMenuItem>
-      <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed" text="Slide Show Speed - Fast">
-         <userData>
-            <Double fx:value="3" />
-         </userData>
-      </RadioMenuItem>
-      <SeparatorMenuItem />
-      <MenuItem mnemonicParsing="false" onAction="#exit" text="Exit" />
-   </items>
+  <items>
+    <MenuItem fx:id="playItem" mnemonicParsing="false" onAction="#play" text="Play" />
+    <MenuItem fx:id="pauseItem" mnemonicParsing="false" onAction="#pause" text="Pause" />
+    <MenuItem mnemonicParsing="false" onAction="#next" text="Next" />
+    <MenuItem mnemonicParsing="false" onAction="#previous" text="Back" />
+    <SeparatorMenuItem />
+    <CheckMenuItem fx:id="shuffleItem" mnemonicParsing="false" onAction="#shuffle" text="Shuffle" />
+    <CheckMenuItem fx:id="loopItem" mnemonicParsing="false" onAction="#loop" text="Loop" />
+    <SeparatorMenuItem />
+    <fx:define>
+      <ToggleGroup fx:id="speedGroup" />
+    </fx:define>
+    <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed"
+      text="Slide Show Speed - Slow">
+      <userData>
+        <Double fx:value="10" />
+      </userData>
+    </RadioMenuItem>
+    <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed"
+      text="Slide Show Speed - Medium">
+      <userData>
+        <Double fx:value="5" />
+      </userData>
+    </RadioMenuItem>
+    <RadioMenuItem mnemonicParsing="false" toggleGroup="$speedGroup" onAction="#updateSpeed"
+      text="Slide Show Speed - Fast">
+      <userData>
+        <Double fx:value="3" />
+      </userData>
+    </RadioMenuItem>
+    <SeparatorMenuItem />
+    <MenuItem mnemonicParsing="false" onAction="#exit" text="Exit" />
+  </items>
 </fx:root>

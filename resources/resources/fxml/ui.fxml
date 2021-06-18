@@ -14,34 +14,38 @@
 
 <?import nigloo.gallerymanager.ui.ThumbnailsView?>
 
-<fx:root title="Gallery Manager" type="Stage" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
-    <scene>
-        <Scene>
-            <TabPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1200.0" tabClosingPolicy="UNAVAILABLE" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
-              <tabs>
-                <Tab text="Gallery">
-                   <content>
-                     <SplitPane dividerPositions="0.5">
-                        <items>
-                           <VBox prefHeight="200.0" prefWidth="100.0">
-                              <children>
-                                 <Label text="Scan result" />
-                                 <ComboBox prefWidth="150.0" />
-                                 <TreeView fx:id="fileSystemView" />
-                              </children>
-                           </VBox>
-                           <ThumbnailsView fx:id="thumbnailsView" tileWidth="150.0" tileHeight="150.0" hgap="20.0" vgap="20.0" tileAlignment="TOP_CENTER">
-                              <padding>
-                                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                              </padding>
-                           </ThumbnailsView>
-                        </items>
-                     </SplitPane>
-                   </content>
-                </Tab>
-                <Tab text="Artists" />
-              </tabs>
-            </TabPane>
-        </Scene>
-    </scene>
+<fx:root title="Gallery Manager" type="Stage" xmlns="http://javafx.com/javafx/16"
+  xmlns:fx="http://javafx.com/fxml/1">
+  <scene>
+    <Scene>
+      <TabPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
+        prefHeight="800.0" prefWidth="1200.0" tabClosingPolicy="UNAVAILABLE" xmlns="http://javafx.com/javafx/11.0.1"
+        xmlns:fx="http://javafx.com/fxml/1">
+        <tabs>
+          <Tab text="Gallery">
+            <content>
+              <SplitPane dividerPositions="0.5">
+                <items>
+                  <VBox prefHeight="200.0" prefWidth="100.0">
+                    <children>
+                      <Label text="Scan result" />
+                      <ComboBox prefWidth="150.0" />
+                      <TreeView fx:id="fileSystemView" />
+                    </children>
+                  </VBox>
+                  <ThumbnailsView fx:id="thumbnailsView" tileWidth="150.0" tileHeight="150.0" hgap="20.0"
+                    vgap="20.0" tileAlignment="TOP_CENTER">
+                    <padding>
+                      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                    </padding>
+                  </ThumbnailsView>
+                </items>
+              </SplitPane>
+            </content>
+          </Tab>
+          <Tab text="Artists" />
+        </tabs>
+      </TabPane>
+    </Scene>
+  </scene>
 </fx:root>
