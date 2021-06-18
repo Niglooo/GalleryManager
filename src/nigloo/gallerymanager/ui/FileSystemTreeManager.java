@@ -403,10 +403,6 @@ public class FileSystemTreeManager
 				{
 					for (FileSystemElement element : elements)
 					{
-						// DON'T remove until with have a confirmation box
-						if (element.getPath().toString().contains("Bartolomeobari - Copie") == false)
-							continue;
-						
 						try
 						{
 							if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
