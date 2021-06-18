@@ -29,6 +29,22 @@ public class SimpleMultipleSelectionModel<T> extends MultipleSelectionModel<T>
 		this.source.addListener((Change<? extends T> c) ->
 		{
 			selection.removeIf(item -> !source.contains(item));
+			if (!source.contains(focusItem))
+				focusItem = null;
+			
+			if (!source.contains(getSelectedItem()))
+			{
+				if (selection.isEmpty())
+				{
+					setSelectedItem(null);
+					setSelectedIndex(-1);
+				}
+				else
+				{
+					setSelectedItem(selection.get(selection.size() - 1));
+					setSelectedIndex(selection.size() - 1);
+				}
+			}
 		});
 	}
 	
