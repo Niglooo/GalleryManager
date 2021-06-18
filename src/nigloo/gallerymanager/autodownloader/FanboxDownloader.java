@@ -506,11 +506,12 @@ public class FanboxDownloader
 		                                               .filter(e -> e.getValue() != null)
 		                                               .collect(Collectors.toMap(e -> e.getValue().getImage(),
 		                                                                         e -> e.getKey()));
+		
 		for (Image image : images)
 		{
 			FanboxImageKey key = imageToKey.get(image);
 			if (key != null)
-				mapping.remove(key);
+				mapping.put(key, null);
 		}
 	}
 }
