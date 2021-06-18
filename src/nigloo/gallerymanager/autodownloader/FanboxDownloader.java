@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
+import java.net.http.HttpClient.Version;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -35,6 +38,8 @@ import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.net.ssl.SSLSession;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.GsonBuilder;
@@ -166,7 +171,12 @@ public class FanboxDownloader
 					}
 					
 					if (Files.exists(imageDest))
+					{
+						if (!mapping.containsKey(imageKey))
+							saveInGallery(postId, imageId).apply(fakeResponse(imageDest));
+						
 						continue;
+					}
 					
 					Files.createDirectories(imageDest.getParent());
 					
@@ -243,6 +253,62 @@ public class FanboxDownloader
 				mapping.put(imagekey, ref);
 				
 				return response;
+			}
+		};
+	}
+	
+	private static HttpResponse<Path> fakeResponse(Path body)
+	{
+		return new HttpResponse<Path>()
+		{
+			
+			@Override
+			public int statusCode()
+			{
+				return 0;
+			}
+			
+			@Override
+			public HttpRequest request()
+			{
+				return null;
+			}
+			
+			@Override
+			public Optional<HttpResponse<Path>> previousResponse()
+			{
+				return null;
+			}
+			
+			@Override
+			public HttpHeaders headers()
+			{
+				return null;
+			}
+			
+			@Override
+			public Path body()
+			{
+				return body;
+			}
+			
+			@Override
+			public Optional<SSLSession> sslSession()
+			{
+				return null;
+			}
+			
+			@Override
+			public URI uri()
+			{
+				
+				return null;
+			}
+			
+			@Override
+			public Version version()
+			{
+				return null;
 			}
 		};
 	}
