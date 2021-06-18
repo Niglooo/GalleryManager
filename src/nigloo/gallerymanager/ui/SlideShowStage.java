@@ -300,7 +300,8 @@ public class SlideShowStage extends Stage
 					List<Image> imagesToLoad = List.of(images.get(validIndex(current, 0)),
 					                                   images.get(validIndex(current, 1)),
 					                                   images.get(validIndex(current, -1)),
-					                                   images.get(validIndex(current, 2)));
+					                                   images.get(validIndex(current, 2)),
+					                                   images.get(validIndex(current, 3)));
 					
 					previousImagesToLoad.forEach(image ->
 					{
