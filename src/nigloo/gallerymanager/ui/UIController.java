@@ -39,6 +39,7 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
+import nigloo.tool.gson.RecordsTypeAdapterFactory;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
@@ -286,6 +287,7 @@ public class UIController extends Application
 			gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
 			                        .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
 			                        .registerTypeAdapter(ImageReference.class, ImageReference.typeAdapter())
+			                        .registerTypeAdapterFactory(new RecordsTypeAdapterFactory())
 			                        .disableHtmlEscaping()
 			                        .setPrettyPrinting()
 			                        .create();

@@ -13,7 +13,7 @@ module nigloo.gallerymanager
 	requires methanol;
 	requires java.desktop;
 	
-	opens nigloo.gallerymanager.model to com.google.gson, nigloo.tools;
+	opens nigloo.gallerymanager.model to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.autodownloader to com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.ui to javafx.graphics, javafx.fxml, nigloo.tools;
 }

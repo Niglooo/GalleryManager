@@ -25,7 +25,6 @@ import javafx.scene.control.TreeView;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
-import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.component.dialog.AlertWithIcon;
@@ -261,10 +260,7 @@ public class FileSystemTreeManager
 	
 	private void sort(TreeItem<FileSystemElement> item)
 	{
-		// TODO custom ordering from each folder (saved in json)
-		Comparator<FileSystemElement> comparator = Comparator.comparing((FileSystemElement element) -> element.getPath()
-		                                                                                                      .toString(),
-		                                                                Utils.NATURAL_ORDER);
+		Comparator<FileSystemElement> comparator = gallery.getSortOrder(item.getValue().getPath());
 		
 		item.getChildren().sort(Comparator.comparing(TreeItem::getValue, comparator));
 		for (TreeItem<FileSystemElement> subItem : item.getChildren())
@@ -398,6 +394,11 @@ public class FileSystemTreeManager
 				                             .filter(FileSystemElement::isImage)
 				                             .map(FileSystemElement::getImage)
 				                             .toList());
+				elements.forEach(element ->
+				{
+					gallery.setSortOrder(element.getPath(), null);
+					gallery.setSubDirectoriesSortOrder(element.getPath(), null);
+				});
 				
 				if (deleteOnDisk)
 				{

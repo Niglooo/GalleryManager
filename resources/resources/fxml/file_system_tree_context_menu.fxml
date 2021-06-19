@@ -1,13 +1,115 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.lang.Boolean?>
+<?import java.lang.Integer?>
+
+<?import javafx.scene.control.CheckMenuItem?>
 <?import javafx.scene.control.ContextMenu?>
+<?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.RadioMenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.ToggleGroup?>
+
+<?import nigloo.gallerymanager.model.SortBy?>
 
 <fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
   <items>
+    <MenuItem mnemonicParsing="false" onAction="#openInFileExplorer" text="Open" />
+    <SeparatorMenuItem />
+    <Menu mnemonicParsing="false" text="Sort by">
+      <CheckMenuItem fx:id="inheritedOrderItem" mnemonicParsing="false" onAction="#updateSortBy" text="Inherited" />
+      <SeparatorMenuItem />
+      <fx:define>
+        <ToggleGroup fx:id="sortByGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$sortByGroup" onAction="#updateSortBy"
+        text="Name">
+        <userData>
+          <SortBy fx:value="NAME" />
+        </userData>
+      </RadioMenuItem>
+      <SeparatorMenuItem />
+      <fx:define>
+        <ToggleGroup fx:id="folderPositionGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$folderPositionGroup" onAction="#updateSortBy" 
+        text="Folders first">
+        <userData>
+          <Integer fx:value="-1" />
+        </userData>
+      </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$folderPositionGroup" onAction="#updateSortBy" 
+        text="Folders last">
+        <userData>
+          <Integer fx:value="1" />
+        </userData>
+      </RadioMenuItem>
+      <SeparatorMenuItem />
+      <fx:define>
+        <ToggleGroup fx:id="ascendingGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$ascendingGroup" onAction="#updateSortBy" 
+        text="Ascending">
+        <userData>
+          <Boolean fx:value="true" />
+        </userData>
+      </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$ascendingGroup" onAction="#updateSortBy" 
+        text="Descending">
+        <userData>
+          <Boolean fx:value="false" />
+        </userData>
+      </RadioMenuItem>
+    </Menu>
+    <Menu mnemonicParsing="false" text="Children&#xD;Sort by">
+      <CheckMenuItem fx:id="childrenInheritedOrderItem" mnemonicParsing="false" onAction="#updateChildrenSortBy" text="Inherited" />
+      <SeparatorMenuItem />
+      <fx:define>
+        <ToggleGroup fx:id="childrenSortByGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$childrenSortByGroup" onAction="#updateChildrenSortBy"
+        text="Name">
+        <userData>
+          <SortBy fx:value="NAME" />
+        </userData>
+      </RadioMenuItem>
+      <SeparatorMenuItem />
+      <fx:define>
+        <ToggleGroup fx:id="childrenFolderPositionGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$childrenFolderPositionGroup" onAction="#updateChildrenSortBy" 
+        text="Folders first">
+        <userData>
+          <Integer fx:value="-1" />
+        </userData>
+      </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$childrenFolderPositionGroup" onAction="#updateChildrenSortBy" 
+        text="Folders last">
+        <userData>
+          <Integer fx:value="1" />
+        </userData>
+      </RadioMenuItem>
+      <SeparatorMenuItem />
+      <fx:define>
+        <ToggleGroup fx:id="childrenAscendingGroup" />
+      </fx:define>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$childrenAscendingGroup" onAction="#updateChildrenSortBy" 
+        text="Ascending">
+        <userData>
+          <Boolean fx:value="true" />
+        </userData>
+      </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$childrenAscendingGroup" onAction="#updateChildrenSortBy" 
+        text="Descending">
+        <userData>
+          <Boolean fx:value="false" />
+        </userData>
+      </RadioMenuItem>
+    </Menu>
     <MenuItem mnemonicParsing="false" onAction="#refresh" text="Refresh" />
     <MenuItem mnemonicParsing="false" onAction="#synchronize" text="Sync" />
-    <MenuItem mnemonicParsing="false" onAction="#openInFileExplorer" text="Open" />
+    <SeparatorMenuItem />
     <MenuItem mnemonicParsing="false" onAction="#delete" text="Delete" />
   </items>
 </fx:root>
