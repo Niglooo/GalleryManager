@@ -28,6 +28,7 @@ import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.component.dialog.AlertWithIcon;
+import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 
 public class FileSystemTreeManager
 {
@@ -78,23 +79,23 @@ public class FileSystemTreeManager
 			// Add files that are on disk
 			try
 			{
-				Files.list(path).forEach(subPath ->
-				{
-					FileSystemElement subElement = toFileSystemElement(subPath);
-					
-					if (subElement != null)
+				if (Files.exists(path))
+					Files.list(path).forEach(subPath ->
 					{
-						subPaths.add(subPath);
-						subElements.add(subElement);
-						if (subElement.isDirectory())
-							subDirectories.add(subPath);
-					}
-				});
+						FileSystemElement subElement = toFileSystemElement(subPath);
+						
+						if (subElement != null)
+						{
+							subPaths.add(subPath);
+							subElements.add(subElement);
+							if (subElement.isDirectory())
+								subDirectories.add(subPath);
+						}
+					});
 			}
 			catch (Exception e)
 			{
-				// TODO handle error
-				e.printStackTrace();
+				new ExceptionDialog(e, "Error when listing " + path).show();
 				return;
 			}
 			
@@ -402,6 +403,8 @@ public class FileSystemTreeManager
 				
 				if (deleteOnDisk)
 				{
+					IOException error = null;
+					Path errorPath = null;
 					for (FileSystemElement element : elements)
 					{
 						try
@@ -411,10 +414,13 @@ public class FileSystemTreeManager
 						}
 						catch (IOException e)
 						{
-							// TODO Handle error
-							e.printStackTrace();
+							error = e;
+							errorPath = element.getPath();
 						}
 					}
+					
+					if (error != null)
+						new ExceptionDialog(error, "Error when deleting " + errorPath).show();
 				}
 			}, asyncPool);
 		});
