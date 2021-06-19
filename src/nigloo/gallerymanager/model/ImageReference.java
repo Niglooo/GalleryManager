@@ -4,14 +4,15 @@ import java.io.IOException;
 import java.util.Objects;
 
 import com.google.gson.TypeAdapter;
+import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
-public class ImageReference // serial as imageId
+@JsonAdapter(ImageReference.ImageReferenceTypeAdapter.class)
+public class ImageReference
 {
 	private long imageId;
 	private Image image;
@@ -72,22 +73,13 @@ public class ImageReference // serial as imageId
 		@Override
 		public void write(JsonWriter out, ImageReference ref) throws IOException
 		{
-			if (ref == null)
-				out.nullValue();
-			else
-				out.value(ref.getImageId());
+			out.value(ref.getImageId());
 		}
 		
 		@Override
 		public ImageReference read(JsonReader in) throws IOException
 		{
-			if (in.peek() == JsonToken.NULL)
-			{
-				in.nextNull();
-				return null;
-			}
-			else
-				return new ImageReference(in.nextLong());
+			return new ImageReference(in.nextLong());
 		}
 	};
 }
