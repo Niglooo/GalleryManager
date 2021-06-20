@@ -77,7 +77,15 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	
 	void updateSortOrderItems()
 	{
+		if (selection.getSelectedItem().getValue().isImage())
+		{
+			inheritedOrderItem.getParentMenu().setDisable(true);
+			return;
+		}
+		
 		Path path = selection.getSelectedItem().getValue().getPath();
+		
+		inheritedOrderItem.getParentMenu().setDisable(false);
 		
 		inheritedOrderItem.setSelected(gallery.isOrderInherited(path));
 		
@@ -92,7 +100,15 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	
 	void updateChildrenSortOrderItems()
 	{
+		if (selection.getSelectedItem().getValue().isImage())
+		{
+			childrenInheritedOrderItem.getParentMenu().setDisable(true);
+			return;
+		}
+		
 		Path path = selection.getSelectedItem().getValue().getPath();
+		
+		childrenInheritedOrderItem.getParentMenu().setDisable(false);
 		
 		childrenInheritedOrderItem.setSelected(gallery.isSubDirectoriesOrderInherited(path));
 		
