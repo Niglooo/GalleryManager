@@ -9,7 +9,7 @@ import nigloo.gallerymanager.model.Image;
 
 public class FileSystemElement
 {
-	private static final javafx.scene.image.Image ICON_FOLDER_NOT_LOADED;
+	private static final javafx.scene.image.Image ICON_FOLDER;
 	private static final javafx.scene.image.Image ICON_FOLDER_LOADING;
 	private static final javafx.scene.image.Image ICON_FOLDER_SYNC;
 	private static final javafx.scene.image.Image ICON_FOLDER_UNSYNC;
@@ -19,7 +19,7 @@ public class FileSystemElement
 	private static final javafx.scene.image.Image ICON_IMAGE_DELETED;
 	static
 	{
-		ICON_FOLDER_NOT_LOADED = loadIcon("folder_not_loaded.png");
+		ICON_FOLDER = loadIcon("folder.png");
 		ICON_FOLDER_LOADING = loadIcon("folder_loading.png");
 		ICON_FOLDER_SYNC = loadIcon("folder_sync.png");
 		ICON_FOLDER_UNSYNC = loadIcon("folder_unsync.png");
@@ -169,7 +169,7 @@ public class FileSystemElement
 				case NOT_LOADED:
 				case NOT_FULLY_LOADED:
 				case EMPTY:
-					return ICON_FOLDER_NOT_LOADED;
+					return ICON_FOLDER;
 			}
 		}
 		
