@@ -59,12 +59,86 @@ public class FileSystemTreeManager
 			getAsyncAction(path, deep);
 	}
 	
+	// TODO simplify getAsyncAction(Path path, boolean deep)
 	private CompletableFuture<Void> getAsyncAction(Path path, boolean deep)
 	{
+		// ---- case path doesn't exist ----
+		if (!Files.exists(path))
+		{
+			Platform.runLater(() ->
+			{
+				TreeItem<FileSystemElement> item = findTreeItem(path);
+				if (item == null)
+					return;
+				
+				Image image = gallery.findImage(path);
+				if (image != null)
+				{
+					item.setValue(new FileSystemElement(image, Status.DELETED));
+					item.getChildren().clear();
+					updateFolderAndParentStatus(item.getParent(), deep);
+				}
+				else
+				{
+					item.setValue(new FileSystemElement(path));
+					
+					// create/update deleted items
+					Collection<Image> deletedImages = gallery.findImagesIn(path);
+					List<TreeItem<FileSystemElement>> itemProcessed = new ArrayList<>();
+					createUpdateDeleteItems(deletedImages, item, itemProcessed);
+					removeNotProcessed(item, itemProcessed);
+					sort(item);
+					updateFolderAndParentStatus(item, deep);
+				}
+				
+				uiController.requestRefreshThumbnails();
+			});
+			
+			return CompletableFuture.completedFuture(null);
+		}
+		
+		// ---- case path is an image ----
+		if (Image.isImage(path) && Files.isRegularFile(path))
+		{
+			Platform.runLater(() ->
+			{
+				TreeItem<FileSystemElement> item = findTreeItem(path);
+				if (item == null)
+					return;
+				
+				Image image = gallery.findImage(path);
+				FileSystemElement element = (image != null) ? new FileSystemElement(image, Status.SYNC)
+				        : new FileSystemElement(new Image(gallery.toRelativePath(path)), Status.UNSYNC);
+				
+				item.setValue(element);
+				item.getChildren().clear();
+				
+				updateFolderAndParentStatus(item.getParent(), deep);
+			});
+			
+			return CompletableFuture.completedFuture(null);
+		}
+		
+		// ---- case path something we don't are about ----
+		if (!Files.isDirectory(path))
+		{
+			Platform.runLater(() ->
+			{
+				TreeItem<FileSystemElement> item = findTreeItem(path);
+				if (item == null)
+					return;
+				
+				TreeItem<FileSystemElement> parent = item.getParent();
+				parent.getChildren().remove(item);
+				updateFolderAndParentStatus(parent, deep);
+			});
+			
+			return CompletableFuture.completedFuture(null);
+		}
+		
+		// ---- case path is a directory ----
 		return CompletableFuture.runAsync(() ->
 		{
-			assert Files.isDirectory(path);
-			
 			Platform.runLater(() ->
 			{
 				TreeItem<FileSystemElement> item = findTreeItem(path);
@@ -79,19 +153,18 @@ public class FileSystemTreeManager
 			// Add files that are on disk
 			try
 			{
-				if (Files.exists(path))
-					Files.list(path).forEach(subPath ->
+				Files.list(path).forEach(subPath ->
+				{
+					FileSystemElement subElement = toFileSystemElement(subPath);
+					
+					if (subElement != null)
 					{
-						FileSystemElement subElement = toFileSystemElement(subPath);
-						
-						if (subElement != null)
-						{
-							subPaths.add(subPath);
-							subElements.add(subElement);
-							if (subElement.isDirectory())
-								subDirectories.add(subPath);
-						}
-					});
+						subPaths.add(subPath);
+						subElements.add(subElement);
+						if (subElement.isDirectory())
+							subDirectories.add(subPath);
+					}
+				});
 			}
 			catch (Exception e)
 			{
@@ -143,46 +216,7 @@ public class FileSystemTreeManager
 				}
 				
 				// create/update deleted items
-				for (Image deletedImage : deletedImages)
-				{
-					FileSystemElement currentElement = new FileSystemElement(deletedImage, Status.DELETED);
-					TreeItem<FileSystemElement> currentItem = findTreeItem(item, deletedImage.getAbsolutePath());
-					TreeItem<FileSystemElement> childItemToAdd = null;
-					
-					while (currentItem != item)
-					{
-						if (currentItem == null)
-						{
-							currentItem = new TreeItem<>();
-							if (childItemToAdd != null)
-								currentItem.getChildren().add(childItemToAdd);
-							childItemToAdd = currentItem;
-						}
-						else
-						{
-							if (currentElement.isDirectory() && childItemToAdd != null)
-								currentItem.getChildren().add(childItemToAdd);
-							else if (currentElement.isImage())
-								currentItem.getChildren().clear();
-							
-							childItemToAdd = null;
-						}
-						
-						changed |= !currentElement.equals(currentItem.getValue());
-						currentItem.setValue(currentElement);
-						
-						itemProcessed.add(currentItem);
-						
-						Path pathParent = currentElement.getPath().getParent();
-						currentElement = new FileSystemElement(pathParent);
-						currentElement.setStatus(Status.DELETED);
-						currentItem = findTreeItem(item, pathParent);
-					}
-					
-					if (childItemToAdd != null)
-						currentItem.getChildren().add(childItemToAdd);
-				}
-				
+				changed |= createUpdateDeleteItems(deletedImages, item, itemProcessed);
 				removeNotProcessed(item, itemProcessed);
 				sort(item);
 				
@@ -245,6 +279,62 @@ public class FileSystemTreeManager
 		return null;
 	}
 	
+	private static boolean createUpdateDeleteItems(Collection<Image> deletedImages,
+	                                               TreeItem<FileSystemElement> item,
+	                                               Collection<TreeItem<FileSystemElement>> itemProcessed)
+	{
+		boolean changed = false;
+		
+		for (Image deletedImage : deletedImages)
+		{
+			FileSystemElement currentElement = new FileSystemElement(deletedImage, Status.DELETED);
+			TreeItem<FileSystemElement> currentItem = findTreeItem(item, deletedImage.getAbsolutePath());
+			if (currentItem == item)
+			{
+				item.setValue(currentElement);
+				item.getChildren().clear();
+				continue;
+			}
+			
+			TreeItem<FileSystemElement> childItemToAdd = null;
+			
+			while (currentItem != item)
+			{
+				if (currentItem == null)
+				{
+					currentItem = new TreeItem<>();
+					if (childItemToAdd != null)
+						currentItem.getChildren().add(childItemToAdd);
+					childItemToAdd = currentItem;
+				}
+				else
+				{
+					if (currentElement.isDirectory() && childItemToAdd != null)
+						currentItem.getChildren().add(childItemToAdd);
+					else if (currentElement.isImage())
+						currentItem.getChildren().clear();
+					
+					childItemToAdd = null;
+				}
+				
+				changed |= !currentElement.equals(currentItem.getValue());
+				currentItem.setValue(currentElement);
+				
+				itemProcessed.add(currentItem);
+				
+				Path pathParent = currentElement.getPath().getParent();
+				currentElement = new FileSystemElement(pathParent);
+				currentElement.setStatus(Status.DELETED);
+				currentItem = findTreeItem(item, pathParent);
+			}
+			
+			if (childItemToAdd != null)
+				currentItem.getChildren().add(childItemToAdd);
+		}
+		
+		return changed;
+	}
+	
 	private static void removeNotProcessed(TreeItem<FileSystemElement> item,
 	                                       Collection<TreeItem<FileSystemElement>> processedItems)
 	{
@@ -287,13 +377,11 @@ public class FileSystemTreeManager
 		Status newSatus;
 		if (statusFound.isEmpty())
 			newSatus = Status.EMPTY;
-		else if (statusFound.size() == 1 && statusFound.contains(Status.DELETED))
-			newSatus = Status.DELETED;
 		else if (statusFound.size() == 1 && statusFound.contains(Status.SYNC))
 			newSatus = Status.SYNC;
-		else if (statusFound.contains(Status.UNSYNC) && allFullyLoaded)
-			newSatus = Status.UNSYNC;
-		else if (statusFound.size() == 2 && statusFound.contains(Status.SYNC) && statusFound.contains(Status.DELETED))
+		else if (statusFound.size() == 1 && statusFound.contains(Status.DELETED) && !Files.exists(item.getValue().getPath()))
+			newSatus = Status.DELETED;
+		else if ((statusFound.contains(Status.UNSYNC) || statusFound.contains(Status.DELETED)) && allFullyLoaded)
 			newSatus = Status.UNSYNC;
 		else
 			newSatus = Status.NOT_FULLY_LOADED;
@@ -303,8 +391,14 @@ public class FileSystemTreeManager
 		
 		item.getValue().setStatus(newSatus);
 		
-		if (item.getParent() != null)
-			updateFolderAndParentStatus(item.getParent(), updateOnlyIfFullyLoaded);
+		TreeItem<FileSystemElement> parent = item.getParent();
+		if (parent != null)
+		{
+			if (newSatus == Status.EMPTY)
+				parent.getChildren().remove(item);
+			
+			updateFolderAndParentStatus(parent, updateOnlyIfFullyLoaded);
+		}
 	}
 	
 	private class NewFolderExpandListener implements ChangeListener<Boolean>
