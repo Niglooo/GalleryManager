@@ -49,6 +49,10 @@ public final class Gallery
 	public void finishConstruct()
 	{
 		nextId = images.stream().mapToLong(Image::getId).max().orElse(0) + 1;
+		
+		for (Artist artist : artists)
+			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+				autoDownloader.setArtist(artist);
 	}
 	
 	public Path getRootFolder()

@@ -48,6 +48,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
+import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
@@ -60,6 +61,8 @@ public class FanboxDownloader
 {
 	@Inject
 	private transient Gallery gallery;
+	
+	private transient Artist artist;
 	
 	private String creatorId;
 	private String imagePathPattern;
@@ -76,6 +79,16 @@ public class FanboxDownloader
 	{
 		this.creatorId = creatorId;
 		Injector.init(this);
+	}
+	
+	public Artist getArtist()
+	{
+		return artist;
+	}
+	
+	public void setArtist(Artist artist)
+	{
+		this.artist = artist;
 	}
 	
 	public void download(String cookie) throws Exception
@@ -215,6 +228,7 @@ public class FanboxDownloader
 		if (image == null)
 		{
 			image = new Image(gallery.toRelativePath(path));
+			image.addTag(artist.getTag());
 			gallery.saveImage(image);
 		}
 		ImageReference ref = new ImageReference(image);
