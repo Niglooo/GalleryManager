@@ -5,8 +5,6 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
-import java.net.http.HttpClient.Version;
-import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
@@ -29,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -38,8 +35,6 @@ import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import javax.net.ssl.SSLSession;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.GsonBuilder;
@@ -66,7 +61,7 @@ public class FanboxDownloader
 	@Inject
 	private transient Gallery gallery;
 	
-	private final String creatorId;
+	private String creatorId;
 	private String imagePathPattern;
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
@@ -75,7 +70,6 @@ public class FanboxDownloader
 	@SuppressWarnings("unused")
 	private FanboxDownloader()
 	{
-		this(null);
 	}
 	
 	public FanboxDownloader(String creatorId)
@@ -130,10 +124,6 @@ public class FanboxDownloader
 				                                                          .getAsString());
 				String publishedDatetimeISO = DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime);
 				
-				boolean adaptPost = mapping.containsKey(new FanboxImageKey(postId, "NA"));
-				if (adaptPost)
-					mapping.remove(new FanboxImageKey(postId, "NA"));
-				
 				int imgNum = 1;
 				for (JsonElement image : images)
 				{
@@ -147,35 +137,35 @@ public class FanboxDownloader
 					ImageReference imageReference;
 					Path imageDest;
 					
-					if (adaptPost)
-						mapping.put(imageKey, null);
-					
-					if (mapping.containsKey(imageKey))
+					synchronized (this)
 					{
-						imageReference = mapping.get(imageKey);
-						if (imageReference == null)
+						if (mapping.containsKey(imageKey))
+						{
+							imageReference = mapping.get(imageKey);
+							if (imageReference == null)
+								continue;
+							
+							imageDest = imageReference.getImage().getAbsolutePath();
+						}
+						else
+						{
+							imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
+							                                      .replace("{postId}", postId)
+							                                      .replace("{postDatetime}", publishedDatetimeISO)
+							                                      .replace("{postTitle}", postTitle)
+							                                      .replace("{imageNumber}", imageNumber)
+							                                      .replace("{imageFilename}", imageFilename));
+							imageDest = gallery.toAbsolutePath(imageDest);
+							imageReference = null;
+						}
+						
+						if (Files.exists(imageDest))
+						{
+							if (!mapping.containsKey(imageKey))
+								saveInGallery(postId, imageId, imageDest);
+							
 							continue;
-						
-						imageDest = imageReference.getImage().getAbsolutePath();
-					}
-					else
-					{
-						imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
-						                                      .replace("{postId}", postId)
-						                                      .replace("{postDatetime}", publishedDatetimeISO)
-						                                      .replace("{postTitle}", postTitle)
-						                                      .replace("{imageNumber}", imageNumber)
-						                                      .replace("{imageFilename}", imageFilename));
-						imageDest = gallery.toAbsolutePath(imageDest);
-						imageReference = null;
-					}
-					
-					if (Files.exists(imageDest))
-					{
-						if (!mapping.containsKey(imageKey))
-							saveInGallery(postId, imageId).apply(fakeResponse(imageDest));
-						
-						continue;
+						}
 					}
 					
 					Files.createDirectories(imageDest.getParent());
@@ -185,9 +175,9 @@ public class FanboxDownloader
 					CompletableFuture<?> asyncResponse = httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
 					                                               .thenApply(saveInGallery(postId, imageId))
 					                                               .thenApply(r -> print(r,
-					                                                                      PrintOption.REQUEST_URL,
-					                                                                      PrintOption.STATUS_CODE,
-					                                                                      PrintOption.RESPONSE_BODY))
+					                                                                     PrintOption.REQUEST_URL,
+					                                                                     PrintOption.STATUS_CODE,
+					                                                                     PrintOption.RESPONSE_BODY))
 					                                               .thenRun(maxConcurrentStreams::release);
 					
 					imagesDownload.add(asyncResponse);
@@ -198,20 +188,6 @@ public class FanboxDownloader
 		}
 		
 		CompletableFuture.allOf(imagesDownload.toArray(CompletableFuture[]::new)).join();
-		
-//		request = HttpRequest.newBuilder()
-//				.uri(new URI("https://oauth.secure.pixiv.net/auth/token"))
-//				.POST(new FormUrlEncodedBodyPublisher()
-//						.put("client_id", "KzEZED7aC0vird8jWyHM38mXjNTY")
-//						.put("client_secret", "W9JZoJe00qPvJsiyCGT3CCtC6ZUtdpKpzMbNlUGP")
-//						.put("grant_type", "password")
-//						.put("username", "nigloo")
-//						.put("password", "XXXXX")
-//						)
-//				.header("content-type", "application/x-www-form-urlencoded")
-//				.build();
-//		response = httpClient.send(request, BodyHandlers.ofString());
-//		print(response);
 	}
 	
 	private String[] getFanboxHeaders(String cookie)
@@ -233,82 +209,28 @@ public class FanboxDownloader
 		// @formatter:on
 	}
 	
+	private void saveInGallery(String postId, String imageId, Path path)
+	{
+		Image image = gallery.findImage(path);
+		if (image == null)
+		{
+			image = new Image(gallery.toRelativePath(path));
+			gallery.saveImage(image);
+		}
+		ImageReference ref = new ImageReference(image);
+		
+		FanboxImageKey imagekey = new FanboxImageKey(postId, imageId);
+		mapping.put(imagekey, ref);
+	}
+	
 	private Function<HttpResponse<Path>, HttpResponse<Path>> saveInGallery(String postId, String imageId)
 	{
 		return response ->
 		{
 			synchronized (this)
 			{
-				Path imagePath = gallery.toRelativePath(response.body());
-				
-				Image image = gallery.findImage(imagePath);
-				if (image == null)
-				{
-					image = new Image(imagePath);
-					gallery.saveImage(image);
-				}
-				ImageReference ref = new ImageReference(image);
-				
-				FanboxImageKey imagekey = new FanboxImageKey(postId, imageId);
-				mapping.put(imagekey, ref);
-				
+				saveInGallery(postId, imageId, response.body());
 				return response;
-			}
-		};
-	}
-	
-	private static HttpResponse<Path> fakeResponse(Path body)
-	{
-		return new HttpResponse<Path>()
-		{
-			
-			@Override
-			public int statusCode()
-			{
-				return 0;
-			}
-			
-			@Override
-			public HttpRequest request()
-			{
-				return null;
-			}
-			
-			@Override
-			public Optional<HttpResponse<Path>> previousResponse()
-			{
-				return null;
-			}
-			
-			@Override
-			public HttpHeaders headers()
-			{
-				return null;
-			}
-			
-			@Override
-			public Path body()
-			{
-				return body;
-			}
-			
-			@Override
-			public Optional<SSLSession> sslSession()
-			{
-				return null;
-			}
-			
-			@Override
-			public URI uri()
-			{
-				
-				return null;
-			}
-			
-			@Override
-			public Version version()
-			{
-				return null;
 			}
 		};
 	}
@@ -452,7 +374,7 @@ public class FanboxDownloader
 			return (res != 0) ? res : Utils.NATURAL_ORDER.compare(imageId, o.imageId);
 		}
 	}
-
+	
 	static class MappingTypeAdapter extends TypeAdapter<Map<FanboxImageKey, ImageReference>>
 	{
 		@Override
