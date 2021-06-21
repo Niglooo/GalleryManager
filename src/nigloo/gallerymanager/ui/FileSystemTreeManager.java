@@ -56,7 +56,11 @@ public class FileSystemTreeManager
 		assert paths.stream().allMatch(Path::isAbsolute);
 		
 		for (Path path : (deep ? commonParents(paths) : paths))
-			getAsyncAction(path, deep);
+			getAsyncAction(path, deep).exceptionally(e ->
+			{
+				new ExceptionDialog(e, "Error will refreshing " + path).show();
+				return null;
+			});
 	}
 	
 	// TODO simplify getAsyncAction(Path path, boolean deep)
