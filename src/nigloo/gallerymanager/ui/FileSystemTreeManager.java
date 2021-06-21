@@ -426,19 +426,39 @@ public class FileSystemTreeManager
 		}
 	}
 	
-	// TODO syncFileSystemItem
-	public void syncFileSystemItem(TreeItem<FileSystemElement> rootItem)
+	public void synchronizeFileSystem(Collection<Path> paths, boolean deep)
 	{
-		System.out.println("Save : " + rootItem.getValue().getPath());
-		try
+		assert paths != null;
+		assert paths.stream().allMatch(Path::isAbsolute);
+		
+		Platform.runLater(() ->
 		{
-			if (false)
-				throw new IOException();
-			
+			for (Path path : (deep ? commonParents(paths) : paths))
+				doSynchronize(findTreeItem(path), deep);
+		});
+	}
+	
+	private void doSynchronize(TreeItem<FileSystemElement> item, boolean deep)
+	{
+		if (item == null || item.getValue() == null)
+			return;
+		
+		FileSystemElement element = item.getValue();
+		
+		if (element.isImage())
+		{
+			Image image = element.getImage();
+			if (!image.isSaved())
+			{
+				gallery.saveImage(image);
+				item.setValue(new FileSystemElement(image, Status.SYNC));
+				updateFolderAndParentStatus(item.getParent(), false);
+			}
 		}
-		catch (IOException e)
+		else
 		{
-			e.printStackTrace();
+			for (TreeItem<FileSystemElement> subItem : item.getChildren())
+				doSynchronize(subItem, deep);
 		}
 	}
 	

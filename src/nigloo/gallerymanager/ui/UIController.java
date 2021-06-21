@@ -299,6 +299,11 @@ public class UIController extends Application
 		fileSystemTreeManager.refresh(paths, deep);
 	}
 	
+	public void synchronizeFileSystem(Collection<Path> paths, boolean deep)
+	{
+		fileSystemTreeManager.synchronizeFileSystem(paths, deep);
+	}
+	
 	public void delete(Collection<Path> paths, boolean deleteOnDisk)
 	{
 		fileSystemTreeManager.delete(paths, deleteOnDisk);

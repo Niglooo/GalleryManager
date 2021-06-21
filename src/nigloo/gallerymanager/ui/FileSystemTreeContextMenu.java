@@ -230,7 +230,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void synchronize()
 	{
-		// uiController.syncFileSystemItem(selectedItem);
+		uiController.synchronizeFileSystem(selectedPaths(), true);
 	}
 	
 	@FXML
