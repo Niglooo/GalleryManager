@@ -70,15 +70,15 @@ public class FanboxDownloader
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<FanboxImageKey, ImageReference> mapping = new LinkedHashMap<>();
 	
-	@SuppressWarnings("unused")
 	private FanboxDownloader()
 	{
+		Injector.init(this);
 	}
 	
 	public FanboxDownloader(String creatorId)
 	{
+		this();
 		this.creatorId = creatorId;
-		Injector.init(this);
 	}
 	
 	public Artist getArtist()
