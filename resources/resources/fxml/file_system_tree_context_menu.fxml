@@ -29,6 +29,12 @@
           <SortBy fx:value="NAME" />
         </userData>
       </RadioMenuItem>
+      <RadioMenuItem mnemonicParsing="false" toggleGroup="$sortByGroup" onAction="#updateSortBy"
+        text="Date">
+        <userData>
+          <SortBy fx:value="DATE" />
+        </userData>
+      </RadioMenuItem>
       <SeparatorMenuItem />
       <fx:define>
         <ToggleGroup fx:id="folderPositionGroup" />

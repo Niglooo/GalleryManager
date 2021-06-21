@@ -2,6 +2,7 @@ package nigloo.gallerymanager.ui;
 
 import java.io.IOError;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -69,6 +70,7 @@ public class FileSystemElement
 	private final Image image;
 	private final Path path;
 	private Status status;
+	private long lastModified = -1;
 	
 	public FileSystemElement(Image image, Status status)
 	{
@@ -184,5 +186,20 @@ public class FileSystemElement
 	public void setStatus(Status status)
 	{
 		this.status = Objects.requireNonNull(status, "status");
+	}
+	
+	public long getLastModified()
+	{
+		if (lastModified == -1)
+			try
+			{
+				lastModified = Files.getLastModifiedTime(getPath()).toMillis();
+			}
+			catch (IOException e)
+			{
+				lastModified = 0;
+			}
+		
+		return lastModified;
 	}
 }
