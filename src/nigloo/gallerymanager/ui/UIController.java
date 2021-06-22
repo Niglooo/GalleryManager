@@ -16,18 +16,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
-import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.stage.Stage;
@@ -108,23 +105,6 @@ public class UIController extends Application
 		fxmlLoader.setRoot(primaryStage);
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
-		// TODO Move file/directory
-		fileSystemView.setCellFactory(new FileSystemTreeCellFactory());
-		fileSystemView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		fileSystemView.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<TreeItem<FileSystemElement>>()
-		{
-			@Override
-			public void onChanged(Change<? extends TreeItem<FileSystemElement>> c)
-			{
-				while (c.next())
-					c.getRemoved()
-					 .stream()
-					 .flatMap(item -> getImages(item))
-					 .forEach(Image::cancelLoadingThumbnail);
-				
-				requestRefreshThumbnails();
-			}
-		});
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);
 		fileSystemView.setRoot(root);
@@ -208,28 +188,15 @@ public class UIController extends Application
 			Platform.runLater(() ->
 			{
 				thumbnailsView.getTiles()
-				              .setAll(fileSystemView.getSelectionModel()
-				                                    .getSelectedItems()
-				                                    .stream()
-				                                    .flatMap(UIController::getImages)
-				                                    .distinct()
-				                                    .map(UIController.this::getImageView)
-				                                    .toList());
+				              .setAll(fileSystemTreeManager.getSelectedImages()
+				                                           .stream()
+				                                           .map(UIController.this::getImageView)
+				                                           .toList());
 				lastUpdate = System.currentTimeMillis();
 				updateRequested = false;
 				isUpdating = false;
 			});
 		}
-	}
-	
-	private static Stream<Image> getImages(TreeItem<FileSystemElement> rootItem)
-	{
-		if (rootItem == null || rootItem.getValue() == null)
-			return Stream.empty();
-		else if (rootItem.getValue().isImage())
-			return Stream.of(rootItem.getValue().getImage());
-		else
-			return rootItem.getChildren().stream().flatMap(UIController::getImages);
 	}
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);

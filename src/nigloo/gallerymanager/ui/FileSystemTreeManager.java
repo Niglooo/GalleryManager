@@ -18,8 +18,10 @@ import java.util.stream.Stream;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ListChangeListener;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import nigloo.gallerymanager.model.Gallery;
@@ -42,12 +44,32 @@ public class FileSystemTreeManager
 	
 	private final TreeView<FileSystemElement> treeView;
 	
-	public FileSystemTreeManager(TreeView<FileSystemElement> treeView)
+	public FileSystemTreeManager(TreeView<FileSystemElement> treeView) throws IOException
 	{
 		Injector.init(this);
 		
 		this.treeView = treeView;
 		this.asyncPool = Executors.newCachedThreadPool();
+		
+		// TODO Move file/directory
+		treeView.setCellFactory(new FileSystemTreeCellFactory());
+		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		treeView.getSelectionModel()
+		        .getSelectedItems()
+		        .addListener(new ListChangeListener<TreeItem<FileSystemElement>>()
+		        {
+			        @Override
+			        public void onChanged(Change<? extends TreeItem<FileSystemElement>> c)
+			        {
+				        while (c.next())
+					        c.getRemoved()
+					         .stream()
+					         .flatMap(item -> getImages(item))
+					         .forEach(Image::cancelLoadingThumbnail);
+				        
+				        uiController.requestRefreshThumbnails();
+			        }
+		        });
 	}
 	
 	public void refresh(Collection<Path> paths, boolean deep)
@@ -383,7 +405,8 @@ public class FileSystemTreeManager
 			newSatus = Status.EMPTY;
 		else if (statusFound.size() == 1 && statusFound.contains(Status.SYNC))
 			newSatus = Status.SYNC;
-		else if (statusFound.size() == 1 && statusFound.contains(Status.DELETED) && !Files.exists(item.getValue().getPath()))
+		else if (statusFound.size() == 1 && statusFound.contains(Status.DELETED)
+		        && !Files.exists(item.getValue().getPath()))
 			newSatus = Status.DELETED;
 		else if ((statusFound.contains(Status.UNSYNC) || statusFound.contains(Status.DELETED)) && allFullyLoaded)
 			newSatus = Status.UNSYNC;
@@ -556,5 +579,25 @@ public class FileSystemTreeManager
 	private static Collection<Path> commonParents(Collection<Path> paths)
 	{
 		return paths.stream().filter(p -> paths.stream().noneMatch(p2 -> p != p2 && p.startsWith(p2))).toList();
+	}
+	
+	public List<Image> getSelectedImages()
+	{
+		return treeView.getSelectionModel()
+		               .getSelectedItems()
+		               .stream()
+		               .flatMap(FileSystemTreeManager::getImages)
+		               .distinct()
+		               .toList();
+	}
+	
+	private static Stream<Image> getImages(TreeItem<FileSystemElement> rootItem)
+	{
+		if (rootItem == null || rootItem.getValue() == null)
+			return Stream.empty();
+		else if (rootItem.getValue().isImage())
+			return Stream.of(rootItem.getValue().getImage());
+		else
+			return rootItem.getChildren().stream().flatMap(FileSystemTreeManager::getImages);
 	}
 }
