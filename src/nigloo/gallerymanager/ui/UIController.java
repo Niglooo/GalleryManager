@@ -103,7 +103,12 @@ public class UIController extends Application
 		config.load(new FileInputStream("config.properties"));
 		for (Artist artist : gallery.getArtists())
 			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
-				;// autoDownloader.download(config.getProperty("cookie"));
+			{
+				// autoDownloader.download(config.getProperty("cookie"));
+				for (Image image : gallery.getImages())
+					if (autoDownloader.isHandling(image))
+						image.addTag(artist.getTag());
+			}
 				
 		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 		fxmlLoader.setController(this);

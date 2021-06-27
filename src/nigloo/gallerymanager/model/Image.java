@@ -3,10 +3,10 @@ package nigloo.gallerymanager.model;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -15,8 +15,9 @@ public class Image
 {
 	long id;
 	private Path path;
-	private List<String> tags = new ArrayList<>();
+	private Set<String> tags = new HashSet<>();
 	
+	// private transient Set<String> implicitTagsCache = null;
 	private transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
 	private transient SoftReference<javafx.scene.image.Image> fxImageCache = null;
 	
@@ -77,8 +78,7 @@ public class Image
 	
 	public void addTag(String tag)
 	{
-		if (!tags.contains(tag))
-			tags.add(tag);
+		tags.add(tag);
 	}
 	
 	public javafx.scene.image.Image getThumbnail(boolean async)
