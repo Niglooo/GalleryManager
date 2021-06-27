@@ -27,6 +27,7 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.control.cell.TextFieldTreeCell;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -35,6 +36,7 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.util.Callback;
+import javafx.util.StringConverter;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
@@ -62,6 +64,7 @@ public class FileSystemTreeManager
 		this.asyncPool = Executors.newCachedThreadPool();
 		
 		treeView.setCellFactory(new FileSystemTreeCellFactory());
+		treeView.setEditable(true);
 		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		treeView.getSelectionModel()
 		        .getSelectedItems()
@@ -624,8 +627,6 @@ public class FileSystemTreeManager
 			this.contextMenu = new FileSystemTreeContextMenu();
 		}
 		
-		// TODO cellule renomable
-		// !!!!!!!!!!!!!!!!!! COMMITS !!!!!!!!!!!!!!
 		@Override
 		public TreeCell<FileSystemElement> call(TreeView<FileSystemElement> treeView)
 		{
@@ -635,10 +636,10 @@ public class FileSystemTreeManager
 				contextMenuListenerSet = true;
 			}
 			
-			TreeCell<FileSystemElement> cell = new TreeCell<FileSystemElement>()
+			TextFieldTreeCell<FileSystemElement> cell = new TextFieldTreeCell<FileSystemElement>()
 			{
 				@Override
-				protected void updateItem(FileSystemElement element, boolean empty)
+				public void updateItem(FileSystemElement element, boolean empty)
 				{
 					super.updateItem(element, empty);
 					
@@ -646,6 +647,7 @@ public class FileSystemTreeManager
 					{
 						setText("");
 						setGraphic(null);
+						setEditable(false);
 					}
 					else
 					{
@@ -655,16 +657,91 @@ public class FileSystemTreeManager
 						iv.setFitWidth(16);
 						iv.setPreserveRatio(true);
 						setGraphic(iv);
+						setEditable(true);
+					}
+				}
+				
+				@Override
+				public void commitEdit(FileSystemElement newElement)
+				{
+					FileSystemElement oldElement = getItem();
+					super.commitEdit(newElement);
+					
+					if (newElement == oldElement)
+						cancelEdit();
+					else
+					{
+						try
+						{
+							Path source = oldElement.getPath();
+							Path target = newElement.getPath();
+							
+							Utils.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+							gallery.move(source, target);
+							
+							super.commitEdit(newElement);
+							
+							TreeItem<FileSystemElement> item = getTreeItem();
+							TreeItem<FileSystemElement> parent = item.getParent();
+							
+							parent.getChildren().remove(item);
+							merge(parent, List.of(item));
+							
+							updateMovedItem(source, target, item);
+						}
+						catch (Exception e)
+						{
+							cancelEdit();
+						}
 					}
 				}
 			};
 			
 			cell.setContextMenu(contextMenu);
+			cell.setOnContextMenuRequested(e -> contextMenu.setSelectedCell(cell));
 			cell.setOnDragDetected((MouseEvent event) -> dragDetected(event, cell));
 			cell.setOnDragOver((DragEvent event) -> dragOver(event, cell));
 			cell.setOnDragDropped((DragEvent event) -> drop(event, cell));
 			cell.setOnDragDone((DragEvent event) -> clearDropLocation());
 			
+			StringConverter<FileSystemElement> converter = new StringConverter<FileSystemElement>()
+			{
+				@Override
+				public String toString(FileSystemElement element)
+				{
+					if (element == null)
+						return null;
+					
+					return element.getPath().getFileName().toString();
+				}
+				
+				@Override
+				public FileSystemElement fromString(String filename)
+				{
+					FileSystemElement oldElement = cell.getItem();
+					if (toString(oldElement).equals(filename))
+						return oldElement;
+					
+					Path newPath = oldElement.getPath().getParent().resolve(filename);
+					FileSystemElement element;
+					
+					if (oldElement.isDirectory())
+					{
+						element = new FileSystemElement(newPath);
+						element.setStatus(oldElement.getStatus());
+					}
+					else
+					{
+						Image image = oldElement.getImage();
+						image.move(gallery.toRelativePath(newPath));
+						element = new FileSystemElement(image, oldElement.getStatus());
+					}
+					
+					return element;
+				}
+			};
+			cell.setConverter(converter);
+			cell.commitEdit(null);
 			return cell;
 		}
 	}
@@ -754,7 +831,6 @@ public class FileSystemTreeManager
 				// Move files on disk
 				Utils.move(itemPath, newPath, StandardCopyOption.REPLACE_EXISTING);
 				
-				// TODO gallery.move (sortOrder)
 				// Move images in gallery, sort order preference, etc
 				gallery.move(itemPath, newPath);
 				
@@ -804,7 +880,7 @@ public class FileSystemTreeManager
 	}
 	
 	/**
-	 * Update the gallery indirectly by calling Image.move(Path)
+	 * Update the FileSystemElement of directory elements (Images are moved by Gallery.move)
 	 * 
 	 * @param source
 	 * @param target
@@ -815,11 +891,8 @@ public class FileSystemTreeManager
 		Path itemPath = item.getValue().getPath();
 		Path newPath = itemPath.startsWith(source) ? target.resolve(source.relativize(itemPath)) : itemPath;
 		
-//		if (item.getValue().isImage())
-//		{
-//			item.getValue().getImage().move(gallery.toRelativePath(newPath));
-//		}
-//		else
+		assert newPath.startsWith(target);
+		
 		if (item.getValue().isDirectory())
 		{
 			FileSystemElement element = new FileSystemElement(newPath);
@@ -829,6 +902,7 @@ public class FileSystemTreeManager
 			for (TreeItem<FileSystemElement> subItem : item.getChildren())
 				updateMovedItem(source, target, subItem);
 		}
+		// If item.getValue().isImage() no need to do anything as Gallery.move should have been called before (moving the image)
 	}
 	
 	private void merge(TreeItem<FileSystemElement> target, List<TreeItem<FileSystemElement>> itemsToAdd)
@@ -848,15 +922,32 @@ public class FileSystemTreeManager
 				if (item.getValue().getPath().getFileName().equals(filename))
 				{
 					found = true;
-					List<TreeItem<FileSystemElement>> children = List.copyOf(itemToAdd.getChildren());
-					itemToAdd.getChildren().clear();
 					
-					merge(item, children);
+					if (itemToAdd.getValue().isDirectory())
+					{
+						List<TreeItem<FileSystemElement>> children = List.copyOf(itemToAdd.getChildren());
+						itemToAdd.getChildren().clear();
+						
+						merge(item, children);
+					}
+					else
+					{
+						EnumSet<Status> status = EnumSet.of(item.getValue().getStatus(), itemToAdd.getValue().getStatus());
+						
+						if (status.contains(Status.SYNC))
+							item.getValue().setStatus(Status.SYNC);
+						else if (status.contains(Status.UNSYNC))
+							item.getValue().setStatus(Status.UNSYNC);
+						else
+							item.getValue().setStatus(Status.DELETED);
+					}
 				}
 			}
 			
 			if (!found)
 				target.getChildren().add(itemToAdd);
 		}
+		
+		updateFolderAndParentStatus(target, false);
 	}
 }

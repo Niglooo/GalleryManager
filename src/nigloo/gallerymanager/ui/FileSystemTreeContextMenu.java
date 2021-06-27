@@ -16,6 +16,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import nigloo.gallerymanager.model.FileFolderOrder;
 import nigloo.gallerymanager.model.Gallery;
@@ -52,6 +53,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	private Toggle childrenFolderPositionSelected;
 	
 	private MultipleSelectionModel<TreeItem<FileSystemElement>> selection;
+	private TreeCell<FileSystemElement> selectedCell;
 	
 	public FileSystemTreeContextMenu() throws IOException
 	{
@@ -73,6 +75,11 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	public void setSelection(MultipleSelectionModel<TreeItem<FileSystemElement>> selection)
 	{
 		this.selection = selection;
+	}
+	
+	public void setSelectedCell(TreeCell<FileSystemElement> selectedCell)
+	{
+		this.selectedCell = selectedCell;
 	}
 	
 	void updateSortOrderItems()
@@ -237,6 +244,12 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	protected void delete()
 	{
 		uiController.delete(selectedPaths(), true);
+	}
+	
+	@FXML
+	protected void rename()
+	{
+		selectedCell.startEdit();
 	}
 	
 	private void sort(TreeItem<FileSystemElement> item, FileFolderOrder order)
