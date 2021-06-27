@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -86,6 +87,12 @@ public final class Gallery
 		}
 	}
 	
+	/**
+	 * Return null if not found
+	 * 
+	 * @param path
+	 * @return the image
+	 */
 	public Image findImage(Path path)
 	{
 		synchronized (images)
@@ -106,6 +113,25 @@ public final class Gallery
 		}
 	}
 	
+	/**
+	 * Return an unsaved image if not found
+	 * 
+	 * @param path
+	 * @return
+	 */
+	public Image getImage(Path path)
+	{
+		synchronized (images)
+		{
+			final Path relPath = toRelativePath(path);
+			
+			return images.stream()
+			             .filter(image -> image.getPath().equals(relPath))
+			             .findAny()
+			             .orElseGet(() -> unsavedImages().computeIfAbsent(relPath, p -> new Image(relPath)));
+		}
+	}
+	
 	public void saveImage(Image image)
 	{
 		if (image.isSaved())
@@ -113,9 +139,29 @@ public final class Gallery
 		
 		synchronized (images)
 		{
+			unsavedImages().remove(image.getPath());
+			
 			image.id = nextId++;
 			images.add(image);
 		}
+	}
+	
+	private transient Map<Path, Image> unsavedImages = new HashMap<>();
+	transient boolean unsavedImagesValid = true;
+	
+	private Map<Path, Image> unsavedImages()
+	{
+		if (!unsavedImagesValid)
+		{
+			unsavedImages = unsavedImages.entrySet()
+			                             .stream()
+			                             .collect(Collectors.toMap(e -> e.getValue().getPath(),
+			                                                       e -> e.getValue(),
+			                                                       (v1, v2) -> v1,
+			                                                       HashMap::new));
+			unsavedImagesValid = true;
+		}
+		return unsavedImages;
 	}
 	
 	public void deleteImages(Collection<Image> images)
@@ -128,6 +174,7 @@ public final class Gallery
 				
 			// This last or we break every ImageReference
 			this.images.removeAll(images);
+			unsavedImages().values().removeAll(images);
 		}
 	}
 	

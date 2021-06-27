@@ -132,9 +132,9 @@ public class FileSystemTreeManager
 				if (item == null)
 					return;
 				
-				Image image = gallery.findImage(path);
-				FileSystemElement element = (image != null) ? new FileSystemElement(image, Status.SYNC)
-				        : new FileSystemElement(new Image(gallery.toRelativePath(path)), Status.UNSYNC);
+				Image image = gallery.getImage(path);
+				FileSystemElement element = image.isSaved() ? new FileSystemElement(image, Status.SYNC)
+				        : new FileSystemElement(image, Status.UNSYNC);
 				
 				item.setValue(element);
 				item.getChildren().clear();
@@ -274,10 +274,10 @@ public class FileSystemTreeManager
 		
 		if (Image.isImage(path))
 		{
-			Image image = gallery.findImage(path);
+			Image image = gallery.getImage(path);
 			
-			return (image != null) ? new FileSystemElement(image, Status.SYNC)
-			        : new FileSystemElement(new Image(gallery.toRelativePath(path)), Status.UNSYNC);
+			return image.isSaved() ? new FileSystemElement(image, Status.SYNC)
+			        : new FileSystemElement(image, Status.UNSYNC);
 		}
 		
 		return null;

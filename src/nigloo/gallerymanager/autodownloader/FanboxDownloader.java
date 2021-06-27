@@ -224,10 +224,9 @@ public class FanboxDownloader
 	
 	private void saveInGallery(String postId, String imageId, Path path)
 	{
-		Image image = gallery.findImage(path);
-		if (image == null)
+		Image image = gallery.getImage(path);
+		if (image.isNotSaved())
 		{
-			image = new Image(gallery.toRelativePath(path));
 			image.addTag(artist.getTag());
 			gallery.saveImage(image);
 		}

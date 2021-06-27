@@ -17,8 +17,8 @@ public class Image
 	private Path path;
 	private List<String> tags = new ArrayList<>();
 	
-	transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
-	transient SoftReference<javafx.scene.image.Image> fxImageCache = null;
+	private transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
+	private transient SoftReference<javafx.scene.image.Image> fxImageCache = null;
 	
 	@Inject
 	private transient Gallery gallery;
@@ -28,17 +28,21 @@ public class Image
 		Injector.init(this);
 	}
 	
-	public Image(Path path)
+	Image(Path path)
 	{
 		this();
 		this.id = -1;
 		this.path = path;
-		assert !path.isAbsolute();
 	}
 	
 	public boolean isSaved()
 	{
 		return this.id > 0;
+	}
+	
+	public boolean isNotSaved()
+	{
+		return this.id <= 0;
 	}
 
 	public long getId()
