@@ -254,7 +254,7 @@ public final class Gallery
 				                            .collect(Collectors.toMap(e -> e.getKey()
 				                                                            .toString()
 				                                                            .replace(PATH_WILDCARD.toString(),
-				                                                                     JSON_PATH_WILDCARD.toString()),
+				                                                                     JSON_PATH_WILDCARD),
 				                                                      Entry::getValue,
 				                                                      (v1, v2) -> v1,
 				                                                      () -> new TreeMap<>(Utils.NATURAL_ORDER))),
@@ -275,7 +275,7 @@ public final class Gallery
 			          .filter(e -> e.getKey() != null)
 			          .filter(e -> e.getValue() != null)
 			          .collect(Collectors.toMap(e -> Paths.get(e.getKey()
-			                                                    .replace(JSON_PATH_WILDCARD.toString(),
+			                                                    .replace(JSON_PATH_WILDCARD,
 			                                                             PATH_WILDCARD.toString())),
 			                                    Entry::getValue,
 			                                    (v1, v2) -> v1,
