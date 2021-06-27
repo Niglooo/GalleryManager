@@ -80,21 +80,30 @@ public final class Gallery
 	
 	public Image findImage(long imageId)
 	{
-		return images.stream().filter(image -> image.getId() == imageId).findAny().orElse(null);
+		synchronized (images)
+		{
+			return images.stream().filter(image -> image.getId() == imageId).findAny().orElse(null);
+		}
 	}
 	
 	public Image findImage(Path path)
 	{
-		final Path relPath = toRelativePath(path);
-		
-		return images.stream().filter(image -> image.getPath().equals(relPath)).findAny().orElse(null);
+		synchronized (images)
+		{
+			final Path relPath = toRelativePath(path);
+			
+			return images.stream().filter(image -> image.getPath().equals(relPath)).findAny().orElse(null);
+		}
 	}
 	
 	public Collection<Image> findImagesIn(Path path)
 	{
-		final Path absPath = toAbsolutePath(path);
-		
-		return images.stream().filter(image -> image.getAbsolutePath().startsWith(absPath)).toList();
+		synchronized (images)
+		{
+			final Path absPath = toAbsolutePath(path);
+			
+			return images.stream().filter(image -> image.getAbsolutePath().startsWith(absPath)).toList();
+		}
 	}
 	
 	public void saveImage(Image image)
@@ -102,18 +111,24 @@ public final class Gallery
 		if (image.isSaved())
 			return;
 		
-		image.id = nextId++;
-		images.add(image);
+		synchronized (images)
+		{
+			image.id = nextId++;
+			images.add(image);
+		}
 	}
 	
 	public void deleteImages(Collection<Image> images)
 	{
-		for (Artist artist : artists)
-			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
-				autoDownloader.stopHandling(images);
-			
-		// This last or we break every ImageReference
-		this.images.removeAll(images);
+		synchronized (images)
+		{
+			for (Artist artist : artists)
+				for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+					autoDownloader.stopHandling(images);
+				
+			// This last or we break every ImageReference
+			this.images.removeAll(images);
+		}
 	}
 	
 	public List<Image> getImages()
@@ -128,61 +143,85 @@ public final class Gallery
 	
 	public FileFolderOrder getDefaultSortOrder()
 	{
-		return defaultSortOrder;
+		synchronized (sortOrder)
+		{
+			return defaultSortOrder;
+		}
 	}
 	
 	public void setDefaultSortOrder(FileFolderOrder defaultSortOrder)
 	{
-		this.defaultSortOrder = defaultSortOrder;
+		synchronized (sortOrder)
+		{
+			this.defaultSortOrder = defaultSortOrder;
+		}
 	}
 	
 	public FileFolderOrder getSortOrder(Path path)
 	{
-		if (path == null)
-			return defaultSortOrder;
-		
-		path = toRelativePath(path);
-		
-		FileFolderOrder order = sortOrder.get(path);
-		return order != null ? order : getSubDirectoriesSortOrder(path.getParent());
+		synchronized (sortOrder)
+		{
+			if (path == null)
+				return defaultSortOrder;
+			
+			path = toRelativePath(path);
+			
+			FileFolderOrder order = sortOrder.get(path);
+			return order != null ? order : getSubDirectoriesSortOrder(path.getParent());
+		}
 	}
 	
 	public void setSortOrder(Path path, FileFolderOrder order)
 	{
-		if (order == null)
-			sortOrder.remove(toRelativePath(path));
-		else
-			sortOrder.put(toRelativePath(path), order);
+		synchronized (sortOrder)
+		{
+			if (order == null)
+				sortOrder.remove(toRelativePath(path));
+			else
+				sortOrder.put(toRelativePath(path), order);
+		}
 	}
 	
 	public boolean isOrderInherited(Path path)
 	{
-		return !sortOrder.containsKey(toRelativePath(path));
+		synchronized (sortOrder)
+		{
+			return !sortOrder.containsKey(toRelativePath(path));
+		}
 	}
 	
 	public FileFolderOrder getSubDirectoriesSortOrder(Path path)
 	{
-		if (path == null)
-			return defaultSortOrder;
-		
-		path = toRelativePath(path);
-		
-		FileFolderOrder order = sortOrder.get(path.resolve(PATH_WILDCARD));
-		
-		return order != null ? order : getSortOrder(path);
+		synchronized (sortOrder)
+		{
+			if (path == null)
+				return defaultSortOrder;
+			
+			path = toRelativePath(path);
+			
+			FileFolderOrder order = sortOrder.get(path.resolve(PATH_WILDCARD));
+			
+			return order != null ? order : getSortOrder(path);
+		}
 	}
 	
 	public void setSubDirectoriesSortOrder(Path path, FileFolderOrder order)
 	{
-		if (order == null)
-			sortOrder.remove(toRelativePath(path).resolve(PATH_WILDCARD));
-		else
-			sortOrder.put(toRelativePath(path).resolve(PATH_WILDCARD), order);
+		synchronized (sortOrder)
+		{
+			if (order == null)
+				sortOrder.remove(toRelativePath(path).resolve(PATH_WILDCARD));
+			else
+				sortOrder.put(toRelativePath(path).resolve(PATH_WILDCARD), order);
+		}
 	}
 	
 	public boolean isSubDirectoriesOrderInherited(Path path)
 	{
-		return !sortOrder.containsKey(toRelativePath(path).resolve(PATH_WILDCARD));
+		synchronized (sortOrder)
+		{
+			return !sortOrder.containsKey(toRelativePath(path).resolve(PATH_WILDCARD));
+		}
 	}
 	
 	public SlideShowParameters getSlideShowParameter()
@@ -192,43 +231,49 @@ public final class Gallery
 	
 	public void compactIds()
 	{
-//		java.util.Map<Path, java.nio.file.attribute.FileTime> time = new java.util.HashMap<>(images.size());
-//		for (Image image : images)
-//			try
-//			{
-//				time.put(image.getPath(), java.nio.file.Files.getLastModifiedTime(toAbsolutePath(image.getPath())));
-//			}
-//			catch (java.io.IOException e)
-//			{
-//				e.printStackTrace();
-//			}
-//		images.sort(java.util.Comparator.comparing(i -> time.get(i.getPath())));
-		
-		// Force all references to load their image so updating image.id will update
-		// the reference
-		for (ImageReference ref : allImageReferences)
-			ref.getImage();
-		
-		nextId = 1;
-		for (Image image : images)
-			image.id = nextId++;
+		synchronized (images)
+		{
+//			java.util.Map<Path, java.nio.file.attribute.FileTime> time = new java.util.HashMap<>(images.size());
+//			for (Image image : images)
+//				try
+//				{
+//					time.put(image.getPath(), java.nio.file.Files.getLastModifiedTime(toAbsolutePath(image.getPath())));
+//				}
+//				catch (java.io.IOException e)
+//				{
+//					e.printStackTrace();
+//				}
+//			images.sort(java.util.Comparator.comparing(i -> time.get(i.getPath())));
+			
+			// Force all references to load their image so updating image.id will update
+			// the reference
+			for (ImageReference ref : allImageReferences)
+				ref.getImage();
+			
+			nextId = 1;
+			for (Image image : images)
+				image.id = nextId++;
+		}
 	}
 	
 	public void removeImagesNotHandledByAutoDowloader()
 	{
-		Iterator<Image> it = images.iterator();
-		
-		imageLoop:
-		while (it.hasNext())
+		synchronized (images)
 		{
-			Image image = it.next();
+			Iterator<Image> it = images.iterator();
 			
-			for (Artist artist : artists)
-				for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
-					if (autoDownloader.isHandling(image))
-						continue imageLoop;
-					
-			it.remove();
+			imageLoop:
+			while (it.hasNext())
+			{
+				Image image = it.next();
+				
+				for (Artist artist : artists)
+					for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+						if (autoDownloader.isHandling(image))
+							continue imageLoop;
+						
+				it.remove();
+			}
 		}
 	}
 	
