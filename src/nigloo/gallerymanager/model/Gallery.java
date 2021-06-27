@@ -276,6 +276,39 @@ public final class Gallery
 		return slideShowParameter;
 	}
 	
+	public void move(Path source, Path target)
+	{
+		final Path fSource = toAbsolutePath(source);
+		final Path fTarget = toAbsolutePath(target);
+		
+		synchronized (images)
+		{
+			synchronized (sortOrder)
+			{
+				Stream.concat(images.stream(), unsavedImages().values().stream()).forEach(image ->
+				{
+					Path path = image.getAbsolutePath();
+					if (path.startsWith(fSource))
+					{
+						Path newPath = fTarget.resolve(fSource.relativize(path));
+						image.move(toRelativePath(newPath));
+					}
+				});
+				
+				Map<Path, Path> mapping = new HashMap<>();
+				for (Path path : sortOrder.keySet())
+				{
+					path = toAbsolutePath(path);
+					if (path.startsWith(fSource))
+						mapping.put(path, fTarget.resolve(fSource.relativize(path)));
+				}
+				
+				for (Entry<Path, Path> entry : mapping.entrySet())
+					sortOrder.put(toRelativePath(entry.getValue()), sortOrder.remove(toRelativePath(entry.getKey())));
+			}
+		}
+	}
+	
 	public void compactIds()
 	{
 		synchronized (images)

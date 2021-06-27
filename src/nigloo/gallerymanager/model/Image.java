@@ -35,6 +35,17 @@ public class Image
 		this.path = path;
 	}
 	
+	public void move(Path target)
+	{
+		if (target.isAbsolute())
+			throw new IllegalArgumentException("target must be relative. Got: " + target);
+		
+		path = target;
+		
+		if (isNotSaved())
+			gallery.unsavedImagesValid = false;
+	}
+	
 	public boolean isSaved()
 	{
 		return this.id > 0;
