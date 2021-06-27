@@ -300,9 +300,6 @@ public class ThumbnailsView extends Region
 				updateInputState(event);
 			});
 		});
-		
-		//TODO css
-		setBackground(new Background(new BackgroundFill(Color.WHITE, null, null)));
 	}
 	
 	public ObservableList<Node> getTiles()

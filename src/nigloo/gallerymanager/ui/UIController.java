@@ -45,6 +45,11 @@ import nigloo.tool.thread.ThreadStopException;
 @Singleton
 public class UIController extends Application
 {
+	static public final String STYLE_SHEET_PATH = UIController.class.getModule()
+	                                                                .getClassLoader()
+	                                                                .getResource("resources/styles/default.css")
+	                                                                .toExternalForm();
+	
 	private static javafx.scene.image.Image THUMBNAIL_PLACEHOLDER;
 	
 	@FXML
@@ -104,6 +109,8 @@ public class UIController extends Application
 		fxmlLoader.setController(this);
 		fxmlLoader.setRoot(primaryStage);
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
+		
+		this.primaryStage.getScene().getStylesheets().add(STYLE_SHEET_PATH);
 		
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);

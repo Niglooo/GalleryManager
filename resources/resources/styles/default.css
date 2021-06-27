@@ -1,0 +1,8 @@
+
+ThumbnailsView {
+	-fx-background-color: WHITE;
+}
+
+.drop-target {
+	-fx-background-color: LIGHTBLUE;
+}
