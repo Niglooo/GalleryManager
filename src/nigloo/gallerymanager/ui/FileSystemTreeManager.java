@@ -647,7 +647,6 @@ public class FileSystemTreeManager
 					{
 						setText("");
 						setGraphic(null);
-						setEditable(false);
 					}
 					else
 					{
@@ -657,7 +656,6 @@ public class FileSystemTreeManager
 						iv.setFitWidth(16);
 						iv.setPreserveRatio(true);
 						setGraphic(iv);
-						setEditable(true);
 					}
 				}
 				
@@ -703,6 +701,7 @@ public class FileSystemTreeManager
 			cell.setOnDragOver((DragEvent event) -> dragOver(event, cell));
 			cell.setOnDragDropped((DragEvent event) -> drop(event, cell));
 			cell.setOnDragDone((DragEvent event) -> clearDropLocation());
+			cell.setEditable(false);
 			
 			StringConverter<FileSystemElement> converter = new StringConverter<FileSystemElement>()
 			{
@@ -741,7 +740,7 @@ public class FileSystemTreeManager
 				}
 			};
 			cell.setConverter(converter);
-			cell.commitEdit(null);
+			
 			return cell;
 		}
 	}

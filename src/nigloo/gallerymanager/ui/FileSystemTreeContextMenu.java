@@ -249,7 +249,9 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void rename()
 	{
+		selectedCell.setEditable(true);
 		selectedCell.startEdit();
+		selectedCell.setEditable(false);
 	}
 	
 	private void sort(TreeItem<FileSystemElement> item, FileFolderOrder order)
