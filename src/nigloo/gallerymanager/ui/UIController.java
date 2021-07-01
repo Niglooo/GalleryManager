@@ -53,11 +53,11 @@ public class UIController extends Application
 	private static javafx.scene.image.Image THUMBNAIL_PLACEHOLDER;
 	
 	@FXML
-	protected TreeView<FileSystemElement> fileSystemView;
+	private TreeView<FileSystemElement> fileSystemView;
 	private FileSystemTreeManager fileSystemTreeManager;
 	
 	@FXML
-	protected ThumbnailsView thumbnailsView;
+	private ThumbnailsView thumbnailsView;
 	private ThumbnailUpdaterThread thumbnailUpdater;
 	
 	private Stage primaryStage;
