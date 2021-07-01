@@ -69,7 +69,7 @@ public class SlideShowStage extends Stage
 			this.images = this.imagesOrdered;
 			this.currentImageIdx = startingIndex;
 		}
-		
+		System.out.println(screenSize);
 		imageView = new ImageView();
 		imageView.setFitWidth(screenSize.getWidth());
 		imageView.setFitHeight(screenSize.getHeight());
