@@ -15,32 +15,32 @@ import nigloo.tool.injection.annotation.Inject;
 public class ImageReference
 {
 	private long imageId;
-	private Image image;
+	private transient Image image;
 	
 	@Inject
-	private Gallery gallery;
+	private transient Gallery gallery;
 	
 	public ImageReference(long imageId)
 	{
-		Injector.init(this);
 		this.imageId = imageId;
 		this.image = null;
 		
 		if (imageId <= 0)
 			throw new IllegalArgumentException("imageId must be strictly positive. Got: " + imageId);
 		
+		Injector.init(this);
 		registerInstance();
 	}
 	
 	public ImageReference(Image image)
 	{
-		Injector.init(this);
 		this.image = Objects.requireNonNull(image, "image");
 		this.imageId = image.getId();
 		
 		if (!image.isSaved())
 			throw new IllegalArgumentException("Image not saved : " + image.getPath());
 		
+		Injector.init(this);
 		registerInstance();
 	}
 	
@@ -61,11 +61,6 @@ public class ImageReference
 	public Long getImageId()
 	{
 		return (image != null) ? image.getId() : imageId;
-	}
-	
-	public static TypeAdapter<ImageReference> typeAdapter()
-	{
-		return new ImageReferenceTypeAdapter();
 	}
 	
 	private static class ImageReferenceTypeAdapter extends TypeAdapter<ImageReference>
