@@ -4,9 +4,9 @@ import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -15,7 +15,7 @@ public class Image
 {
 	long id;
 	private Path path;
-	private Set<String> tags = new HashSet<>();
+	private Set<TagReference> tags = new HashSet<>();
 	
 	// private transient Set<String> implicitTagsCache = null;
 	private transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
@@ -71,14 +71,19 @@ public class Image
 		return gallery.toAbsolutePath(path);
 	}
 	
-	public Collection<String> getTags()
+	public Collection<Tag> getTags()
 	{
-		return Collections.unmodifiableCollection(tags);
+		return tags.stream().map(TagReference::getTag).collect(Collectors.toUnmodifiableSet());
 	}
 	
-	public void addTag(String tag)
+	public void addTag(Tag tag)
 	{
-		tags.add(tag);
+		tags.add(new TagReference(tag));
+	}
+	
+	public void addTag(String tagValue)
+	{
+		tags.add(new TagReference(gallery.getTag(tagValue)));
 	}
 	
 	public javafx.scene.image.Image getThumbnail(boolean async)

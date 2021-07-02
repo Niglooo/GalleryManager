@@ -6,7 +6,7 @@ import nigloo.gallerymanager.autodownloader.FanboxDownloader;
 
 public class Artist {
 
-	private String tag;
+	private TagReference tag;
 	private String name;
 	
 	private List<FanboxDownloader> autodownloaders;
@@ -15,14 +15,14 @@ public class Artist {
 		
 	}
 
-	public String getTag()
+	public Tag getTag()
 	{
-		return tag;
+		return tag.getTag();
 	}
 	
-	public void setTag(String tag)
+	public void setTag(Tag tag)
 	{
-		this.tag = tag;
+		this.tag = new TagReference(tag);
 	}
 	
 	public String getName()

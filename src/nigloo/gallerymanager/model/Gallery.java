@@ -36,6 +36,7 @@ public final class Gallery
 	
 	private List<Artist> artists = new ArrayList<>();
 	private List<Image> images = new ArrayList<>();
+	private List<Tag> tags = new ArrayList<>();
 	private FileFolderOrder defaultSortOrder = new FileFolderOrder(SortBy.NAME, 0, true);
 	@JsonAdapter(SortOrderSerializer.class)
 	private Map<Path, FileFolderOrder> sortOrder = new HashMap<>();
@@ -43,6 +44,7 @@ public final class Gallery
 	
 	private transient long nextId = 1;
 	transient WeakIdentityHashSet<ImageReference> allImageReferences = new WeakIdentityHashSet<>();
+	transient WeakIdentityHashSet<TagReference> allTagReferences = new WeakIdentityHashSet<>();
 	
 	/*
 	 * Need to be called just after deserialization
@@ -181,6 +183,32 @@ public final class Gallery
 	public List<Image> getImages()
 	{
 		return Collections.unmodifiableList(images);
+	}
+	
+	public Tag findTag(String tagValue)
+	{
+		synchronized (tags)
+		{
+			return tags.stream().filter(tag -> tag.getValue().equals(tagValue)).findAny().orElse(null);
+		}
+	}
+	
+	public Tag getTag(String tagValue)
+	{
+		synchronized (tags)
+		{
+			return tags.stream().filter(tag -> tag.getValue().equals(tagValue)).findAny().orElseGet(() ->
+			{
+				Tag newTag = new Tag(tagValue);
+				tags.add(newTag);
+				return newTag;
+			});
+		}
+	}
+	
+	public List<Tag> getTags()
+	{
+		return Collections.unmodifiableList(tags);
 	}
 	
 	public List<Artist> getArtists()

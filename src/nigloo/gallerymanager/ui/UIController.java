@@ -33,6 +33,7 @@ import nigloo.gallerymanager.autodownloader.FanboxDownloader;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.model.Tag;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.gson.RecordsTypeAdapterFactory;

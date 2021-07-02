@@ -1,0 +1,75 @@
+package nigloo.gallerymanager.model;
+
+import java.util.ArrayList;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import nigloo.tool.injection.Injector;
+import nigloo.tool.injection.annotation.Inject;
+
+public class Tag
+{
+	public static final Set<Character> ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-()!"
+			.chars().mapToObj(c -> (char) c).collect(Collectors.toUnmodifiableSet());
+
+	private String value;
+	private TagReference parent;
+	
+	@Inject
+	private transient Gallery gallery;
+	
+	// Used by deserializer
+	private Tag()
+	{
+		Injector.init(this);
+	}
+	
+	Tag(String value)
+	{
+		this();
+		this.value = value;
+		
+		Optional<Character> invalidChar = value.chars().mapToObj(c -> (char)c).filter(ALLOWED_CHARS::contains).findFirst();
+		if (invalidChar.isPresent())
+			throw new IllegalArgumentException("The character '"+invalidChar.get()+"' is not allowed in tags. Got : \""+value+"\"");
+	}
+
+
+	public String getValue()
+	{
+		return value;
+	}
+
+	public Tag getParent()
+	{
+		return parent.getTag();
+	}
+
+	public void setParent(Tag parent)
+	{
+		// Check for cycle
+		ArrayList<String> cycle = new ArrayList<>();
+		cycle.add(this.getValue());
+		
+		Tag t = parent;
+		while (t != null)
+		{
+			cycle.add(t.getValue());
+			
+			if (t == this)
+				throw new IllegalArgumentException("Cannot set " + parent.getValue() + " as parent of "
+						+ this.getValue() + " as that would create the cycle "
+						+ cycle.stream().collect(Collectors.joining(" -> ", "[", "]")));
+			
+			t = t.getParent();
+		}
+		
+		this.parent = new TagReference(parent);
+	}
+	
+	public static boolean isCharacterAllowed(char c)
+	{
+		return ALLOWED_CHARS.contains(c);
+	}
+}
