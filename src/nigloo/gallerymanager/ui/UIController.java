@@ -12,8 +12,13 @@ import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 
@@ -34,6 +39,7 @@ import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
+import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.gson.RecordsTypeAdapterFactory;
@@ -56,6 +62,9 @@ public class UIController extends Application
 	@FXML
 	private TreeView<FileSystemElement> fileSystemView;
 	private FileSystemTreeManager fileSystemTreeManager;
+	
+	@FXML
+	private AutoCompleteTextField tagFilterField;
 	
 	@FXML
 	private ThumbnailsView thumbnailsView;
@@ -105,10 +114,10 @@ public class UIController extends Application
 		for (Artist artist : gallery.getArtists())
 			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
 			{
-				// autoDownloader.download(config.getProperty("cookie"));
-				for (Image image : gallery.getImages())
-					if (autoDownloader.isHandling(image))
-						image.addTag(artist.getTag());
+//				autoDownloader.download(config.getProperty("cookie"));
+//				for (Image image : gallery.getImages())
+//					if (autoDownloader.isHandling(image))
+//						image.addTag(artist.getTag());
 			}
 				
 		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
@@ -117,6 +126,78 @@ public class UIController extends Application
 		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
 		this.primaryStage.getScene().getStylesheets().add(STYLE_SHEET_PATH);
+		
+		tagFilterField.setAutoCompletionBehavior(new AutoCompletionBehavior()
+		{
+			@Override
+			public String getSearchText(AutoCompleteTextField field)
+			{
+				int caret = field.getCaretPosition();
+				String text = field.getText();
+				
+				if (caret < text.length() && Tag.isCharacterAllowed(text.charAt(caret)))
+					return "";
+				
+				int idxBeginTag = findBeginTag(field);
+				if (idxBeginTag == caret)
+					return "";
+				
+				return text.substring(idxBeginTag, caret);
+			};
+			
+			@Override
+			public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
+			{
+				String lowSearchText = searchText.toLowerCase(Locale.ROOT);
+				
+				List<String> matchingTags = new ArrayList<>();
+				Map<String, Integer> matchingTagPos = new HashMap<>();
+				
+				for(Tag tag : gallery.getTags())
+				{
+					String tagValue = tag.getValue();
+					String lowTagValue = tagValue.toLowerCase(Locale.ROOT);
+					
+					int pos = lowTagValue.indexOf(lowSearchText);
+					if (pos >= 0)
+					{
+						matchingTags.add(tagValue);
+						matchingTagPos.put(tagValue, pos);
+					}
+				}
+				
+				matchingTags.sort(Comparator.comparing((String tagValue) -> matchingTagPos.get(tagValue)).thenComparing(String.CASE_INSENSITIVE_ORDER));
+				
+				return matchingTags;
+			}
+			
+			@Override
+			public void onSuggestionSelected(AutoCompleteTextField field, String suggestion)
+			{
+				int caret = field.getCaretPosition();
+				int idxBeginTag = findBeginTag(field);
+				String text = field.getText();
+				
+				String newText = text.substring(0, idxBeginTag) + suggestion + text.substring(caret);
+				field.setText(newText);
+				field.positionCaret(idxBeginTag + suggestion.length());
+			};
+			
+			private int findBeginTag(AutoCompleteTextField field)
+			{
+				int caret = field.getCaretPosition();
+				if (caret == 0)
+					return 0;
+				
+				String text = field.getText();
+				
+				int idxBeginTag = caret;
+				while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag-1)))
+					idxBeginTag--;
+				
+				return idxBeginTag;
+			}
+		});
 		
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);
