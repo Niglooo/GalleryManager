@@ -5,6 +5,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -174,7 +175,7 @@ public class Image
 		if (posExt == -1)
 			return false;
 		
-		String extention = filename.substring(posExt + 1).toLowerCase();
+		String extention = filename.substring(posExt + 1).toLowerCase(Locale.ROOT);
 		return extention.equals("jpg") || extention.equals("jpeg") || extention.equals("jfif")
 		        || extention.equals("png") || extention.equals("gif");
 	}
