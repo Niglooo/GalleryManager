@@ -63,7 +63,7 @@ public class ImageReference
 		return (image != null) ? image.getId() : imageId;
 	}
 	
-	private static class ImageReferenceTypeAdapter extends TypeAdapter<ImageReference>
+	public static class ImageReferenceTypeAdapter extends TypeAdapter<ImageReference>
 	{
 		@Override
 		public void write(JsonWriter out, ImageReference ref) throws IOException

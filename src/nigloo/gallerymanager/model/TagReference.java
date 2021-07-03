@@ -74,7 +74,7 @@ public class TagReference
 		return ((TagReference) obj).getTagValue().equals(getTagValue());
 	}
 	
-	private static class TagReferenceTypeAdapter extends TypeAdapter<TagReference>
+	public static class TagReferenceTypeAdapter extends TypeAdapter<TagReference>
 	{
 		@Override
 		public void write(JsonWriter out, TagReference ref) throws IOException
