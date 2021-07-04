@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.RowConstraints;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
@@ -27,6 +28,7 @@ import nigloo.gallerymanager.ui.AutoCompleteTextField;
 import nigloo.gallerymanager.ui.UIController;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
+import nigloo.tool.javafx.FXUtils;
 
 public class EditImageTagsDialog extends Stage
 {
@@ -125,8 +127,12 @@ public class EditImageTagsDialog extends Stage
 		if (tagToCheckBox.containsKey(tag))
 			return;
 		
+		Color tagColor = tag.getColor();
+		
 		Text tagText = new Text(tag.getValue());
 		tagText.getStyleClass().add("tag");
+		if (tagColor != null)
+			tagText.setStyle("-fx-fill: "+FXUtils.toRGBA(tagColor)+";");
 		
 		Text tagCountText = new Text(String.valueOf(count));
 		tagCountText.getStyleClass().add("tag-count");

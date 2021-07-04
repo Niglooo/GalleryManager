@@ -34,6 +34,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
@@ -50,6 +51,7 @@ import nigloo.tool.gson.RecordsTypeAdapterFactory;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
+import nigloo.tool.javafx.FXUtils;
 import nigloo.tool.thread.SafeThread;
 import nigloo.tool.thread.ThreadStopException;
 
@@ -271,15 +273,19 @@ public class UIController extends Application
 		fileSystemTreeManager.getSelectedImages()
 		                     .stream()
 		                     .flatMap(image -> image.getTags().stream())
-		                     .collect(Collectors.groupingBy(Tag::getValue, Collectors.counting())).entrySet().stream()
+		                     .collect(Collectors.groupingBy(tag -> tag, Collectors.counting())).entrySet().stream()
 		                     .sorted(Comparator.comparing(Entry::getValue))
 		                     .forEachOrdered(entry ->
 				{
-					String tagValue = entry.getKey();
+					Tag tag = entry.getKey();
+					String tagValue = tag.getValue();
+					Color tagColor = tag.getColor();
 					long count = entry.getValue();
 
 					Hyperlink tagText = new Hyperlink(tagValue);
 					tagText.getStyleClass().add("tag");
+					if (tagColor != null)
+						tagText.setStyle("-fx-text-fill: "+FXUtils.toRGBA(tagColor)+";");
 					tagText.setOnAction(event -> tagFilterField.setText(tagValue));
 
 					Text tagCountText = new Text(String.valueOf(count));

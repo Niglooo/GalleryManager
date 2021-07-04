@@ -5,6 +5,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.gson.annotations.JsonAdapter;
+
+import javafx.scene.paint.Color;
+import nigloo.tool.gson.javafx.ColorTypeAdapter;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
@@ -15,6 +19,8 @@ public class Tag
 
 	private String value;
 	private TagReference parent;
+	@JsonAdapter(ColorTypeAdapter.class)
+	private Color color;
 	
 	@Inject
 	private transient Gallery gallery;
@@ -74,6 +80,19 @@ public class Tag
 		this.parent = new TagReference(parent);
 	}
 	
+	public Color getColor()
+	{
+		if (color == null && parent != null)
+			return parent.getTag().getColor();
+		
+		return color;
+	}
+
+	public void setColor(Color color)
+	{
+		this.color = color;
+	}
+
 	public static boolean isCharacterAllowed(char c)
 	{
 		return ALLOWED_CHARS.contains(c);
