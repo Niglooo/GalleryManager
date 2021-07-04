@@ -1,7 +1,5 @@
 package nigloo.gallerymanager.ui.dialog;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -11,7 +9,6 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextFormatter;

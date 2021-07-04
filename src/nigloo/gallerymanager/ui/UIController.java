@@ -1,6 +1,5 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -20,7 +19,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -112,11 +110,11 @@ public class UIController extends Application
 		// gallery.removeImagesNotHandledByAutoDowloader();
 		// gallery.compactIds();
 		
-		Properties config = new Properties();
-		config.load(new FileInputStream("config.properties"));
 		for (Artist artist : gallery.getArtists())
 			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
 			{
+//				Properties config = new Properties();
+//				config.load(new FileInputStream("config.properties"));
 //				autoDownloader.download(config.getProperty("cookie"));
 //				for (Image image : gallery.getImages())
 //					if (autoDownloader.isHandling(image))
