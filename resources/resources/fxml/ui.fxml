@@ -24,6 +24,7 @@
                     <children>
                       <Label text="Scan result" />
                       <AutoCompleteTextField fx:id="tagFilterField" styleClass="tag-filter-field" />
+                      <VBox fx:id="tagListView" styleClass="tag-list" />
                       <TreeView id="file_system_view" fx:id="fileSystemView" />
                     </children>
                   </VBox>

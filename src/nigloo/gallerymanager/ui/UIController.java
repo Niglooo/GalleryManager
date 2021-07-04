@@ -19,8 +19,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -30,8 +32,12 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.layout.Pane;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.autodownloader.FanboxDownloader;
@@ -62,10 +68,10 @@ public class UIController extends Application
 	@FXML
 	private TreeView<FileSystemElement> fileSystemView;
 	private FileSystemTreeManager fileSystemTreeManager;
-	
 	@FXML
 	private AutoCompleteTextField tagFilterField;
-	
+	@FXML
+	private Pane tagListView;
 	@FXML
 	private ThumbnailsView thumbnailsView;
 	private ThumbnailUpdaterThread thumbnailUpdater;
@@ -254,7 +260,14 @@ public class UIController extends Application
 						
 						if (waitFor <= 0)
 						{
-							doUpdate();
+							isUpdating = true;
+							Platform.runLater(() ->
+							{
+								updateThumbnailImages();
+								lastUpdate = System.currentTimeMillis();
+								updateRequested = false;
+								isUpdating = false;
+							});
 						}
 						else
 						{
@@ -269,22 +282,37 @@ public class UIController extends Application
 			{
 			}
 		}
+	}
+	
+	private void updateThumbnailImages()
+	{
+		thumbnailsView.getTiles().setAll(fileSystemTreeManager.getSelectedImages().stream().map(UIController.this::getImageView).toList());
+
+		tagListView.getChildren().clear();
 		
-		private void doUpdate()
-		{
-			isUpdating = true;
-			Platform.runLater(() ->
-			{
-				thumbnailsView.getTiles()
-				              .setAll(fileSystemTreeManager.getSelectedImages()
-				                                           .stream()
-				                                           .map(UIController.this::getImageView)
-				                                           .toList());
-				lastUpdate = System.currentTimeMillis();
-				updateRequested = false;
-				isUpdating = false;
-			});
-		}
+		fileSystemTreeManager.getSelectedImages()
+		                     .stream()
+		                     .flatMap(image -> image.getTags().stream())
+		                     .collect(Collectors.groupingBy(Tag::getValue, Collectors.counting())).entrySet().stream()
+		                     .sorted(Comparator.comparing(Entry::getValue))
+		                     .forEachOrdered(entry ->
+				{
+					String tagValue = entry.getKey();
+					long count = entry.getValue();
+
+					Hyperlink tagText = new Hyperlink(tagValue);
+					tagText.getStyleClass().add("tag");
+					tagText.setOnAction(event -> tagFilterField.setText(tagValue));
+
+					Text tagCountText = new Text(String.valueOf(count));
+					tagCountText.getStyleClass().add("tag-count");
+
+					TextFlow tagEntry = new TextFlow(tagText, new Text(" "), tagCountText);
+					tagEntry.getStyleClass().add("tag-entry");
+
+					tagListView.getChildren().add(tagEntry);
+				});
+		
 	}
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
