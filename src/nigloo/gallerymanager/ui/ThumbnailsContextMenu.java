@@ -26,6 +26,10 @@ public class ThumbnailsContextMenu extends ContextMenu
 	@FXML
 	private MenuItem startSlideShowSelectionItem;
 	@FXML
+	private MenuItem selectAllItem;
+	@FXML
+	private MenuItem editTagsItem;
+	@FXML
 	private MenuItem deleteItem;
 
 	private final ThumbnailsView thumbnailsView;
@@ -54,6 +58,8 @@ public class ThumbnailsContextMenu extends ContextMenu
 			
 			startSlideShowAllImagesItem.setDisable(allImages.isEmpty());
 			startSlideShowSelectionItem.setDisable(selectedImages.isEmpty());
+			selectAllItem.setDisable(allImages.isEmpty());
+			editTagsItem.setDisable(selectedImages.isEmpty());
 			deleteItem.setDisable(selectedImages.isEmpty());
 		});
 	}
