@@ -1,9 +1,11 @@
 package nigloo.gallerymanager.ui;
 
+import java.util.Comparator;
 import java.util.List;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
@@ -24,25 +26,34 @@ public class ThumbnailsContextMenu extends ContextMenu
 	@FXML
 	private MenuItem deleteItem;
 
+	private final ThumbnailsView thumbnailsView;
 	private List<Image> allImages;
 	private List<Image> selectedImages;
 	
-	public ThumbnailsContextMenu()
+	public ThumbnailsContextMenu(ThumbnailsView thumbnailsView)
 	{
+		this.thumbnailsView = thumbnailsView;
+		
 		UIController.loadFXML(this, "thumbnails_context_menu.fxml");
 		Injector.init(this);
 		
-		startSlideShowAllImagesItem.setDisable(true);
-	}
-	
-	public void update(List<Image> allImages, List<Image> selectedImages)
-	{
-		this.allImages = allImages;
-		this.selectedImages = selectedImages;
-		
-		startSlideShowAllImagesItem.setDisable(allImages == null || allImages.isEmpty());
-		startSlideShowSelectionItem.setDisable(selectedImages == null || selectedImages.isEmpty());
-		deleteItem.setDisable(selectedImages == null || selectedImages.isEmpty());
+		addEventHandler(Menu.ON_SHOWING, event ->
+		{
+			allImages = thumbnailsView.getTiles().stream()
+			                             .map(GalleryImageView.class::cast)
+			                             .map(GalleryImageView::getGalleryImage)
+			                             .toList();
+			selectedImages = thumbnailsView.getSelectionModel().getSelectedItems()
+			                                           .stream()
+			                                           .map(GalleryImageView.class::cast)
+			                                           .map(GalleryImageView::getGalleryImage)
+			                                           .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
+			                                           .toList();
+			
+			startSlideShowAllImagesItem.setDisable(allImages.isEmpty());
+			startSlideShowSelectionItem.setDisable(selectedImages.isEmpty());
+			deleteItem.setDisable(selectedImages.isEmpty());
+		});
 	}
 	
 	@FXML
@@ -59,6 +70,12 @@ public class ThumbnailsContextMenu extends ContextMenu
 	protected void startSlideShowSelection()
 	{
 		new SlideShowStage(selectedImages, 0).show();
+	}
+	
+	@FXML
+	protected void selectAll()
+	{
+		thumbnailsView.getSelectionModel().selectAll();
 	}
 	
 	@FXML

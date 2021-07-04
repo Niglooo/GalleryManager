@@ -3,7 +3,6 @@ package nigloo.gallerymanager.ui;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 
@@ -32,7 +31,6 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
-import javafx.scene.control.Menu;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.input.GestureEvent;
@@ -51,7 +49,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
-import nigloo.gallerymanager.model.Image;
 import nigloo.tool.Utils;
 import nigloo.tool.javafx.ExtraCursors;
 
@@ -129,21 +126,7 @@ public class ThumbnailsView extends Region
 		selectionModel = new SimpleMultipleSelectionModel<>(tiles);
 		selectionModel.getSelectedItems().addListener((Observable observable) -> requestLayout());
 		
-		contextMenu = new ThumbnailsContextMenu();
-		contextMenu.addEventHandler(Menu.ON_SHOWING, event ->
-		{
-			List<Image> allImages = tiles.stream()
-			                             .map(GalleryImageView.class::cast)
-			                             .map(GalleryImageView::getGalleryImage)
-			                             .toList();
-			List<Image> selectedImages = selectionModel.getSelectedItems()
-			                                           .stream()
-			                                           .map(GalleryImageView.class::cast)
-			                                           .map(GalleryImageView::getGalleryImage)
-			                                           .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
-			                                           .toList();
-			contextMenu.update(allImages, selectedImages);
-		});
+		contextMenu = new ThumbnailsContextMenu(this);
 		
 		selectionArea = new Region();
 		BorderStroke stroke = new BorderStroke(Color.rgb(0, 120, 215),
