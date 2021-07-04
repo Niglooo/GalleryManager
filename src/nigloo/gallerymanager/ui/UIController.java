@@ -148,27 +148,7 @@ public class UIController extends Application
 			@Override
 			public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
 			{
-				String lowSearchText = searchText.toLowerCase(Locale.ROOT);
-				
-				List<String> matchingTags = new ArrayList<>();
-				Map<String, Integer> matchingTagPos = new HashMap<>();
-				
-				for(Tag tag : gallery.getTags())
-				{
-					String tagValue = tag.getValue();
-					String lowTagValue = tagValue.toLowerCase(Locale.ROOT);
-					
-					int pos = lowTagValue.indexOf(lowSearchText);
-					if (pos >= 0)
-					{
-						matchingTags.add(tagValue);
-						matchingTagPos.put(tagValue, pos);
-					}
-				}
-				
-				matchingTags.sort(Comparator.comparing((String tagValue) -> matchingTagPos.get(tagValue)).thenComparing(String.CASE_INSENSITIVE_ORDER));
-				
-				return matchingTags;
+				return autocompleteTags(searchText);
 			}
 			
 			@Override
@@ -334,6 +314,31 @@ public class UIController extends Application
 		imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
 		
 		return imageView;
+	}
+	
+	public List<String> autocompleteTags(String tagSearch)
+	{
+		tagSearch = tagSearch.toLowerCase(Locale.ROOT);
+		
+		List<String> matchingTags = new ArrayList<>();
+		Map<String, Integer> matchingTagPos = new HashMap<>();
+		
+		for(Tag tag : gallery.getTags())
+		{
+			String tagValue = tag.getValue();
+			String lowTagValue = tagValue.toLowerCase(Locale.ROOT);
+			
+			int pos = lowTagValue.indexOf(tagSearch);
+			if (pos >= 0)
+			{
+				matchingTags.add(tagValue);
+				matchingTagPos.put(tagValue, pos);
+			}
+		}
+		
+		matchingTags.sort(Comparator.comparing((String tagValue) -> matchingTagPos.get(tagValue)).thenComparing(String.CASE_INSENSITIVE_ORDER));
+		
+		return matchingTags;
 	}
 	
 	private void openGallery() throws IOException

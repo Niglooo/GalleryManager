@@ -50,3 +50,31 @@
     -fx-vgap: 20px;
     -fx-tile-alignment: TOP_CENTER;
 }
+
+
+
+#edit_image_tag_popup_content
+{
+    -fx-background-color: WHITE;
+    -fx-padding: 10px;
+}
+
+#edit_image_tag_popup_content > GridPane
+{
+    -fx-hgap: 10px;
+}
+
+#edit_image_tag_popup_content Button
+{
+    -fx-max-width: Infinity;
+}
+
+.info-message
+{
+    -fx-text-fill: GREEN;
+}
+
+.error-message
+{
+    -fx-text-fill: RED;
+}

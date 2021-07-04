@@ -3,12 +3,14 @@ package nigloo.gallerymanager.ui;
 import java.util.Comparator;
 import java.util.List;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.ui.dialog.EditImageTagsDialog;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
@@ -76,6 +78,16 @@ public class ThumbnailsContextMenu extends ContextMenu
 	protected void selectAll()
 	{
 		thumbnailsView.getSelectionModel().selectAll();
+	}
+	
+	@FXML
+	protected void editTags()
+	{
+		EditImageTagsDialog editImageTagsDialog = new EditImageTagsDialog(getScene().getWindow());
+		editImageTagsDialog.setImages(selectedImages);
+		
+		// We somehow need to call runLater because EditImageTagsDialog is modal
+		Platform.runLater(() -> editImageTagsDialog.show());
 	}
 	
 	@FXML

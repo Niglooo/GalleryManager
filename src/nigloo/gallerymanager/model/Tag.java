@@ -78,4 +78,9 @@ public class Tag
 	{
 		return ALLOWED_CHARS.contains(c);
 	}
+	
+	public static boolean isValideTag(CharSequence tagValue)
+	{
+		return tagValue.chars().mapToObj(c -> (char)c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
+	}
 }

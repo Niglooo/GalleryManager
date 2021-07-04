@@ -77,14 +77,24 @@ public class Image
 		return tags.stream().map(TagReference::getTag).collect(Collectors.toUnmodifiableSet());
 	}
 	
-	public void addTag(Tag tag)
+	public boolean addTag(Tag tag)
 	{
-		tags.add(new TagReference(tag));
+		return tags.add(new TagReference(tag));
 	}
 	
-	public void addTag(String tagValue)
+	public boolean addTag(String tagValue)
 	{
-		tags.add(new TagReference(gallery.getTag(tagValue)));
+		return tags.add(new TagReference(gallery.getTag(tagValue)));
+	}
+	
+	public boolean removeTag(Tag tag)
+	{
+		return tags.remove(new TagReference(tag));
+	}
+	
+	public boolean removeTag(String tagValue)
+	{		
+		return tags.remove(new TagReference(tagValue));
 	}
 	
 	public javafx.scene.image.Image getThumbnail(boolean async)
