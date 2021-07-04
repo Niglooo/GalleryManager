@@ -56,7 +56,7 @@ public class FileSystemTreeManager
 	private final TreeView<FileSystemElement> treeView;
 	private final ExecutorService asyncPool;
 	
-	public FileSystemTreeManager(TreeView<FileSystemElement> treeView) throws IOException
+	public FileSystemTreeManager(TreeView<FileSystemElement> treeView)
 	{
 		Injector.init(this);
 		
@@ -622,7 +622,7 @@ public class FileSystemTreeManager
 		private final FileSystemTreeContextMenu contextMenu;
 		private boolean contextMenuListenerSet = false;
 		
-		public FileSystemTreeCellFactory() throws IOException
+		public FileSystemTreeCellFactory()
 		{
 			this.contextMenu = new FileSystemTreeContextMenu();
 		}

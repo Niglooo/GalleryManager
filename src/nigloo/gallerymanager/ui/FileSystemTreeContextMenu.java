@@ -55,14 +55,9 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	private MultipleSelectionModel<TreeItem<FileSystemElement>> selection;
 	private TreeCell<FileSystemElement> selectedCell;
 	
-	public FileSystemTreeContextMenu() throws IOException
+	public FileSystemTreeContextMenu()
 	{
-		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
-		fxmlLoader.setController(this);
-		fxmlLoader.setRoot(this);
-		fxmlLoader.load(getClass().getModule()
-		                          .getResourceAsStream("resources/fxml/file_system_tree_context_menu.fxml"));
-		// new Menu().getItems()
+		UIController.loadFXML(this, "file_system_tree_context_menu.fxml");
 		Injector.init(this);
 		
 		addEventHandler(Menu.ON_SHOWING, e ->

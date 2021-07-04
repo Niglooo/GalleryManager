@@ -1,11 +1,8 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import nigloo.gallerymanager.model.Gallery;
@@ -30,14 +27,9 @@ public class ThumbnailsContextMenu extends ContextMenu
 	private List<Image> allImages;
 	private List<Image> selectedImages;
 	
-	public ThumbnailsContextMenu() throws IOException
+	public ThumbnailsContextMenu()
 	{
-		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
-		fxmlLoader.setController(this);
-		fxmlLoader.setRoot(this);
-		fxmlLoader.load(getClass().getModule()
-		                          .getResourceAsStream("resources/fxml/thumbnails_context_menu.fxml"));
-		
+		UIController.loadFXML(this, "thumbnails_context_menu.fxml");
 		Injector.init(this);
 		
 		startSlideShowAllImagesItem.setDisable(true);
@@ -54,7 +46,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 	}
 	
 	@FXML
-	protected void startSlideShow() throws IOException
+	protected void startSlideShow()
 	{
 		int startingIndex = 0;
 		if (selectedImages.size() == 1)
@@ -64,13 +56,13 @@ public class ThumbnailsContextMenu extends ContextMenu
 	}
 	
 	@FXML
-	protected void startSlideShowSelection() throws IOException
+	protected void startSlideShowSelection()
 	{
 		new SlideShowStage(selectedImages, 0).show();
 	}
 	
 	@FXML
-	protected void delete() throws IOException
+	protected void delete()
 	{
 		uiController.delete(selectedImages.stream().map(Image::getAbsolutePath).toList(), true);
 	}

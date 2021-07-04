@@ -1,6 +1,5 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -78,7 +77,7 @@ public class ThumbnailsView extends Region
 	private final DoubleProperty autoScrollDeltaY;
 	private final Timeline autoScroll;
 	
-	public ThumbnailsView() throws IOException
+	public ThumbnailsView()
 	{
 		super();
 		vScrollBar = new ScrollBar();
@@ -822,19 +821,11 @@ public class ThumbnailsView extends Region
 				{
 					if (event.getClickCount() == 2)
 					{
-						
-						try
-						{
-							new SlideShowStage(tiles.stream()
-							                        .map(GalleryImageView.class::cast)
-							                        .map(GalleryImageView::getGalleryImage)
-							                        .toList(),
-							                   tiles.indexOf(content)).show();
-						}
-						catch (IOException e)
-						{
-							throw new RuntimeException(e);
-						}
+						new SlideShowStage(tiles.stream()
+						                        .map(GalleryImageView.class::cast)
+						                        .map(GalleryImageView::getGalleryImage)
+						                        .toList(),
+						                   tiles.indexOf(content)).show();
 					}
 					else
 					{

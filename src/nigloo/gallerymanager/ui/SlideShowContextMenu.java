@@ -25,14 +25,11 @@ public class SlideShowContextMenu extends ContextMenu
 	@FXML
 	private ToggleGroup speedGroup;
 	
-	public SlideShowContextMenu(SlideShowStage slideShow) throws IOException
+	public SlideShowContextMenu(SlideShowStage slideShow)
 	{
 		this.slideShow = slideShow;
 		
-		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
-		fxmlLoader.setController(this);
-		fxmlLoader.setRoot(this);
-		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/slideshow_context_menu.fxml"));
+		UIController.loadFXML(this, "slideshow_context_menu.fxml");
 		
 		updateItems();
 	}

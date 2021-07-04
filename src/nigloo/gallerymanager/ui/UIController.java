@@ -70,8 +70,6 @@ public class UIController extends Application
 	private ThumbnailsView thumbnailsView;
 	private ThumbnailUpdaterThread thumbnailUpdater;
 	
-	private Stage primaryStage;
-	
 	private static Path galleryFile;
 	
 	private Gallery gallery;
@@ -96,8 +94,7 @@ public class UIController extends Application
 		THUMBNAIL_PLACEHOLDER = new javafx.scene.image.Image(ThumbnailsView.class.getModule()
 		                                                                         .getResourceAsStream("resources/images/loading.gif"));
 		
-		this.primaryStage = primaryStage;
-		this.primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
+		primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
 		
 		SingletonInjectionContext singletonCtx = new SingletonInjectionContext();
 		Injector.addContext(singletonCtx);
@@ -119,13 +116,10 @@ public class UIController extends Application
 //					if (autoDownloader.isHandling(image))
 //						image.addTag(artist.getTag());
 			}
-				
-		FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
-		fxmlLoader.setController(this);
-		fxmlLoader.setRoot(primaryStage);
-		fxmlLoader.load(getClass().getModule().getResourceAsStream("resources/fxml/ui.fxml"));
 		
-		this.primaryStage.getScene().getStylesheets().add(STYLE_SHEET_PATH);
+		loadFXML(this, primaryStage, "ui.fxml");
+		
+		primaryStage.getScene().getStylesheets().add(STYLE_SHEET_PATH);
 		
 		tagFilterField.setAutoCompletionBehavior(new AutoCompletionBehavior()
 		{
@@ -209,7 +203,7 @@ public class UIController extends Application
 		thumbnailUpdater = new ThumbnailUpdaterThread(500);
 		thumbnailUpdater.start();
 		
-		this.primaryStage.show();
+		primaryStage.show();
 	}
 	
 	@Override
@@ -368,5 +362,25 @@ public class UIController extends Application
 	public void delete(Collection<Path> paths, boolean deleteOnDisk)
 	{
 		fileSystemTreeManager.delete(paths, deleteOnDisk);
+	}
+	
+	public static void loadFXML(Object controller, String filename)
+	{
+		loadFXML(controller, controller, filename);
+	}
+	
+	public static void loadFXML(Object controller, Object root, String filename)
+	{
+		try
+		{
+			FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
+			fxmlLoader.setController(controller);
+			fxmlLoader.setRoot(root);
+			fxmlLoader.load(controller.getClass().getModule().getResourceAsStream("resources/fxml/"+filename));
+		}
+		catch (IOException e)
+		{
+			throw new Error("Error while loading FXML for "+controller.getClass().getSimpleName()+" (resources/fxml/"+filename+")", e);
+		}
 	}
 }

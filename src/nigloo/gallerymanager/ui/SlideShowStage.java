@@ -1,6 +1,5 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -49,7 +48,7 @@ public class SlideShowStage extends Stage
 	private final Timeline autoplay;
 	private final ImageLoaderDaemon fullImageUpdatingThread;
 	
-	public SlideShowStage(List<Image> images, int startingIndex) throws IOException
+	public SlideShowStage(List<Image> images, int startingIndex)
 	{
 		assert images.size() > 0;
 		assert startingIndex >= 0 && startingIndex < images.size();
@@ -69,7 +68,7 @@ public class SlideShowStage extends Stage
 			this.images = this.imagesOrdered;
 			this.currentImageIdx = startingIndex;
 		}
-		System.out.println(screenSize);
+		
 		imageView = new ImageView();
 		imageView.setFitWidth(screenSize.getWidth());
 		imageView.setFitHeight(screenSize.getHeight());
