@@ -17,9 +17,6 @@ import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.util.Duration;
@@ -183,8 +180,7 @@ public class AutoCompleteTextField extends TextField
 				result = getColoredTexts(text, lowerCaseText, idxEnd, lowerCaseSearchText);
 				
 				Text coloredText = new Text(text.substring(idx, idxEnd));
-				coloredText.setFill(Color.ORANGE);
-				coloredText.setFont(Font.font(coloredText.getFont().getFamily(), FontWeight.BOLD, 12));
+				coloredText.getStyleClass().add("highlight");
 				result.addFirst(coloredText);
 				
 				if (idx > offset)
@@ -195,7 +191,7 @@ public class AutoCompleteTextField extends TextField
 		return result;
 	}
 	
-	interface AutoCompletionBehavior
+	public interface AutoCompletionBehavior
 	{
 		default String getSearchText(AutoCompleteTextField field)
 		{

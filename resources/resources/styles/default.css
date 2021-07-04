@@ -1,8 +1,29 @@
 
-ThumbnailsView {
-	-fx-background-color: WHITE;
+#left_part
+{
+    -fx-background-color: WHITE;
+    -fx-padding: 10px;
+    -fx-spacing: 10px;
 }
 
-.drop-target {
+.tag-filter-field .highlight
+{
+    -fx-fill: ORANGE;
+    -fx-font-weight: bold;
+}
+
+#file_system_view .drop-target
+{
 	-fx-background-color: LIGHTBLUE;
+}
+
+#thumbnails_view
+{
+    -fx-background-color: WHITE;
+    -fx-padding: 10px;
+    -fx-tile-width: 150px;
+    -fx-tile-height: 150px;
+    -fx-hgap: 20px;
+    -fx-vgap: 20px;
+    -fx-tile-alignment: TOP_CENTER;
 }

@@ -52,7 +52,7 @@ import nigloo.tool.thread.ThreadStopException;
 @Singleton
 public class UIController extends Application
 {
-	static public final String STYLE_SHEET_PATH = UIController.class.getModule()
+	static public final String STYLESHEET_DEFAULT = UIController.class.getModule()
 	                                                                .getClassLoader()
 	                                                                .getResource("resources/styles/default.css")
 	                                                                .toExternalForm();
@@ -119,7 +119,7 @@ public class UIController extends Application
 		
 		loadFXML(this, primaryStage, "ui.fxml");
 		
-		primaryStage.getScene().getStylesheets().add(STYLE_SHEET_PATH);
+		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
 		
 		tagFilterField.setAutoCompletionBehavior(new AutoCompletionBehavior()
 		{
