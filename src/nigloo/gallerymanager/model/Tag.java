@@ -30,7 +30,7 @@ public class Tag
 		this();
 		this.value = value;
 		
-		Optional<Character> invalidChar = value.chars().mapToObj(c -> (char)c).filter(ALLOWED_CHARS::contains).findFirst();
+		Optional<Character> invalidChar = value.chars().mapToObj(c -> (char)c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst();
 		if (invalidChar.isPresent())
 			throw new IllegalArgumentException("The character '"+invalidChar.get()+"' is not allowed in tags. Got : \""+value+"\"");
 	}
@@ -43,11 +43,17 @@ public class Tag
 
 	public Tag getParent()
 	{
-		return parent.getTag();
+		return parent == null ? null : parent.getTag();
 	}
 
 	public void setParent(Tag parent)
 	{
+		if (parent == null)
+		{
+			this.parent = null;
+			return;
+		}
+		
 		// Check for cycle
 		ArrayList<String> cycle = new ArrayList<>();
 		cycle.add(this.getValue());
