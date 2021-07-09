@@ -72,6 +72,7 @@ public abstract class BaseDownloader
 	static
 	{
 		register("FANBOX", FanboxDownloader.class);
+		register("PIXIV", PixivDownloader.class);
 	}
 	
 	
