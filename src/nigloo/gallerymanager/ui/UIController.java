@@ -39,7 +39,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import nigloo.gallerymanager.autodownloader.FanboxDownloader;
+import nigloo.gallerymanager.autodownloader.BaseDownloader;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
@@ -113,11 +113,11 @@ public class UIController extends Application
 		// gallery.compactIds();
 		
 		for (Artist artist : gallery.getArtists())
-			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+			for (BaseDownloader autoDownloader : artist.getAutodownloaders())
 			{
 //				Properties config = new Properties();
 //				config.load(new FileInputStream("config.properties"));
-//				autoDownloader.download(config.getProperty("cookie"));
+//				autoDownloader.download(config);
 //				for (Image image : gallery.getImages())
 //					if (autoDownloader.isHandling(image))
 //						image.addTag(artist.getTag());

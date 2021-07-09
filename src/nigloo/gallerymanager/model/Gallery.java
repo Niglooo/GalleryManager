@@ -24,7 +24,7 @@ import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 
-import nigloo.gallerymanager.autodownloader.FanboxDownloader;
+import nigloo.gallerymanager.autodownloader.BaseDownloader;
 import nigloo.tool.Utils;
 import nigloo.tool.collection.WeakIdentityHashSet;
 
@@ -54,7 +54,7 @@ public final class Gallery
 		nextId = images.stream().mapToLong(Image::getId).max().orElse(0) + 1;
 		
 		for (Artist artist : artists)
-			for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+			for (BaseDownloader autoDownloader : artist.getAutodownloaders())
 				autoDownloader.setArtist(artist);
 	}
 	
@@ -171,7 +171,7 @@ public final class Gallery
 		synchronized (images)
 		{
 			for (Artist artist : artists)
-				for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+				for (BaseDownloader autoDownloader : artist.getAutodownloaders())
 					autoDownloader.stopHandling(images);
 				
 			// This last or we break every ImageReference
@@ -376,7 +376,7 @@ public final class Gallery
 				Image image = it.next();
 				
 				for (Artist artist : artists)
-					for (FanboxDownloader autoDownloader : artist.getAutodownloaders())
+					for (BaseDownloader autoDownloader : artist.getAutodownloaders())
 						if (autoDownloader.isHandling(image))
 							continue imageLoop;
 						

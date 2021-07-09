@@ -2,14 +2,14 @@ package nigloo.gallerymanager.model;
 
 import java.util.List;
 
-import nigloo.gallerymanager.autodownloader.FanboxDownloader;
+import nigloo.gallerymanager.autodownloader.BaseDownloader;
 
 public class Artist {
 
 	private TagReference tag;
 	private String name;
 	
-	private List<FanboxDownloader> autodownloaders;
+	private List<BaseDownloader> autodownloaders;
 	
 	public Artist() {
 		
@@ -35,13 +35,8 @@ public class Artist {
 		this.name = name;
 	}
 	
-	public List<FanboxDownloader> getAutodownloaders()
+	public List<BaseDownloader> getAutodownloaders()
 	{
 		return autodownloaders;
-	}
-	
-	public void setAutodownloaders(List<FanboxDownloader> autodownloaders)
-	{
-		this.autodownloaders = autodownloaders;
 	}
 }
