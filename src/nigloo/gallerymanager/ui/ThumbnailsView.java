@@ -134,9 +134,7 @@ public class ThumbnailsView extends Region
 		                                       null,
 		                                       new BorderWidths(1));
 		selectionArea.setBorder(new Border(stroke, stroke, stroke, stroke));
-		selectionArea.setBackground(new Background(new BackgroundFill(Color.rgb(0, 120, 215, 0.4),
-		                                                                null,
-		                                                                null)));
+		selectionArea.setBackground(new Background(new BackgroundFill(Color.rgb(0, 120, 215, 0.4), null, null)));
 		selectionArea.setVisible(false);
 		selectionArea.setViewOrder(-1);
 		getChildren().add(selectionArea);
@@ -230,7 +228,7 @@ public class ThumbnailsView extends Region
 						autoScrollDeltaY.set(-event.getY());
 					else if (event.getY() >= getHeight())
 						autoScrollDeltaY.set(getHeight() - event.getY());
-					else 
+					else
 						autoScrollDeltaY.set(0);
 				}
 			}
@@ -792,7 +790,7 @@ public class ThumbnailsView extends Region
 			});
 			
 			this.content = content;
-
+			
 			getChildren().addAll(backgroundRegion, content, borderRegion);
 			setAlignment(content, getTileAlignment());
 			
@@ -834,7 +832,6 @@ public class ThumbnailsView extends Region
 		}
 	}
 	
-	
 	/***************************************************************************
 	 * * Selection Handling * *
 	 **************************************************************************/
@@ -874,7 +871,7 @@ public class ThumbnailsView extends Region
 		if (middleScrollOrigin == null)
 			autoScrollDeltaY.set(0);
 	}
-
+	
 	// Don't rely on layoutChildren() having been called before
 	// (updateTilesDisposition is enough)
 	private List<Node> getNodeInSelectionArea()
@@ -942,7 +939,7 @@ public class ThumbnailsView extends Region
 		selectionArea.setPrefWidth(Math.abs(selectionAreaOrigin.getX() - currentMousePosition.getX()));
 		selectionArea.setPrefHeight(Math.abs(yOrigin - currentMousePosition.getY()));
 		selectionArea.autosize();
-
+		
 		List<Node> selectionRegionNode = getNodeInSelectionArea();
 		
 		if (lastSelectionRegionNodes == null)
@@ -1025,8 +1022,8 @@ public class ThumbnailsView extends Region
 	private static class StyleableProperties
 	{
 		private static final CssMetaData<ThumbnailsView, Number> TILE_WIDTH = new CssMetaData<ThumbnailsView, Number>("-fx-tile-width",
-		                                                                                                                  SizeConverter.getInstance(),
-		                                                                                                                  DEFAULT_TILE_WIDTH)
+		                                                                                                              SizeConverter.getInstance(),
+		                                                                                                              DEFAULT_TILE_WIDTH)
 		{
 			
 			@Override
@@ -1044,8 +1041,8 @@ public class ThumbnailsView extends Region
 		};
 		
 		private static final CssMetaData<ThumbnailsView, Number> TILE_HEIGHT = new CssMetaData<ThumbnailsView, Number>("-fx-tile-height",
-		                                                                                                                   SizeConverter.getInstance(),
-		                                                                                                                   DEFAULT_TILE_HEIGHT)
+		                                                                                                               SizeConverter.getInstance(),
+		                                                                                                               DEFAULT_TILE_HEIGHT)
 		{
 			
 			@Override
@@ -1063,8 +1060,8 @@ public class ThumbnailsView extends Region
 		};
 		
 		private static final CssMetaData<ThumbnailsView, Number> HGAP = new CssMetaData<ThumbnailsView, Number>("-fx-hgap",
-		                                                                                                            SizeConverter.getInstance(),
-		                                                                                                            DEFAULT_HGAP)
+		                                                                                                        SizeConverter.getInstance(),
+		                                                                                                        DEFAULT_HGAP)
 		{
 			
 			@Override
@@ -1082,8 +1079,8 @@ public class ThumbnailsView extends Region
 		};
 		
 		private static final CssMetaData<ThumbnailsView, Number> VGAP = new CssMetaData<ThumbnailsView, Number>("-fx-vgap",
-		                                                                                                            SizeConverter.getInstance(),
-		                                                                                                            DEFAULT_VGAP)
+		                                                                                                        SizeConverter.getInstance(),
+		                                                                                                        DEFAULT_VGAP)
 		{
 			
 			@Override
@@ -1101,8 +1098,8 @@ public class ThumbnailsView extends Region
 		};
 		
 		private static final CssMetaData<ThumbnailsView, Pos> TILE_ALIGNMENT = new CssMetaData<ThumbnailsView, Pos>("-fx-tile-alignment",
-		                                                                                                                new EnumConverter<Pos>(Pos.class),
-		                                                                                                                DEFAULT_TILE_ALIGNMENT)
+		                                                                                                            new EnumConverter<Pos>(Pos.class),
+		                                                                                                            DEFAULT_TILE_ALIGNMENT)
 		{
 			
 			@Override

@@ -31,7 +31,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 	private MenuItem editTagsItem;
 	@FXML
 	private MenuItem deleteItem;
-
+	
 	private final ThumbnailsView thumbnailsView;
 	private List<Image> allImages;
 	private List<Image> selectedImages;
@@ -45,16 +45,18 @@ public class ThumbnailsContextMenu extends ContextMenu
 		
 		addEventHandler(Menu.ON_SHOWING, event ->
 		{
-			allImages = thumbnailsView.getTiles().stream()
-			                             .map(GalleryImageView.class::cast)
-			                             .map(GalleryImageView::getGalleryImage)
-			                             .toList();
-			selectedImages = thumbnailsView.getSelectionModel().getSelectedItems()
-			                                           .stream()
-			                                           .map(GalleryImageView.class::cast)
-			                                           .map(GalleryImageView::getGalleryImage)
-			                                           .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
-			                                           .toList();
+			allImages = thumbnailsView.getTiles()
+			                          .stream()
+			                          .map(GalleryImageView.class::cast)
+			                          .map(GalleryImageView::getGalleryImage)
+			                          .toList();
+			selectedImages = thumbnailsView.getSelectionModel()
+			                               .getSelectedItems()
+			                               .stream()
+			                               .map(GalleryImageView.class::cast)
+			                               .map(GalleryImageView::getGalleryImage)
+			                               .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
+			                               .toList();
 			
 			startSlideShowAllImagesItem.setDisable(allImages.isEmpty());
 			startSlideShowSelectionItem.setDisable(selectedImages.isEmpty());

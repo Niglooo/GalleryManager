@@ -1,6 +1,5 @@
 package nigloo.gallerymanager.ui;
 
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -207,7 +206,7 @@ public class SimpleMultipleSelectionModel<T> extends MultipleSelectionModel<T>
 			                                                       Math.max(focusIdx, itemIdx) + 1));
 			if (itemIdx < focusIdx)
 				Collections.reverse(itemsToSelect);
-		
+			
 			if (controlDown)
 			{
 				itemsToSelect.removeAll(selection);

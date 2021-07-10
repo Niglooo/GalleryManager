@@ -90,9 +90,16 @@ public class FanboxDownloader extends BaseDownloader
 					
 					String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 					
-					CompletableFuture<?> asyncResponse = downloadImage(url, cookie, httpClient, maxConcurrentStreams, postId, imageId, publishedDatetime, postTitle, imageNumber, imageFilename);
-					
-					imagesDownload.add(asyncResponse);
+					imagesDownload.add(downloadImage(url,
+					                                 cookie,
+					                                 httpClient,
+					                                 maxConcurrentStreams,
+					                                 postId,
+					                                 imageId,
+					                                 publishedDatetime,
+					                                 postTitle,
+					                                 imageNumber,
+					                                 imageFilename));
 					imageNumber++;
 				}
 			}

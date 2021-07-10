@@ -57,13 +57,14 @@ public class Image
 	{
 		return this.id <= 0;
 	}
-
+	
 	public long getId()
 	{
 		return id;
 	}
 	
-	public Path getPath() {
+	public Path getPath()
+	{
 		return path;
 	}
 	
@@ -93,7 +94,7 @@ public class Image
 	}
 	
 	public boolean removeTag(String tagValue)
-	{		
+	{
 		return tags.remove(new TagReference(tagValue));
 	}
 	

@@ -55,12 +55,12 @@ public class FileSystemElement
 		DELETED(true);
 		
 		private final boolean fullyLoaded;
-
+		
 		private Status(boolean fullyLoaded)
 		{
 			this.fullyLoaded = fullyLoaded;
 		}
-
+		
 		public boolean isFullyLoaded()
 		{
 			return fullyLoaded;

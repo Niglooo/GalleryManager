@@ -59,9 +59,9 @@ import nigloo.tool.thread.ThreadStopException;
 public class UIController extends Application
 {
 	static public final String STYLESHEET_DEFAULT = UIController.class.getModule()
-	                                                                .getClassLoader()
-	                                                                .getResource("resources/styles/default.css")
-	                                                                .toExternalForm();
+	                                                                  .getClassLoader()
+	                                                                  .getResource("resources/styles/default.css")
+	                                                                  .toExternalForm();
 	
 	private static javafx.scene.image.Image THUMBNAIL_PLACEHOLDER;
 	
@@ -172,7 +172,7 @@ public class UIController extends Application
 				String text = field.getText();
 				
 				int idxBeginTag = caret;
-				while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag-1)))
+				while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag - 1)))
 					idxBeginTag--;
 				
 				return idxBeginTag;
@@ -266,36 +266,42 @@ public class UIController extends Application
 	
 	private void updateThumbnailImages()
 	{
-		thumbnailsView.getTiles().setAll(fileSystemTreeManager.getSelectedImages().stream().map(UIController.this::getImageView).toList());
-
+		thumbnailsView.getTiles()
+		              .setAll(fileSystemTreeManager.getSelectedImages()
+		                                           .stream()
+		                                           .map(UIController.this::getImageView)
+		                                           .toList());
+		
 		tagListView.getChildren().clear();
 		
 		fileSystemTreeManager.getSelectedImages()
 		                     .stream()
 		                     .flatMap(image -> image.getTags().stream())
-		                     .collect(Collectors.groupingBy(tag -> tag, Collectors.counting())).entrySet().stream()
+		                     .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()))
+		                     .entrySet()
+		                     .stream()
 		                     .sorted(Comparator.comparing(Entry::getValue))
 		                     .forEachOrdered(entry ->
-				{
-					Tag tag = entry.getKey();
-					String tagValue = tag.getValue();
-					Color tagColor = tag.getColor();
-					long count = entry.getValue();
-
-					Hyperlink tagText = new Hyperlink(tagValue);
-					tagText.getStyleClass().add("tag");
-					if (tagColor != null)
-						tagText.setStyle("-fx-text-fill: "+FXUtils.toRGBA(tagColor)+";");
-					tagText.setOnAction(event -> tagFilterField.setText(tagValue));
-
-					Text tagCountText = new Text(String.valueOf(count));
-					tagCountText.getStyleClass().add("tag-count");
-
-					TextFlow tagEntry = new TextFlow(tagText, new Text(" "), tagCountText);
-					tagEntry.getStyleClass().add("tag-entry");
-
-					tagListView.getChildren().add(tagEntry);
-				});
+		                     {
+			                     Tag tag = entry.getKey();
+			                     String tagValue = tag.getValue();
+			                     Color tagColor = tag.getColor();
+			                     long count = entry.getValue();
+			                     
+			                     Hyperlink tagText = new Hyperlink(tagValue);
+			                     tagText.getStyleClass().add("tag");
+			                     if (tagColor != null)
+				                     tagText.setStyle("-fx-text-fill: " + FXUtils.toRGBA(tagColor) + ";");
+			                     tagText.setOnAction(event -> tagFilterField.setText(tagValue));
+			                     
+			                     Text tagCountText = new Text(String.valueOf(count));
+			                     tagCountText.getStyleClass().add("tag-count");
+			                     
+			                     TextFlow tagEntry = new TextFlow(tagText, new Text(" "), tagCountText);
+			                     tagEntry.getStyleClass().add("tag-entry");
+			                     
+			                     tagListView.getChildren().add(tagEntry);
+		                     });
 		
 	}
 	
@@ -327,7 +333,7 @@ public class UIController extends Application
 		List<String> matchingTags = new ArrayList<>();
 		Map<String, Integer> matchingTagPos = new HashMap<>();
 		
-		for(Tag tag : gallery.getTags())
+		for (Tag tag : gallery.getTags())
 		{
 			String tagValue = tag.getValue();
 			String lowTagValue = tagValue.toLowerCase(Locale.ROOT);
@@ -340,7 +346,8 @@ public class UIController extends Application
 			}
 		}
 		
-		matchingTags.sort(Comparator.comparing((String tagValue) -> matchingTagPos.get(tagValue)).thenComparing(String.CASE_INSENSITIVE_ORDER));
+		matchingTags.sort(Comparator.comparing((String tagValue) -> matchingTagPos.get(tagValue))
+		                            .thenComparing(String.CASE_INSENSITIVE_ORDER));
 		
 		return matchingTags;
 	}
@@ -371,6 +378,7 @@ public class UIController extends Application
 	}
 	
 	private Gson gson = null;
+	
 	private Gson gson()
 	{
 		if (gson == null)
@@ -413,11 +421,12 @@ public class UIController extends Application
 			FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 			fxmlLoader.setController(controller);
 			fxmlLoader.setRoot(root);
-			fxmlLoader.load(controller.getClass().getModule().getResourceAsStream("resources/fxml/"+filename));
+			fxmlLoader.load(controller.getClass().getModule().getResourceAsStream("resources/fxml/" + filename));
 		}
 		catch (IOException e)
 		{
-			throw new Error("Error while loading FXML for "+controller.getClass().getSimpleName()+" (resources/fxml/"+filename+")", e);
+			throw new Error("Error while loading FXML for " + controller.getClass().getSimpleName()
+			        + " (resources/fxml/" + filename + ")", e);
 		}
 	}
 }

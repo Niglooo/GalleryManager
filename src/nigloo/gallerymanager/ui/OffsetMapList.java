@@ -11,7 +11,7 @@ import nigloo.tool.Utils;
 abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 {
 	protected final int offset;
-
+	
 	OffsetMapList(ObservableList<? extends F> source, int offset)
 	{
 		super(source);
@@ -97,7 +97,6 @@ abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 		{
 			if (!c.wasPermutated())
 				return new int[0];
-			
 			
 			int[] newPerm = new int[c.getTo() - c.getFrom()];
 			for (int i = c.getFrom() ; i < c.getTo() ; ++i)

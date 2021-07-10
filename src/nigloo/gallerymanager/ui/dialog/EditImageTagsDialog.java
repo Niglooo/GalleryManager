@@ -132,7 +132,7 @@ public class EditImageTagsDialog extends Stage
 		Text tagText = new Text(tag.getValue());
 		tagText.getStyleClass().add("tag");
 		if (tagColor != null)
-			tagText.setStyle("-fx-fill: "+FXUtils.toRGBA(tagColor)+";");
+			tagText.setStyle("-fx-fill: " + FXUtils.toRGBA(tagColor) + ";");
 		
 		Text tagCountText = new Text(String.valueOf(count));
 		tagCountText.getStyleClass().add("tag-count");
@@ -153,10 +153,10 @@ public class EditImageTagsDialog extends Stage
 		tagListView.add(checkBox, 1, row);
 		tagListView.getRowConstraints().add(rowConstraint);
 	}
-
+	
 	public void setImages(Collection<Image> images)
 	{
-		this.images = images == null ? List.of() : images;;
+		this.images = images == null ? List.of() : images;
 	}
 	
 	@FXML
@@ -192,7 +192,7 @@ public class EditImageTagsDialog extends Stage
 		try
 		{
 			tag.setParent(parent);
-			showInfoMessage("Set "+parent.getValue()+" as parent of "+tag.getValue());
+			showInfoMessage("Set " + parent.getValue() + " as parent of " + tag.getValue());
 		}
 		catch (Exception e)
 		{

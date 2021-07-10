@@ -467,7 +467,7 @@ public class FileSystemTreeManager
 	{
 		return item.getChildren().removeIf(subItem -> subItem.getValue() == null);
 	}
-
+	
 	public void synchronizeFileSystem(Collection<Path> paths, boolean deep)
 	{
 		assert paths != null;
@@ -879,7 +879,8 @@ public class FileSystemTreeManager
 	}
 	
 	/**
-	 * Update the FileSystemElement of directory elements (Images are moved by Gallery.move)
+	 * Update the FileSystemElement of directory elements (Images are moved by
+	 * Gallery.move)
 	 * 
 	 * @param source
 	 * @param target
@@ -901,7 +902,8 @@ public class FileSystemTreeManager
 			for (TreeItem<FileSystemElement> subItem : item.getChildren())
 				updateMovedItem(source, target, subItem);
 		}
-		// If item.getValue().isImage() no need to do anything as Gallery.move should have been called before (moving the image)
+		// If item.getValue().isImage() no need to do anything as Gallery.move should
+		// have been called before (moving the image)
 	}
 	
 	private void merge(TreeItem<FileSystemElement> target, List<TreeItem<FileSystemElement>> itemsToAdd)
@@ -931,7 +933,8 @@ public class FileSystemTreeManager
 					}
 					else
 					{
-						EnumSet<Status> status = EnumSet.of(item.getValue().getStatus(), itemToAdd.getValue().getStatus());
+						EnumSet<Status> status = EnumSet.of(item.getValue().getStatus(),
+						                                    itemToAdd.getValue().getStatus());
 						
 						if (status.contains(Status.SYNC))
 							item.getValue().setStatus(Status.SYNC);

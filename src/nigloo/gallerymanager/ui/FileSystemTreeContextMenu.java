@@ -172,7 +172,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		}
 		
 		folderPositionSelected = folderPositionGroup.getSelectedToggle();
-
+		
 		sort(item, order);
 		uiController.requestRefreshThumbnails();
 	}
@@ -219,7 +219,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		for (TreeItem<FileSystemElement> child : item.getChildren())
 			if (child.getValue() != null && gallery.isOrderInherited(child.getValue().getPath()))
 				sort(child, order);
-		
+			
 		uiController.requestRefreshThumbnails();
 	}
 	

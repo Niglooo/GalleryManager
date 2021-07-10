@@ -14,9 +14,10 @@ import nigloo.tool.injection.annotation.Inject;
 
 public class Tag
 {
-	public static final Set<Character> ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-()!"
-			.chars().mapToObj(c -> (char) c).collect(Collectors.toUnmodifiableSet());
-
+	public static final Set<Character> ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-()!".chars()
+	                                                                                                                        .mapToObj(c -> (char) c)
+	                                                                                                                        .collect(Collectors.toUnmodifiableSet());
+	
 	private String value;
 	private TagReference parent;
 	@JsonAdapter(ColorTypeAdapter.class)
@@ -36,22 +37,25 @@ public class Tag
 		this();
 		this.value = value;
 		
-		Optional<Character> invalidChar = value.chars().mapToObj(c -> (char)c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst();
+		Optional<Character> invalidChar = value.chars()
+		                                       .mapToObj(c -> (char) c)
+		                                       .filter(c -> !ALLOWED_CHARS.contains(c))
+		                                       .findFirst();
 		if (invalidChar.isPresent())
-			throw new IllegalArgumentException("The character '"+invalidChar.get()+"' is not allowed in tags. Got : \""+value+"\"");
+			throw new IllegalArgumentException("The character '" + invalidChar.get()
+			        + "' is not allowed in tags. Got : \"" + value + "\"");
 	}
-
-
+	
 	public String getValue()
 	{
 		return value;
 	}
-
+	
 	public Tag getParent()
 	{
 		return parent == null ? null : parent.getTag();
 	}
-
+	
 	public void setParent(Tag parent)
 	{
 		if (parent == null)
@@ -71,8 +75,8 @@ public class Tag
 			
 			if (t == this)
 				throw new IllegalArgumentException("Cannot set " + parent.getValue() + " as parent of "
-						+ this.getValue() + " as that would create the cycle "
-						+ cycle.stream().collect(Collectors.joining(" -> ", "[", "]")));
+				        + this.getValue() + " as that would create the cycle "
+				        + cycle.stream().collect(Collectors.joining(" -> ", "[", "]")));
 			
 			t = t.getParent();
 		}
@@ -87,12 +91,12 @@ public class Tag
 		
 		return color;
 	}
-
+	
 	public void setColor(Color color)
 	{
 		this.color = color;
 	}
-
+	
 	public static boolean isCharacterAllowed(char c)
 	{
 		return ALLOWED_CHARS.contains(c);
@@ -100,6 +104,6 @@ public class Tag
 	
 	public static boolean isValideTag(CharSequence tagValue)
 	{
-		return tagValue.chars().mapToObj(c -> (char)c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
+		return tagValue.chars().mapToObj(c -> (char) c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
 	}
 }

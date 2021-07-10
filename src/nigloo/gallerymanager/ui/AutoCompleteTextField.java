@@ -27,7 +27,7 @@ public class AutoCompleteTextField extends TextField
 	
 	private AutoCompletionBehavior autoCompletionBehavior;
 	private ContextMenu entriesPopup;
-
+	
 	private final Timeline delayedShowSuggestion;
 	
 	private final ChangeListener<Number> caretPositionChangeListener;
@@ -39,16 +39,18 @@ public class AutoCompleteTextField extends TextField
 		this.entriesPopup = new ContextMenu();
 		this.autoCompletionBehavior = (field, searchText) -> List.of();
 		
-		delayedShowSuggestion = new Timeline(new KeyFrame(Duration.millis(SUGGESTION_DELAY), event -> showSuggestions(false)));
+		delayedShowSuggestion = new Timeline(new KeyFrame(Duration.millis(SUGGESTION_DELAY),
+		                                                  event -> showSuggestions(false)));
 		
-		caretPositionChangeListener = (observable, oldValue, newValue) -> 
+		caretPositionChangeListener = (observable, oldValue, newValue) ->
 		{
 			String searchText = autoCompletionBehavior.getSearchText(this);
 			if (searchText == null || searchText.isBlank())
 				entriesPopup.hide();
 		};
 		focusedChangeListener = (observableValue, oldValue, newValue) -> entriesPopup.hide();
-		keyTypedHandler = event -> {
+		keyTypedHandler = event ->
+		{
 			String chars = event.getCharacter();
 			
 			if (chars.equals(" ") && event.isControlDown())
@@ -59,7 +61,7 @@ public class AutoCompleteTextField extends TextField
 		
 		enableListener(true);
 	}
-
+	
 	private void enableListener(boolean enable)
 	{
 		if (enable)
@@ -76,15 +78,15 @@ public class AutoCompleteTextField extends TextField
 		}
 	}
 	
-
-	public AutoCompletionBehavior getAutoCompletionBehavior() {
+	public AutoCompletionBehavior getAutoCompletionBehavior()
+	{
 		return autoCompletionBehavior;
 	}
-
-	public void setAutoCompletionBehavior(AutoCompletionBehavior autoCompletionBehavior) {
+	
+	public void setAutoCompletionBehavior(AutoCompletionBehavior autoCompletionBehavior)
+	{
 		this.autoCompletionBehavior = Objects.requireNonNull(autoCompletionBehavior, "autoCompletionBehavior");
 	}
-	
 	
 	public void showSuggestions(boolean showEvenIfEmptySearchText)
 	{
@@ -108,7 +110,7 @@ public class AutoCompleteTextField extends TextField
 			}
 		});
 	}
-
+	
 	/**
 	 * Populate the entry set with the given search results. Display is limited to
 	 * 10 entries, for performance.
@@ -128,7 +130,7 @@ public class AutoCompleteTextField extends TextField
 			entryLabel.setPrefHeight(10);
 			CustomMenuItem item = new CustomMenuItem(entryLabel, true);
 			menuItems.add(item);
-
+			
 			// if any suggestion is select set it into text and close popup
 			item.setOnAction(actionEvent ->
 			{
@@ -138,24 +140,30 @@ public class AutoCompleteTextField extends TextField
 				entriesPopup.hide();
 			});
 		}
-
+		
 		// "Refresh" context menu
 		entriesPopup.getItems().setAll(menuItems);
 	}
-
+	
 	/**
 	 * Build TextFlow with selected text. Return "case" dependent.
 	 * 
-	 * @param text   - string with text
+	 * @param text       - string with text
 	 * @param searchText - string to select in text
 	 * @return - TextFlow
 	 */
 	public static TextFlow buildTextFlow(String text, String searchText)
 	{
-		return new TextFlow(getColoredTexts(text, text.toLowerCase(Locale.ROOT), 0, searchText == null ? null : searchText.toLowerCase(Locale.ROOT)).toArray(new Text[0]));
+		return new TextFlow(getColoredTexts(text,
+		                                    text.toLowerCase(Locale.ROOT),
+		                                    0,
+		                                    searchText == null ? null : searchText.toLowerCase(Locale.ROOT)).toArray(new Text[0]));
 	}
 	
-	private static LinkedList<Text> getColoredTexts(String text, String lowerCaseText, int offset, String lowerCaseSearchText)
+	private static LinkedList<Text> getColoredTexts(String text,
+	                                                String lowerCaseText,
+	                                                int offset,
+	                                                String lowerCaseSearchText)
 	{
 		LinkedList<Text> result;
 		

@@ -65,16 +65,18 @@ public abstract class BaseDownloader
 {
 	private static final Map<String, Class<? extends BaseDownloader>> TYPE_TO_CLASS = new HashMap<>();
 	private static final Map<Class<? extends BaseDownloader>, String> CLASS_TO_TYPE = new HashMap<>();
-	private static void register(String type, Class<? extends BaseDownloader> clazz) {
+	
+	private static void register(String type, Class<? extends BaseDownloader> clazz)
+	{
 		TYPE_TO_CLASS.put(type, clazz);
 		CLASS_TO_TYPE.put(clazz, type);
 	}
+	
 	static
 	{
 		register("FANBOX", FanboxDownloader.class);
 		register("PIXIV", PixivDownloader.class);
 	}
-	
 	
 	@Inject
 	protected transient Gallery gallery;
@@ -114,7 +116,17 @@ public abstract class BaseDownloader
 	
 	protected abstract String[] getHeaders(String cookie);
 	
-	protected final CompletableFuture<Void> downloadImage(String url, String cookie, HttpClient httpClient, Semaphore maxConcurrentStreams, String postId, String imageId, ZonedDateTime publishedDatetime, String postTitle, int imageNumber, String imageFilename) throws Exception
+	protected final CompletableFuture<Void> downloadImage(String url,
+	                                                      String cookie,
+	                                                      HttpClient httpClient,
+	                                                      Semaphore maxConcurrentStreams,
+	                                                      String postId,
+	                                                      String imageId,
+	                                                      ZonedDateTime publishedDatetime,
+	                                                      String postTitle,
+	                                                      int imageNumber,
+	                                                      String imageFilename)
+	        throws Exception
 	{
 		ImageKey imageKey = new ImageKey(postId, imageId);
 		ImageReference imageReference;
@@ -134,7 +146,8 @@ public abstract class BaseDownloader
 			{
 				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
 				                                      .replace("{postId}", postId)
-				                                      .replace("{postDatetime}", DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
+				                                      .replace("{postDatetime}",
+				                                               DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
 				                                      .replace("{postTitle}", postTitle)
 				                                      .replace("{imageNumber}", String.format("%02d", imageNumber))
 				                                      .replace("{imageFilename}", imageFilename));
@@ -156,12 +169,12 @@ public abstract class BaseDownloader
 		HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(getHeaders(cookie)).build();
 		maxConcurrentStreams.acquire();
 		return httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
-		                                               .thenApply(saveInGallery(postId, imageId))
-		                                               .thenApply(r -> print(r,
-		                                                                     PrintOption.REQUEST_URL,
-		                                                                     PrintOption.STATUS_CODE,
-		                                                                     PrintOption.RESPONSE_BODY))
-		                                               .thenRun(maxConcurrentStreams::release);
+		                 .thenApply(saveInGallery(postId, imageId))
+		                 .thenApply(r -> print(r,
+		                                       PrintOption.REQUEST_URL,
+		                                       PrintOption.STATUS_CODE,
+		                                       PrintOption.RESPONSE_BODY))
+		                 .thenRun(maxConcurrentStreams::release);
 	}
 	
 	private void saveInGallery(String postId, String imageId, Path path)
@@ -330,7 +343,8 @@ public abstract class BaseDownloader
 		}
 	}
 	
-	public static class BaseDownloaderAdapter implements JsonSerializer<BaseDownloader>, JsonDeserializer<BaseDownloader>
+	public static class BaseDownloaderAdapter
+	        implements JsonSerializer<BaseDownloader>, JsonDeserializer<BaseDownloader>
 	{
 		@Override
 		public JsonElement serialize(BaseDownloader src, Type typeOfSrc, JsonSerializationContext context)
@@ -338,7 +352,7 @@ public abstract class BaseDownloader
 			Class<?> clazz = src.getClass();
 			String type = CLASS_TO_TYPE.get(clazz);
 			if (type == null)
-				throw new IllegalStateException("No type registered for "+clazz);
+				throw new IllegalStateException("No type registered for " + clazz);
 			
 			JsonObject out = new JsonObject();
 			out.addProperty("type", type);
@@ -350,12 +364,13 @@ public abstract class BaseDownloader
 		}
 		
 		@Override
-		public BaseDownloader deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException
+		public BaseDownloader deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+		        throws JsonParseException
 		{
 			String type = json.getAsJsonObject().get("type").getAsString();
 			Class<?> clazz = TYPE_TO_CLASS.get(type);
 			if (clazz == null)
-				throw new IllegalStateException("No class registered for "+type);
+				throw new IllegalStateException("No class registered for " + type);
 			
 			return context.deserialize(json, clazz);
 		}
@@ -374,10 +389,10 @@ public abstract class BaseDownloader
 			out.beginArray();
 			
 			for (Entry<ImageKey, ImageReference> entry : value.entrySet()
-			                                                        .stream()
-			                                                        .sorted(Comparator.comparing((Entry<ImageKey, ImageReference> e) -> e.getKey())
-			                                                                          .reversed())
-			                                                        .toList())
+			                                                  .stream()
+			                                                  .sorted(Comparator.comparing((Entry<ImageKey, ImageReference> e) -> e.getKey())
+			                                                                    .reversed())
+			                                                  .toList())
 			{
 				ImageKey imageKey = entry.getKey();
 				ImageReference ref = entry.getValue();
@@ -476,10 +491,10 @@ public abstract class BaseDownloader
 	public final void stopHandling(Collection<Image> images)
 	{
 		Map<Image, ImageKey> imageToKey = mapping.entrySet()
-		                                               .stream()
-		                                               .filter(e -> e.getValue() != null)
-		                                               .collect(Collectors.toMap(e -> e.getValue().getImage(),
-		                                                                         e -> e.getKey()));
+		                                         .stream()
+		                                         .filter(e -> e.getValue() != null)
+		                                         .collect(Collectors.toMap(e -> e.getValue().getImage(),
+		                                                                   e -> e.getKey()));
 		
 		for (Image image : images)
 		{

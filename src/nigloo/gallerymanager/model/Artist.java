@@ -4,17 +4,17 @@ import java.util.List;
 
 import nigloo.gallerymanager.autodownloader.BaseDownloader;
 
-public class Artist {
-
+public class Artist
+{
 	private TagReference tag;
 	private String name;
 	
 	private List<BaseDownloader> autodownloaders;
 	
-	public Artist() {
-		
+	public Artist()
+	{
 	}
-
+	
 	public Tag getTag()
 	{
 		return tag.getTag();

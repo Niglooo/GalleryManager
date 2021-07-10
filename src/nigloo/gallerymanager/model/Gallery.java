@@ -428,8 +428,7 @@ public final class Gallery
 			          .filter(e -> e.getKey() != null)
 			          .filter(e -> e.getValue() != null)
 			          .collect(Collectors.toMap(e -> Paths.get(e.getKey()
-			                                                    .replace(JSON_PATH_WILDCARD,
-			                                                             PATH_WILDCARD.toString())),
+			                                                    .replace(JSON_PATH_WILDCARD, PATH_WILDCARD.toString())),
 			                                    Entry::getValue,
 			                                    (v1, v2) -> v1,
 			                                    HashMap::new));

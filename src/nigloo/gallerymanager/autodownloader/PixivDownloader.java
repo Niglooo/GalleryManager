@@ -58,14 +58,21 @@ public class PixivDownloader extends BaseDownloader
 		
 		String[] headers = getHeaders(cookie);
 		
-		request = HttpRequest.newBuilder().uri(new URI("https://www.pixiv.net/ajax/user/"+creatorId+"/profile/all?lang=en")).GET().headers(headers).build();
+		request = HttpRequest.newBuilder()
+		                     .uri(new URI("https://www.pixiv.net/ajax/user/" + creatorId + "/profile/all?lang=en"))
+		                     .GET()
+		                     .headers(headers)
+		                     .build();
 		maxConcurrentStreams.acquire();
 		response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 		print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
 		maxConcurrentStreams.release();
 		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 		
-		List<String> postIds = JsonHelper.followPath(parsedResponse, "body.illusts", JsonObject.class).keySet().stream().toList();
+		List<String> postIds = JsonHelper.followPath(parsedResponse, "body.illusts", JsonObject.class)
+		                                 .keySet()
+		                                 .stream()
+		                                 .toList();
 		
 		final int POST_PAGE_SIZE = 20;
 		JsonObject posts = null;
@@ -79,7 +86,15 @@ public class PixivDownloader extends BaseDownloader
 				if (posts != null)
 					offset += POST_PAGE_SIZE;
 				
-				String url = "https://www.pixiv.net/ajax/user/"+creatorId+"/profile/illusts?"+postIds.subList(offset, Math.min(offset+POST_PAGE_SIZE, postIds.size())).stream().map(id -> "ids%5B%5D="+id).collect(Collectors.joining("&"))+"&work_category=illust&is_first_page=0&lang=en";
+				String url = "https://www.pixiv.net/ajax/user/"
+				        + creatorId + "/profile/illusts?" + postIds
+				                                                   .subList(offset,
+				                                                            Math.min(offset + POST_PAGE_SIZE,
+				                                                                     postIds.size()))
+				                                                   .stream()
+				                                                   .map(id -> "ids%5B%5D=" + id)
+				                                                   .collect(Collectors.joining("&"))
+				        + "&work_category=illust&is_first_page=0&lang=en";
 				request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
 				maxConcurrentStreams.acquire();
 				response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
@@ -93,17 +108,25 @@ public class PixivDownloader extends BaseDownloader
 			JsonObject post = posts.get(postId).getAsJsonObject();
 			
 			String postTitle = JsonHelper.followPath(post, "title", String.class);
-			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "createDate", String.class));
+			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post,
+			                                                                            "createDate",
+			                                                                            String.class));
 			
 			// Load post images
-			request = HttpRequest.newBuilder().uri(new URI("https://www.pixiv.net/ajax/illust/"+postId+"/pages?lang=en")).GET().headers(headers).build();
+			request = HttpRequest.newBuilder()
+			                     .uri(new URI("https://www.pixiv.net/ajax/illust/" + postId + "/pages?lang=en"))
+			                     .GET()
+			                     .headers(headers)
+			                     .build();
 			maxConcurrentStreams.acquire();
 			response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 			print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
 			maxConcurrentStreams.release();
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			
-			JsonArray images = JsonParser.parseString(response.body().toString()).getAsJsonObject().getAsJsonArray("body");
+			JsonArray images = JsonParser.parseString(response.body().toString())
+			                             .getAsJsonObject()
+			                             .getAsJsonArray("body");
 			
 			int imageNumber = 1;
 			for (JsonElement image : images)
@@ -112,7 +135,16 @@ public class PixivDownloader extends BaseDownloader
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
-				CompletableFuture<?> asyncResponse = downloadImage(url, cookie, httpClient, maxConcurrentStreams, postId, imageId, publishedDatetime, postTitle, imageNumber, imageFilename);
+				CompletableFuture<?> asyncResponse = downloadImage(url,
+				                                                   cookie,
+				                                                   httpClient,
+				                                                   maxConcurrentStreams,
+				                                                   postId,
+				                                                   imageId,
+				                                                   publishedDatetime,
+				                                                   postTitle,
+				                                                   imageNumber,
+				                                                   imageFilename);
 				
 				imagesDownload.add(asyncResponse);
 				imageNumber++;
