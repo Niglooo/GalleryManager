@@ -160,7 +160,7 @@ public class PixivDownloader extends BaseDownloader
 		// @formatter:off
 		return new String[] {
 			"accept", "application/json, text/plain, */*",
-			"accept-encoding", "gzip, deflate, br",
+			"accept-encoding", "gzip, deflate",
 			"accept-language", "fr-FR,fr;q=0.9",
 			"cookie", cookie,
 			"referer", "https://www.pixiv.net/en/users/"+creatorId+"/illustrations",

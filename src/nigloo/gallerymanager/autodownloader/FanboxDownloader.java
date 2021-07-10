@@ -116,7 +116,7 @@ public class FanboxDownloader extends BaseDownloader
 		// @formatter:off
 		return new String[] {
 			"accept", "application/json, text/plain, */*",
-			"accept-encoding", "gzip, deflate, br",
+			"accept-encoding", "gzip, deflate",
 			"accept-language", "fr-FR,fr;q=0.9",
 			"cookie", cookie,
 			"origin", "https://" + creatorId + ".fanbox.cc",
