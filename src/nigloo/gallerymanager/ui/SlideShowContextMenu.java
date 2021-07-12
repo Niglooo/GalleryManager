@@ -1,10 +1,6 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
