@@ -155,11 +155,11 @@ public final class Gallery
 	{
 		if (!unsavedImagesValid)
 		{
-			unsavedImages = unsavedImages.entrySet()
+			unsavedImages = unsavedImages.values()
 			                             .stream()
-			                             .collect(Collectors.toMap(e -> e.getValue().getPath(),
-			                                                       e -> e.getValue(),
-			                                                       (v1, v2) -> v1,
+			                             .collect(Collectors.toMap(i -> i.getPath(),
+			                                                       i -> i,
+			                                                       (i1, i2) -> i1,
 			                                                       HashMap::new));
 			unsavedImagesValid = true;
 		}
