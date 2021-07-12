@@ -56,6 +56,7 @@ import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
+import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -85,6 +86,7 @@ public abstract class BaseDownloader
 	
 	protected String creatorId;
 	protected String imagePathPattern;
+	protected ZonedDateTime mostRecentPostCheckedDate;
 	
 	protected static final Executor executor = Executors.newWorkStealingPool();
 	
@@ -112,7 +114,7 @@ public abstract class BaseDownloader
 		this.artist = artist;
 	}
 	
-	public abstract void download(Properties config) throws Exception;
+	public abstract void download(Properties config, boolean checkAllPost) throws Exception;
 	
 	protected abstract String[] getHeaders(String cookie);
 	
@@ -146,7 +148,7 @@ public abstract class BaseDownloader
 			{
 				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
 				                                      .replace("{postId}", postId)
-				                                      .replace("{postDatetime}",
+				                                      .replace("{postDate}",
 				                                               DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
 				                                      .replace("{postTitle}", postTitle)
 				                                      .replace("{imageNumber}", String.format("%02d", imageNumber))
@@ -175,6 +177,25 @@ public abstract class BaseDownloader
 		                                       PrintOption.STATUS_CODE,
 		                                       PrintOption.RESPONSE_BODY))
 		                 .thenRun(maxConcurrentStreams::release);
+	}
+	
+	protected final StrongReference<ZonedDateTime> initCurrentMostRecentPost()
+	{
+		return new StrongReference<>(mostRecentPostCheckedDate);
+	}
+	
+	protected final void updateCurrentMostRecentPost(StrongReference<ZonedDateTime> currentMostRecentPost,
+	                                                 ZonedDateTime publishedDatetime)
+	{
+		if (currentMostRecentPost.get() == null || currentMostRecentPost.get().isBefore(publishedDatetime))
+			currentMostRecentPost.set(publishedDatetime);
+	}
+	
+	protected final void saveCurrentMostRecentPost(StrongReference<ZonedDateTime> currentMostRecentPost)
+	{
+		if (currentMostRecentPost.get() != null && (mostRecentPostCheckedDate == null
+		        || mostRecentPostCheckedDate.isBefore(currentMostRecentPost.get())))
+			mostRecentPostCheckedDate = currentMostRecentPost.get();
 	}
 	
 	private void saveInGallery(String postId, String imageId, Path path)

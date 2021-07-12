@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import nigloo.tool.StrongReference;
 import nigloo.tool.gson.JsonHelper;
 
 public class PixivDownloader extends BaseDownloader
@@ -38,12 +39,14 @@ public class PixivDownloader extends BaseDownloader
 	}
 	
 	@Override
-	public void download(Properties config) throws Exception
+	public void download(Properties config, boolean checkAllPost) throws Exception
 	{
 		String cookie = config.getProperty("cookie.pixiv");
 		
 		System.out.println(creatorId);
 		System.out.println(imagePathPattern);
+		
+		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		
 		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
 		final Collection<CompletableFuture<?>> imagesDownload = Collections.synchronizedCollection(new ArrayList<>());
@@ -112,6 +115,12 @@ public class PixivDownloader extends BaseDownloader
 			                                                                            "createDate",
 			                                                                            String.class));
 			
+			updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
+			
+			if (mostRecentPostCheckedDate != null && publishedDatetime.isBefore(mostRecentPostCheckedDate)
+			        && !checkAllPost)
+				break;
+			
 			// Load post images
 			request = HttpRequest.newBuilder()
 			                     .uri(new URI("https://www.pixiv.net/ajax/illust/" + postId + "/pages?lang=en"))
@@ -152,6 +161,8 @@ public class PixivDownloader extends BaseDownloader
 		}
 		
 		CompletableFuture.allOf(imagesDownload.toArray(CompletableFuture[]::new)).join();
+		
+		saveCurrentMostRecentPost(currentMostRecentPost);
 	}
 	
 	@Override

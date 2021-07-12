@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,6 +46,7 @@ import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
+import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.gson.RecordsTypeAdapterFactory;
@@ -117,7 +119,7 @@ public class UIController extends Application
 			{
 //				Properties config = new Properties();
 //				config.load(new FileInputStream("config.properties"));
-//				autoDownloader.download(config);
+//				autoDownloader.download(config, false);
 //				for (Image image : gallery.getImages())
 //					if (autoDownloader.isHandling(image))
 //						image.addTag(artist.getTag());
@@ -367,7 +369,7 @@ public class UIController extends Application
 		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
 		                                   .format(Instant.now().atZone(ZoneId.systemDefault()));
 		
-		Path tmpFile = galleryFile.getParent().resolve("gallery_" + datetime + ".json");
+		Path tmpFile = galleryFile.resolveSibling("gallery_" + datetime + ".json");
 		
 		try (Writer writer = Files.newBufferedWriter(tmpFile, StandardCharsets.UTF_8))
 		{
@@ -384,6 +386,7 @@ public class UIController extends Application
 		if (gson == null)
 		{
 			gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
+			                        .registerTypeAdapter(ZonedDateTime.class, new DateTimeAdapter())
 			                        .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
 			                        .registerTypeAdapterFactory(new RecordsTypeAdapterFactory())
 			                        .disableHtmlEscaping()

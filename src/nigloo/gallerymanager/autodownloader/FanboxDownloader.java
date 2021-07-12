@@ -22,6 +22,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import nigloo.tool.StrongReference;
 import nigloo.tool.gson.JsonHelper;
 
 public class FanboxDownloader extends BaseDownloader
@@ -38,12 +39,14 @@ public class FanboxDownloader extends BaseDownloader
 	}
 	
 	@Override
-	public void download(Properties config) throws Exception
+	public void download(Properties config, boolean checkAllPost) throws Exception
 	{
 		String cookie = config.getProperty("cookie.fanbox");
 		
 		System.out.println(creatorId);
 		System.out.println(imagePathPattern);
+		
+		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		
 		final Executor executor = Executors.newWorkStealingPool();
 		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
@@ -61,6 +64,7 @@ public class FanboxDownloader extends BaseDownloader
 		
 		String currentUrl = "https://api.fanbox.cc/post.listCreator?creatorId=" + creatorId + "&limit=10";
 		
+		mainloop:
 		while (currentUrl != null)
 		{
 			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
@@ -78,9 +82,15 @@ public class FanboxDownloader extends BaseDownloader
 				
 				String postId = JsonHelper.followPath(item, "id", String.class);
 				String postTitle = JsonHelper.followPath(item, "title", String.class);
-				ZonedDateTime publishedDatetime = ZonedDateTime.parse(item.getAsJsonObject()
-				                                                          .get("publishedDatetime")
-				                                                          .getAsString());
+				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(item,
+				                                                                            "publishedDatetime",
+				                                                                            String.class));
+				
+				updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
+				
+				if (mostRecentPostCheckedDate != null && publishedDatetime.isBefore(mostRecentPostCheckedDate)
+				        && !checkAllPost)
+					break mainloop;
 				
 				int imageNumber = 1;
 				for (JsonElement image : images)
@@ -108,6 +118,8 @@ public class FanboxDownloader extends BaseDownloader
 		}
 		
 		CompletableFuture.allOf(imagesDownload.toArray(CompletableFuture[]::new)).join();
+		
+		saveCurrentMostRecentPost(currentMostRecentPost);
 	}
 	
 	@Override
