@@ -663,7 +663,6 @@ public class FileSystemTreeManager
 				public void commitEdit(FileSystemElement newElement)
 				{
 					FileSystemElement oldElement = getItem();
-					super.commitEdit(newElement);
 					
 					if (newElement == oldElement)
 						cancelEdit();
@@ -677,6 +676,12 @@ public class FileSystemTreeManager
 							Utils.move(source, target, StandardCopyOption.REPLACE_EXISTING);
 							gallery.move(source, target);
 							
+							// If oldElement is an image, then gallery.move updated its Image, which we want
+							// to keep because it have the right id) while newElement.getImage was just a
+							// temporary object
+							if (oldElement.isImage())
+								newElement = oldElement;
+							
 							super.commitEdit(newElement);
 							
 							TreeItem<FileSystemElement> item = getTreeItem();
@@ -686,6 +691,7 @@ public class FileSystemTreeManager
 							merge(parent, List.of(item));
 							
 							updateMovedItem(source, target, item);
+							sort(parent);
 						}
 						catch (Exception e)
 						{
@@ -721,7 +727,7 @@ public class FileSystemTreeManager
 					if (toString(oldElement).equals(filename))
 						return oldElement;
 					
-					Path newPath = oldElement.getPath().getParent().resolve(filename);
+					Path newPath = oldElement.getPath().resolveSibling(filename);
 					FileSystemElement element;
 					
 					if (oldElement.isDirectory())
@@ -731,8 +737,7 @@ public class FileSystemTreeManager
 					}
 					else
 					{
-						Image image = oldElement.getImage();
-						image.move(gallery.toRelativePath(newPath));
+						Image image = gallery.getImage(gallery.toRelativePath(newPath));
 						element = new FileSystemElement(image, oldElement.getStatus());
 					}
 					
@@ -840,7 +845,7 @@ public class FileSystemTreeManager
 				merge(thisItem, List.of(item));
 				// thisItem.getChildren().add(item);
 				
-				// Update FileElement AND Gallery
+				// Update FileElement
 				updateMovedItem(source, target, item);
 				
 				oneDragSuccessful = true;
