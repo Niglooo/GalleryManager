@@ -39,9 +39,9 @@ public class FanboxDownloader extends BaseDownloader
 	}
 	
 	@Override
-	public void download(Properties config, boolean checkAllPost) throws Exception
+	public void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
-		String cookie = config.getProperty("cookie.fanbox");
+		String cookie = secrets.getProperty("fanbox.cookie");
 		
 		System.out.println(creatorId);
 		System.out.println(imagePathPattern);
@@ -101,7 +101,7 @@ public class FanboxDownloader extends BaseDownloader
 					String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 					
 					imagesDownload.add(downloadImage(url,
-					                                 cookie,
+					                                 headers,
 					                                 httpClient,
 					                                 maxConcurrentStreams,
 					                                 postId,
@@ -122,8 +122,7 @@ public class FanboxDownloader extends BaseDownloader
 		saveCurrentMostRecentPost(currentMostRecentPost);
 	}
 	
-	@Override
-	protected String[] getHeaders(String cookie)
+	private String[] getHeaders(String cookie)
 	{
 		// @formatter:off
 		return new String[] {

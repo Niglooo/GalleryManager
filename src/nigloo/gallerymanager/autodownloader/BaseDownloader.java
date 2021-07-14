@@ -77,6 +77,7 @@ public abstract class BaseDownloader
 	{
 		register("FANBOX", FanboxDownloader.class);
 		register("PIXIV", PixivDownloader.class);
+		register("TWITTER", TwitterDownloader.class);
 	}
 	
 	@Inject
@@ -114,12 +115,10 @@ public abstract class BaseDownloader
 		this.artist = artist;
 	}
 	
-	public abstract void download(Properties config, boolean checkAllPost) throws Exception;
-	
-	protected abstract String[] getHeaders(String cookie);
+	public abstract void download(Properties secrets, boolean checkAllPost) throws Exception;
 	
 	protected final CompletableFuture<Void> downloadImage(String url,
-	                                                      String cookie,
+	                                                      String[] headers,
 	                                                      HttpClient httpClient,
 	                                                      Semaphore maxConcurrentStreams,
 	                                                      String postId,
@@ -168,7 +167,7 @@ public abstract class BaseDownloader
 		
 		Files.createDirectories(imageDest.getParent());
 		
-		HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(getHeaders(cookie)).build();
+		HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
 		maxConcurrentStreams.acquire();
 		return httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
 		                 .thenApply(saveInGallery(postId, imageId))

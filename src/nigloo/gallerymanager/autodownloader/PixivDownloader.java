@@ -39,9 +39,9 @@ public class PixivDownloader extends BaseDownloader
 	}
 	
 	@Override
-	public void download(Properties config, boolean checkAllPost) throws Exception
+	public void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
-		String cookie = config.getProperty("cookie.pixiv");
+		String cookie = secrets.getProperty("pixiv.cookie");
 		
 		System.out.println(creatorId);
 		System.out.println(imagePathPattern);
@@ -145,7 +145,7 @@ public class PixivDownloader extends BaseDownloader
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
 				CompletableFuture<?> asyncResponse = downloadImage(url,
-				                                                   cookie,
+				                                                   headers,
 				                                                   httpClient,
 				                                                   maxConcurrentStreams,
 				                                                   postId,
@@ -165,8 +165,7 @@ public class PixivDownloader extends BaseDownloader
 		saveCurrentMostRecentPost(currentMostRecentPost);
 	}
 	
-	@Override
-	protected String[] getHeaders(String cookie)
+	private String[] getHeaders(String cookie)
 	{
 		// @formatter:off
 		return new String[] {
