@@ -11,6 +11,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
@@ -47,6 +48,9 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	private ToggleGroup childrenAscendingGroup;
 	
+	@FXML
+	private MenuItem pasteItem;
+	
 	private Toggle folderPositionSelected;
 	private Toggle childrenFolderPositionSelected;
 	
@@ -62,6 +66,9 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		{
 			updateSortOrderItems();
 			updateChildrenSortOrderItems();
+			pasteItem.setDisable(selection.getSelectedItem().getValue() == null
+			        || !selection.getSelectedItem().getValue().isDirectory()
+			        || !uiController.canPaste(selection.getSelectedItem().getValue().getPath()));
 		});
 	}
 	
@@ -231,6 +238,18 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	protected void synchronize()
 	{
 		uiController.synchronizeFileSystem(selectedPaths(), true);
+	}
+	
+	@FXML
+	protected void cut()
+	{
+		uiController.cut(selectedPaths());
+	}
+	
+	@FXML
+	protected void paste()
+	{
+		uiController.paste(selectedCell.getItem().getPath());
 	}
 	
 	@FXML

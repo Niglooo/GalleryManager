@@ -412,6 +412,21 @@ public class UIController extends Application
 		fileSystemTreeManager.delete(paths, deleteOnDisk);
 	}
 	
+	public void cut(Collection<Path> paths)
+	{
+		fileSystemTreeManager.cut(paths);
+	}
+	
+	public boolean canPaste(Path targetPath)
+	{
+		return fileSystemTreeManager.canPaste(targetPath);
+	}
+	
+	public void paste(Path targetPath)
+	{
+		fileSystemTreeManager.paste(targetPath);
+	}
+	
 	public static void loadFXML(Object controller, String filename)
 	{
 		loadFXML(controller, controller, filename);

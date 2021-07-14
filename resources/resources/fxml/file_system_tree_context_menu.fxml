@@ -116,6 +116,9 @@
     <MenuItem mnemonicParsing="false" onAction="#refresh" text="Refresh" />
     <MenuItem mnemonicParsing="false" onAction="#synchronize" text="Sync" />
     <SeparatorMenuItem />
+    <MenuItem mnemonicParsing="false" onAction="#cut" text="Cut" />
+    <MenuItem fx:id="pasteItem" mnemonicParsing="false" onAction="#paste" text="Paste" />
+    <SeparatorMenuItem />
     <MenuItem mnemonicParsing="false" onAction="#delete" text="Delete" />
     <MenuItem mnemonicParsing="false" onAction="#rename" text="Rename" />
   </items>

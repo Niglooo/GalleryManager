@@ -8,8 +8,8 @@
 
 .tag-list
 {
-     -fx-pref-width: 100 px;
-     -fx-pref-height: 200 px;
+     -fx-pref-width: 100px;
+     -fx-pref-height: 200px;
 }
 
 .tag-list .tag
@@ -39,6 +39,12 @@
 {
 	-fx-background-color: LIGHTBLUE;
 }
+
+#file_system_view .cut-element
+{
+	-fx-background-color: LIGHTBLUE;
+}
+
 
 #thumbnails_view
 {

@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,15 +9,19 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -29,6 +34,7 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.control.cell.TextFieldTreeCell;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.DragEvent;
@@ -36,10 +42,12 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.util.Callback;
+import javafx.util.Duration;
 import javafx.util.StringConverter;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -82,6 +90,49 @@ public class FileSystemTreeManager
 				        uiController.requestRefreshThumbnails();
 			        }
 		        });
+		
+		StrongReference<List<File>> oldContentRef = new StrongReference<>();
+		Timeline clipboardObserver = new Timeline(new KeyFrame(Duration.millis(200), e ->
+		{
+			List<File> oldContent = oldContentRef.get();
+			List<File> newContent = Clipboard.getSystemClipboard().getFiles();
+			
+			if (Objects.equals(oldContent, newContent))
+				return;
+			
+			// Force old and new element to update
+			if (oldContent != null)
+			{
+				for (File file : oldContent)
+				{
+					TreeItem<FileSystemElement> item = findTreeItem(file.toPath());
+					if (item != null)
+					{
+						FileSystemElement element = item.getValue();
+						item.setValue(null);
+						item.setValue(element);
+					}
+				}
+			}
+			
+			if (newContent != null)
+			{
+				for (File file : newContent)
+				{
+					TreeItem<FileSystemElement> item = findTreeItem(file.toPath());
+					if (item != null)
+					{
+						FileSystemElement element = item.getValue();
+						item.setValue(null);
+						item.setValue(element);
+					}
+				}
+			}
+			
+			oldContentRef.set(newContent);
+		}));
+		clipboardObserver.setCycleCount(Timeline.INDEFINITE);
+		clipboardObserver.play();
 	}
 	
 	public void refresh(Collection<Path> paths, boolean deep)
@@ -643,6 +694,8 @@ public class FileSystemTreeManager
 				{
 					super.updateItem(element, empty);
 					
+					getStyleClass().remove(CUT_ELEMENT_STYLE_CLASS);
+					
 					if (empty)
 					{
 						setText("");
@@ -656,6 +709,10 @@ public class FileSystemTreeManager
 						iv.setFitWidth(16);
 						iv.setPreserveRatio(true);
 						setGraphic(iv);
+						
+						if (Clipboard.getSystemClipboard().hasFiles()
+						        && Clipboard.getSystemClipboard().getFiles().contains(element.getPath().toFile()))
+							getStyleClass().add(CUT_ELEMENT_STYLE_CLASS);
 					}
 				}
 				
@@ -750,30 +807,30 @@ public class FileSystemTreeManager
 		}
 	}
 	
-	static private final DataFormat JAVA_FORMAT = new DataFormat("application/x-java-object");
 	static private final String DROP_HINT_STYLE_CLASS = "drop-target";
 	
-	private List<TreeItem<FileSystemElement>> draggedItems = null;
 	private TreeCell<FileSystemElement> dropZone = null;
 	
 	// only if all selected have same parent and not root
 	private void dragDetected(MouseEvent event, TreeCell<FileSystemElement> treeCell)
 	{
-		draggedItems = List.copyOf(treeView.getSelectionModel().getSelectedItems());
-		
-		//@formatter:off
-		if (draggedItems.isEmpty() ||                                               // empty selection
-		    draggedItems.stream().anyMatch(item -> item.getParent() == null) ||     // root item
-		    draggedItems.stream().map(TreeItem::getParent).distinct().count() != 1) // not all have the same parent
-		{//@formatter:on
-			draggedItems = null;
+		List<File> draggedItemsPath = treeView.getSelectionModel()
+		                                      .getSelectedItems()
+		                                      .stream()
+		                                      .map(TreeItem::getValue)
+		                                      .map(FileSystemElement::getPath)
+		                                      .map(Path::toFile)
+		                                      .toList();
+		if (draggedItemsPath.isEmpty())
+		{
+			draggedItemsPath = null;
 			return;
 		}
 		
 		Dragboard db = treeCell.startDragAndDrop(TransferMode.MOVE);
 		
 		ClipboardContent content = new ClipboardContent();
-		content.put(JAVA_FORMAT, draggedItems.toString());
+		content.putFiles(draggedItemsPath);
 		db.setContent(content);
 		db.setDragView(treeCell.snapshot(null, null));
 		event.consume();
@@ -782,19 +839,17 @@ public class FileSystemTreeManager
 	// not parent of selection or any subdirectory
 	private void dragOver(DragEvent event, TreeCell<FileSystemElement> treeCell)
 	{
-		if (!event.getDragboard().hasContent(JAVA_FORMAT))
+		if (!event.getDragboard().hasContent(DataFormat.FILES))
 			return;
 		
 		if (!Objects.equals(dropZone, treeCell))
 			clearDropLocation();
 		
 		TreeItem<FileSystemElement> thisItem = treeCell.getTreeItem();
+		List<Path> draggedItemsPath = event.getDragboard().getFiles().stream().map(File::toPath).toList();
 		
-		// can't drop on image or sibling or subdirectory
 		if (thisItem.getValue().isImage() || thisItem.getValue().getStatus() == Status.DELETED
-		        || thisItem == draggedItems.get(0).getParent()
-		        || draggedItems.stream()
-		                       .anyMatch(i -> thisItem.getValue().getPath().startsWith(i.getValue().getPath())))
+		        || !canBeMovedTo(thisItem.getValue().getPath(), draggedItemsPath))
 			return;
 		
 		event.acceptTransferModes(TransferMode.MOVE);
@@ -809,67 +864,19 @@ public class FileSystemTreeManager
 	private void drop(DragEvent event, TreeCell<FileSystemElement> treeCell)
 	{
 		Dragboard db = event.getDragboard();
-		if (!db.hasContent(JAVA_FORMAT) || dropZone == null)
+		if (!db.hasContent(DataFormat.FILES) || dropZone == null)
 		{
 			event.setDropCompleted(false);
 			return;
 		}
 		
-		TreeItem<FileSystemElement> droppedItemParent = draggedItems.get(0).getParent();
 		TreeItem<FileSystemElement> thisItem = treeCell.getTreeItem();
-		
-		Path source = droppedItemParent.getValue().getPath();
 		Path target = thisItem.getValue().getPath();
+		List<Path> draggedItemsPath = event.getDragboard().getFiles().stream().map(File::toPath).toList();
 		
-		boolean oneDragSuccessful = false;
-		
-		for (TreeItem<FileSystemElement> item : draggedItems)
-		{
-			Path itemPath = item.getValue().getPath();
-			Path newPath = target.resolve(source.relativize(itemPath));
-			System.out.println("source: " + itemPath);
-			System.out.println("target: " + newPath);
-			
-			try
-			{
-				// Move files on disk
-				Utils.move(itemPath, newPath, StandardCopyOption.REPLACE_EXISTING);
-				
-				// Move images in gallery, sort order preference, etc
-				gallery.move(itemPath, newPath);
-				
-				// remove from previous location
-				droppedItemParent.getChildren().remove(item);
-				
-				// add to new location
-				merge(thisItem, List.of(item));
-				// thisItem.getChildren().add(item);
-				
-				// Update FileElement
-				updateMovedItem(source, target, item);
-				
-				oneDragSuccessful = true;
-			}
-			catch (Exception e)
-			{
-				e.printStackTrace();
-				new ExceptionDialog(e, "Error while moving files").show();
-			}
-		}
-		
-		if (oneDragSuccessful)
-			removeFakeItem(thisItem);
-		
-		// Update target directory
-		updateFolderAndParentStatus(droppedItemParent, false);
-		updateFolderAndParentStatus(thisItem, false);
-		sort(thisItem);
-		
-		treeView.getSelectionModel().clearSelection();
-		draggedItems.forEach(i -> treeView.getSelectionModel().select(i));
+		move(target, draggedItemsPath, true);
 		
 		clearDropLocation();
-		draggedItems = null;
 		
 		event.setDropCompleted(true);
 	}
@@ -883,6 +890,117 @@ public class FileSystemTreeManager
 		}
 	}
 	
+	static private final String CUT_ELEMENT_STYLE_CLASS = "cut-element";
+	
+	public void cut(Collection<Path> paths)
+	{
+		if (paths == null || paths.isEmpty())
+			return;
+		
+		assert paths.stream().allMatch(Path::isAbsolute);
+		
+		// longest/deepest path first so hen move a directory, it doesn't change
+		// following paths
+		List<File> files = paths.stream()
+		                        .sorted(Comparator.comparingInt(Path::getNameCount).reversed())
+		                        .map(Path::toFile)
+		                        .toList();
+		
+		ClipboardContent cbc = new ClipboardContent();
+		cbc.putFiles(files);
+		Clipboard.getSystemClipboard().setContent(cbc);
+	}
+	
+	public boolean canPaste(Path targetPath)
+	{
+		Clipboard cb = Clipboard.getSystemClipboard();
+		return cb.hasFiles() && canBeMovedTo(targetPath, cb.getFiles().stream().map(File::toPath).toList());
+	}
+	
+	public void paste(Path targetPath)
+	{
+		Clipboard cb = Clipboard.getSystemClipboard();
+		if (!cb.hasFiles())
+			return;
+		
+		move(targetPath, cb.getFiles().stream().map(File::toPath).toList(), true);
+		
+		cb.clear();
+	}
+	
+	private static boolean canBeMovedTo(Path target, Collection<Path> pathsToMove)
+	{
+		return pathsToMove != null && target != null
+		        && !pathsToMove.stream().anyMatch(p -> target.startsWith(p) || target.equals(p));
+	}
+	
+	private void move(Path target, Collection<Path> pathsToMove, boolean updateSelection)
+	{
+		if (target == null || pathsToMove == null || pathsToMove.isEmpty())
+			return;
+		
+		List<Path> fPathsToMove = pathsToMove.stream()
+		                                     .sorted(Comparator.comparingInt(Path::getNameCount).reversed())
+		                                     .toList();
+		
+		Platform.runLater(() ->
+		{
+			TreeItem<FileSystemElement> targetItem = findTreeItem(target);
+			if (targetItem == null)
+				return;
+			
+			List<TreeItem<FileSystemElement>> movedItems = new ArrayList<>(fPathsToMove.size());
+			Set<TreeItem<FileSystemElement>> movedItemsParents = new HashSet<>();
+			
+			for (Path path : fPathsToMove)
+			{
+				TreeItem<FileSystemElement> item = findTreeItem(path);
+				if (item == null)
+					continue;
+				
+				Path newPath = target.resolve(path.getFileName());
+				
+				try
+				{
+					// Move files on disk
+					Utils.move(path, newPath, StandardCopyOption.REPLACE_EXISTING);
+					
+					// Move images in gallery, sort order preference, etc
+					gallery.move(path, newPath);
+					
+					// remove from previous location
+					TreeItem<FileSystemElement> itemParent = item.getParent();
+					itemParent.getChildren().remove(item);
+					
+					// add to new location
+					merge(targetItem, List.of(item));
+					
+					// Update FileElement
+					updateMovedItem(path, newPath, item);
+					
+					movedItems.add(item);
+					movedItemsParents.add(itemParent);
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace();
+					new ExceptionDialog(e, "Error while moving files").show();
+				}
+			}
+			
+			for (TreeItem<FileSystemElement> item : movedItemsParents)
+				updateFolderAndParentStatus(item, false);
+			updateFolderAndParentStatus(targetItem, false);
+			sort(targetItem);
+			
+			if (updateSelection)
+			{
+				treeView.getSelectionModel().clearSelection();
+				movedItems.forEach(i -> treeView.getSelectionModel().select(i));
+			}
+		});
+	}
+
 	/**
 	 * Update the FileSystemElement of directory elements (Images are moved by
 	 * Gallery.move)
@@ -891,7 +1009,7 @@ public class FileSystemTreeManager
 	 * @param target
 	 * @param item
 	 */
-	private void updateMovedItem(Path source, Path target, TreeItem<FileSystemElement> item)
+	private static void updateMovedItem(Path source, Path target, TreeItem<FileSystemElement> item)
 	{
 		Path itemPath = item.getValue().getPath();
 		Path newPath = itemPath.startsWith(source) ? target.resolve(source.relativize(itemPath)) : itemPath;
@@ -911,7 +1029,7 @@ public class FileSystemTreeManager
 		// have been called before (moving the image)
 	}
 	
-	private void merge(TreeItem<FileSystemElement> target, List<TreeItem<FileSystemElement>> itemsToAdd)
+	private static void merge(TreeItem<FileSystemElement> target, List<TreeItem<FileSystemElement>> itemsToAdd)
 	{
 		if (itemsToAdd.isEmpty())
 			return;
