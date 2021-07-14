@@ -318,7 +318,7 @@ public class UIController extends Application
 		int index = thumbnailsView.getTiles().indexOf(imageView);
 		if (index != -1)
 			return thumbnailsView.getTiles().get(index);
-		
+		// TODO add tooltip with filename
 		imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
 		imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
 		imageView.setPreserveRatio(true);
