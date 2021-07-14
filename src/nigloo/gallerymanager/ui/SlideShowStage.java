@@ -108,7 +108,7 @@ public class SlideShowStage extends Stage
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
 			if (event.getButton() == MouseButton.SECONDARY)
-			{
+			{// TODO center mouse position
 				contentRoot.setCursor(Cursor.DEFAULT);
 				contextMenu.show(contentRoot, event.getScreenX(), event.getScreenY());
 			}

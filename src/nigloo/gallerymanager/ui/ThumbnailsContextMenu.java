@@ -66,6 +66,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 		});
 	}
 	
+	// TODO add open (in default system)
 	@FXML
 	protected void startSlideShow()
 	{
