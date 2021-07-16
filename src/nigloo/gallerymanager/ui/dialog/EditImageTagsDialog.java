@@ -1,11 +1,14 @@
 package nigloo.gallerymanager.ui.dialog;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
@@ -63,10 +66,17 @@ public class EditImageTagsDialog extends Stage
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
 		tagValueField.setAutoCompletionBehavior((field, searchText) -> uiController.autocompleteTags(searchText));
-		tagValueField.setTextFormatter(new TextFormatter<>(EditImageTagsDialog::filterTagCharacter));
+		tagValueField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS));
 		
-		parentTagField.setAutoCompletionBehavior(tagValueField.getAutoCompletionBehavior());
-		parentTagField.setTextFormatter(new TextFormatter<>(EditImageTagsDialog::filterTagCharacter));
+		parentTagField.setAutoCompletionBehavior(uiController.getMultiTagsAutocompleteBehavior());
+		parentTagField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS, ' '));
+		
+		tagValueField.textProperty().addListener((obs, oldValue, newValue) ->
+		{
+			Tag tag = gallery.findTag(newValue);
+			if (tag != null)
+				parentTagField.setText(tag.getParents().stream().map(Tag::getValue).collect(Collectors.joining(" ")));
+		});
 		
 		hideMessage();
 		
@@ -75,17 +85,28 @@ public class EditImageTagsDialog extends Stage
 		setOnShowing(e -> updateTags());
 	}
 	
-	private static TextFormatter.Change filterTagCharacter(TextFormatter.Change change)
+	private static TextFormatter<?> allowOnly(Collection<Character> chars, Character... extraChars)
 	{
-		String newValue = change.getControlNewText();
+		HashSet<Character> allowedChars = new HashSet<>(chars);
+		allowedChars.addAll(Arrays.asList(extraChars));
 		
-		if (newValue == null || newValue.isEmpty())
-			return change;
-		
-		if (Tag.isValideTag(newValue))
-			return change;
-		
-		return null;
+		return new TextFormatter<>(new UnaryOperator<TextFormatter.Change>()
+		{
+			@Override
+			public TextFormatter.Change apply(TextFormatter.Change change)
+			{
+				String newValue = change.getControlNewText();
+				
+				if (newValue == null || newValue.isEmpty())
+					return change;
+				
+				for (int i = 0 ; i < newValue.length() ; i++)
+					if (!allowedChars.contains(newValue.charAt(i)))
+						return null;
+				
+				return change;
+			}
+		});
 	}
 	
 	private void hideMessage()
@@ -180,19 +201,19 @@ public class EditImageTagsDialog extends Stage
 			return;
 		}
 		
-		if (parentTagField.getText().isEmpty())
+		List<Tag> parents = Arrays.stream(parentTagField.getText().split(" ")).filter(s -> !s.isEmpty()).distinct().map(s -> gallery.getTag(s)).toList();
+		if (parents.isEmpty())
 		{
-			showErrorMessage("Parent is empty");
+			showErrorMessage("Parents is empty");
 			return;
 		}
 		
 		Tag tag = gallery.getTag(tagValueField.getText());
-		Tag parent = gallery.getTag(parentTagField.getText());
 		
 		try
 		{
-			tag.setParent(parent);
-			showInfoMessage("Set " + parent.getValue() + " as parent of " + tag.getValue());
+			tag.setParents(parents);
+			showInfoMessage("Set " + parents + " as parents of " + tag.getValue());
 		}
 		catch (Exception e)
 		{
