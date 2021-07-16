@@ -129,57 +129,7 @@ public class UIController extends Application
 		
 		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
 		
-		tagFilterField.setAutoCompletionBehavior(new AutoCompletionBehavior()
-		{
-			@Override
-			public String getSearchText(AutoCompleteTextField field)
-			{
-				int caret = field.getCaretPosition();
-				String text = field.getText();
-				
-				if (caret < text.length() && Tag.isCharacterAllowed(text.charAt(caret)))
-					return "";
-				
-				int idxBeginTag = findBeginTag(field);
-				if (idxBeginTag == caret)
-					return "";
-				
-				return text.substring(idxBeginTag, caret);
-			};
-			
-			@Override
-			public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
-			{
-				return autocompleteTags(searchText);
-			}
-			
-			@Override
-			public void onSuggestionSelected(AutoCompleteTextField field, String suggestion)
-			{
-				int caret = field.getCaretPosition();
-				int idxBeginTag = findBeginTag(field);
-				String text = field.getText();
-				
-				String newText = text.substring(0, idxBeginTag) + suggestion + text.substring(caret);
-				field.setText(newText);
-				field.positionCaret(idxBeginTag + suggestion.length());
-			};
-			
-			private int findBeginTag(AutoCompleteTextField field)
-			{
-				int caret = field.getCaretPosition();
-				if (caret == 0)
-					return 0;
-				
-				String text = field.getText();
-				
-				int idxBeginTag = caret;
-				while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag - 1)))
-					idxBeginTag--;
-				
-				return idxBeginTag;
-			}
-		});
+		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior());
 		
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);
@@ -352,6 +302,61 @@ public class UIController extends Application
 		                            .thenComparing(String.CASE_INSENSITIVE_ORDER));
 		
 		return matchingTags;
+	}
+	
+	public final AutoCompletionBehavior getMultiTagsAutocompleteBehavior()
+	{
+		return new AutoCompletionBehavior()
+		{
+			@Override
+			public String getSearchText(AutoCompleteTextField field)
+			{
+				int caret = field.getCaretPosition();
+				String text = field.getText();
+				
+				if (caret < text.length() && Tag.isCharacterAllowed(text.charAt(caret)))
+					return "";
+				
+				int idxBeginTag = findBeginTag(field);
+				if (idxBeginTag == caret)
+					return "";
+				
+				return text.substring(idxBeginTag, caret);
+			};
+			
+			@Override
+			public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
+			{
+				return autocompleteTags(searchText);
+			}
+			
+			@Override
+			public void onSuggestionSelected(AutoCompleteTextField field, String suggestion)
+			{
+				int caret = field.getCaretPosition();
+				int idxBeginTag = findBeginTag(field);
+				String text = field.getText();
+				
+				String newText = text.substring(0, idxBeginTag) + suggestion + text.substring(caret);
+				field.setText(newText);
+				field.positionCaret(idxBeginTag + suggestion.length());
+			};
+			
+			private int findBeginTag(AutoCompleteTextField field)
+			{
+				int caret = field.getCaretPosition();
+				if (caret == 0)
+					return 0;
+				
+				String text = field.getText();
+				
+				int idxBeginTag = caret;
+				while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag - 1)))
+					idxBeginTag--;
+				
+				return idxBeginTag;
+			}
+		};
 	}
 	
 	private void openGallery() throws IOException

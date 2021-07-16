@@ -1,8 +1,11 @@
 package nigloo.gallerymanager.model;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.google.gson.annotations.JsonAdapter;
@@ -19,7 +22,7 @@ public class Tag
 	                                                                                                                        .collect(Collectors.toUnmodifiableSet());
 	
 	private String value;
-	private TagReference parent;
+	private HashSet<TagReference> parents;
 	@JsonAdapter(ColorTypeAdapter.class)
 	private Color color;
 	
@@ -51,45 +54,71 @@ public class Tag
 		return value;
 	}
 	
-	public Tag getParent()
+	public Collection<Tag> getParents()
 	{
-		return parent == null ? null : parent.getTag();
+		return parents == null ? Set.of() : parents.stream().map(TagReference::getTag).collect(Collectors.toUnmodifiableSet());
 	}
 	
-	public void setParent(Tag parent)
+	public void setParents(Collection<Tag> parents)
 	{
-		if (parent == null)
+		if (parents == null || parents.isEmpty())
 		{
-			this.parent = null;
+			this.parents = null;
 			return;
 		}
 		
-		// Check for cycle
-		ArrayList<String> cycle = new ArrayList<>();
-		cycle.add(this.getValue());
+		HashSet<TagReference> potentialParents = parents.stream().map(TagReference::new).collect(Collectors.toCollection(HashSet::new));
+	
+		ArrayDeque<Tag> cycle = getClosestAncestorWith(potentialParents, t -> t == this);
 		
-		Tag t = parent;
-		while (t != null)
+		if (cycle == null)
+			this.parents = potentialParents;
+		else
 		{
-			cycle.add(t.getValue());
+			Tag badParent = cycle.getFirst();
+			cycle.addFirst(this);
+			throw new IllegalArgumentException("Cannot set " + badParent.getValue() + " as parent of " + this.getValue()
+			        + " as that would create the cycle "
+			        + cycle.stream().map(Tag::getValue).collect(Collectors.joining(" -> ", "[", "]")));
+		}
+	}
+	
+	private ArrayDeque<Tag> getClosestAncestorWith(Collection<TagReference> parents, Predicate<Tag> predicate)
+	{
+		if (parents == null)
+			return null;
+		
+		ArrayDeque<Tag> shortestAncestors = null;
+		for (TagReference parentRef : parents)
+		{
+			Tag parent = parentRef.getTag();
+			if (predicate.test(parent))
+			{
+				shortestAncestors = new ArrayDeque<>();
+				shortestAncestors.add(parent);
+				return shortestAncestors;
+			}
 			
-			if (t == this)
-				throw new IllegalArgumentException("Cannot set " + parent.getValue() + " as parent of "
-				        + this.getValue() + " as that would create the cycle "
-				        + cycle.stream().collect(Collectors.joining(" -> ", "[", "]")));
-			
-			t = t.getParent();
+			ArrayDeque<Tag> ancestors = getClosestAncestorWith(parent.parents, predicate);
+			if (shortestAncestors == null || (ancestors != null && ancestors.size() < shortestAncestors.size()-1))
+			{
+				shortestAncestors = ancestors;
+				
+				if (shortestAncestors != null)
+					shortestAncestors.addFirst(parent);
+			}
 		}
 		
-		this.parent = new TagReference(parent);
+		return shortestAncestors;
 	}
 	
 	public Color getColor()
 	{
-		if (color == null && parent != null)
-			return parent.getTag().getColor();
+		if (color != null)
+			return color;
 		
-		return color;
+		ArrayDeque<Tag> tags = getClosestAncestorWith(parents, t -> t.color != null);
+		return tags == null ? null : tags.getLast().color;
 	}
 	
 	public void setColor(Color color)
