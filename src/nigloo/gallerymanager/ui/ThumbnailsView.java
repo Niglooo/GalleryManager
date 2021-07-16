@@ -773,6 +773,7 @@ public class ThumbnailsView extends Region
 			});
 			
 			borderRegion = new Region();
+			borderRegion.setMouseTransparent(true);
 			borderRegion.borderProperty().bind(new ObjectBinding<Border>()
 			{
 				{
