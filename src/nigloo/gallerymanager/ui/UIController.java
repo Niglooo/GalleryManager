@@ -32,6 +32,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.layout.Pane;
@@ -268,10 +269,13 @@ public class UIController extends Application
 		int index = thumbnailsView.getTiles().indexOf(imageView);
 		if (index != -1)
 			return thumbnailsView.getTiles().get(index);
-		// TODO add tooltip with filename
+		
 		imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
 		imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
 		imageView.setPreserveRatio(true);
+		
+		Tooltip tooltip = new Tooltip(image.getPath().toString());
+		Tooltip.install(imageView, tooltip);
 		
 		imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
 		
