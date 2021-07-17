@@ -1,5 +1,7 @@
 package nigloo.gallerymanager.ui;
 
+import java.awt.Desktop;
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 
@@ -13,6 +15,7 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.dialog.EditImageTagsDialog;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
+import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 
 public class ThumbnailsContextMenu extends ContextMenu
 {
@@ -21,6 +24,8 @@ public class ThumbnailsContextMenu extends ContextMenu
 	@Inject
 	private Gallery gallery;
 	
+	@FXML
+	private MenuItem openItem;
 	@FXML
 	private MenuItem startSlideShowAllImagesItem;
 	@FXML
@@ -58,6 +63,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 			                               .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
 			                               .toList();
 			
+			openItem.setDisable(thumbnailsView.getSelectionModel().getSelectedItem() == null);
 			startSlideShowAllImagesItem.setDisable(allImages.isEmpty());
 			startSlideShowSelectionItem.setDisable(selectedImages.isEmpty());
 			selectAllItem.setDisable(allImages.isEmpty());
@@ -66,7 +72,20 @@ public class ThumbnailsContextMenu extends ContextMenu
 		});
 	}
 	
-	// TODO add open (in default system)
+	@FXML
+	protected void open()
+	{
+		Image image = ((GalleryImageView) thumbnailsView.getSelectionModel().getSelectedItem()).getGalleryImage();
+		try
+		{
+			Desktop.getDesktop().open(image.getAbsolutePath().toFile());
+		}
+		catch (IOException e)
+		{
+			new ExceptionDialog(e, "Cannot open "+image.getPath());
+		}
+	}
+	
 	@FXML
 	protected void startSlideShow()
 	{

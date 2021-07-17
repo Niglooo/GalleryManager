@@ -6,6 +6,8 @@
 
 <fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
   <items>
+    <MenuItem fx:id="openItem" mnemonicParsing="false" onAction="#open"
+      text="Open" />
     <MenuItem fx:id="startSlideShowAllImagesItem" mnemonicParsing="false" onAction="#startSlideShow"
       text="Slide show" />
     <MenuItem fx:id="startSlideShowSelectionItem" mnemonicParsing="false" onAction="#startSlideShowSelection"
