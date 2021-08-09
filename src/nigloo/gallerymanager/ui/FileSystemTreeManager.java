@@ -749,6 +749,9 @@ public class FileSystemTreeManager
 							
 							updateMovedItem(source, target, item);
 							sort(parent);
+							
+							treeView.getSelectionModel().clearSelection();
+							treeView.getSelectionModel().select(item);
 						}
 						catch (Exception e)
 						{
