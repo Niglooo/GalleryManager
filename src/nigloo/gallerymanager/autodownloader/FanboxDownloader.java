@@ -10,6 +10,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -77,7 +78,26 @@ public class FanboxDownloader extends BaseDownloader
 			for (JsonElement item : JsonHelper.followPath(parsedResponse, "body.items", JsonArray.class))
 			{
 				JsonArray images = JsonHelper.followPath(item, "body.images", JsonArray.class);
-				if (images == null || images.size() == 0)
+				if (images == null)
+				{
+					JsonObject imageMap = JsonHelper.followPath(item, "body.imageMap", JsonObject.class);
+					if (imageMap == null)
+						continue;
+					
+					images = new JsonArray(imageMap.size());
+					JsonArray blocks = JsonHelper.followPath(item, "body.blocks", JsonArray.class);
+					for (JsonElement block : blocks)
+					{
+						String type = JsonHelper.followPath(block, "type", String.class);
+						if ("image".equals(type))
+						{
+							String imageId = JsonHelper.followPath(block, "imageId", String.class);
+							images.add(imageMap.get(imageId));
+						}
+						
+					}
+				}
+				if (images.size() == 0)
 					continue;
 				
 				String postId = JsonHelper.followPath(item, "id", String.class);
