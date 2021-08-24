@@ -153,6 +153,8 @@ public class TwitterDownloader extends BaseDownloader
 					break mainloop;
 				
 				JsonArray images = JsonHelper.followPath(post, "legacy.entities.media", JsonArray.class);
+				if (images == null)
+					continue;
 				
 				int imageNumber = 1;
 				for (JsonElement image : images)
