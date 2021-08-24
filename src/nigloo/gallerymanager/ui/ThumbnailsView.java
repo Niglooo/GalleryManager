@@ -77,6 +77,8 @@ public class ThumbnailsView extends Region
 	public ThumbnailsView()
 	{
 		super();
+		setFocusTraversable(true);
+		
 		vScrollBar = new ScrollBar();
 		vScrollBar.setOrientation(Orientation.VERTICAL);
 		vScrollBar.setBlockIncrement(1000);
@@ -178,6 +180,9 @@ public class ThumbnailsView extends Region
 				setCursor(ExtraCursors.SCROLL_MIDDLE);
 				middleScrollOrigin = new Point2D(event.getX(), event.getY());
 			}
+			
+			if (!getChildren().contains(getScene().getFocusOwner()))
+				requestFocus();
 		});
 		
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
@@ -257,29 +262,19 @@ public class ThumbnailsView extends Region
 			}
 		});
 		
-		// Region are not focusTraversable by default so they don't receive key events.
-		// Register the event listener on the scene instead
-		sceneProperty().addListener((obs, oldValue, newValue) ->
+		addEventHandler(KeyEvent.KEY_RELEASED, event ->
 		{
-			newValue.addEventHandler(KeyEvent.KEY_RELEASED, event ->
+			updateInputState(event);
+			
+			if (invertingSelection && !event.isControlDown())
 			{
-				updateInputState(event);
-				
-				if (invertingSelection && !event.isControlDown())
-				{
-					invertingSelection = false;
-					selectedWhenStartSelectionDrag = null;
-				}
-			});
+				invertingSelection = false;
+				selectedWhenStartSelectionDrag = null;
+			}
 		});
+	
+		addEventHandler(KeyEvent.KEY_PRESSED, event -> updateInputState(event));
 		
-		sceneProperty().addListener((obs, oldValue, newValue) ->
-		{
-			newValue.addEventHandler(KeyEvent.KEY_PRESSED, event ->
-			{
-				updateInputState(event);
-			});
-		});
 	}
 	
 	public ObservableList<Node> getTiles()
@@ -751,6 +746,8 @@ public class ThumbnailsView extends Region
 		{
 			super();
 			
+			setFocusTraversable(true);
+			
 			selected = new SimpleBooleanProperty(this, "selected", true);
 			
 			backgroundRegion = new Region();
@@ -819,6 +816,8 @@ public class ThumbnailsView extends Region
 					if (!selected.get() && !(event.isControlDown() && !event.isShiftDown()))
 						selectionModel.clearAndSelect(content);
 				}
+				
+				requestFocus();
 			});
 		}
 		
