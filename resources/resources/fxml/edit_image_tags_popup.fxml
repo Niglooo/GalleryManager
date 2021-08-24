@@ -32,7 +32,7 @@
                      <AutoCompleteTextField fx:id="parentTagField" onAction="#saveParent" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                      <Button mnemonicParsing="false" onAction="#saveParent" text="Save" GridPane.columnIndex="2" GridPane.rowIndex="1" />
                      <Label text="Tag" />
-                     <Label text="Parent" GridPane.rowIndex="1" />
+                     <Label text="Parents" GridPane.rowIndex="1" />
                   </children>
                </GridPane>
                <Label fx:id="messageLabel" wrapText="true" />
