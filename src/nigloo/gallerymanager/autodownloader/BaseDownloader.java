@@ -145,14 +145,14 @@ public abstract class BaseDownloader
 			}
 			else
 			{
-				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
-				                                      .replace("{postId}", postId)
+				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId.trim())
+				                                      .replace("{postId}", postId.trim())
 				                                      .replace("{postDate}",
 				                                               DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
-				                                      .replace("{postTitle}", postTitle)
+				                                      .replace("{postTitle}", postTitle.trim())
 				                                      .replace("{imageNumber}", String.format("%02d", imageNumber))
-				                                      .replace("{imageFilename}", imageFilename));
-				imageDest = gallery.toAbsolutePath(imageDest);
+				                                      .replace("{imageFilename}", imageFilename.trim()));
+				imageDest = makeSafe(gallery.toAbsolutePath(imageDest));
 				imageReference = null;
 			}
 			
@@ -195,6 +195,18 @@ public abstract class BaseDownloader
 		if (currentMostRecentPost.get() != null && (mostRecentPostCheckedDate == null
 		        || mostRecentPostCheckedDate.isBefore(currentMostRecentPost.get())))
 			mostRecentPostCheckedDate = currentMostRecentPost.get();
+	}
+	
+	protected final Path makeSafe(Path path)
+	{
+		Path newPath = path.getRoot();
+		
+		for (int i = 0 ; i < path.getNameCount() ; i++)
+		{
+			newPath = newPath.resolve(path.getName(i).toString().trim());
+		}
+		
+		return newPath;
 	}
 	
 	private void saveInGallery(String postId, String imageId, Path path)
