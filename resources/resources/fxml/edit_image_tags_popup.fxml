@@ -27,7 +27,7 @@
                      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                   </rowConstraints>
                   <children>
-                     <AutoCompleteTextField fx:id="tagValueField" onAction="#addTag" GridPane.columnIndex="1" />
+                     <AutoCompleteTextField fx:id="tagNameField" onAction="#addTag" GridPane.columnIndex="1" />
                      <Button mnemonicParsing="false" onAction="#addTag" text="Add" GridPane.columnIndex="2" />
                      <AutoCompleteTextField fx:id="parentTagField" onAction="#saveParent" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                      <Button mnemonicParsing="false" onAction="#saveParent" text="Save" GridPane.columnIndex="2" GridPane.rowIndex="1" />

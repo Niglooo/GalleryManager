@@ -41,7 +41,7 @@ public class EditImageTagsDialog extends Stage
 	private Gallery gallery;
 	
 	@FXML
-	private AutoCompleteTextField tagValueField;
+	private AutoCompleteTextField tagNameField;
 	@FXML
 	private AutoCompleteTextField parentTagField;
 	@FXML
@@ -52,6 +52,8 @@ public class EditImageTagsDialog extends Stage
 	private RowConstraints rowConstraint;
 	
 	private Collection<Image> images;
+	
+	private final Map<Tag, Text> tagToTextCount;
 	private final Map<Tag, CheckBox> tagToCheckBox;
 	
 	public EditImageTagsDialog(Window owner)
@@ -65,17 +67,17 @@ public class EditImageTagsDialog extends Stage
 		
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
-		tagValueField.setAutoCompletionBehavior((field, searchText) -> uiController.autocompleteTags(searchText));
-		tagValueField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS));
+		tagNameField.setAutoCompletionBehavior((field, searchText) -> uiController.autocompleteTags(searchText));
+		tagNameField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS));
 		
 		parentTagField.setAutoCompletionBehavior(uiController.getMultiTagsAutocompleteBehavior());
 		parentTagField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS, ' '));
 		
-		tagValueField.textProperty().addListener((obs, oldValue, newValue) ->
+		tagNameField.textProperty().addListener((obs, oldValue, newValue) ->
 		{
 			Tag tag = gallery.findTag(newValue);
 			if (tag != null)
-				parentTagField.setText(tag.getParents().stream().map(Tag::getValue).collect(Collectors.joining(" ")));
+				parentTagField.setText(tag.getParents().stream().map(Tag::getName).collect(Collectors.joining(" ")));
 		});
 		
 		hideMessage();
@@ -150,7 +152,7 @@ public class EditImageTagsDialog extends Stage
 		
 		Color tagColor = tag.getColor();
 		
-		Text tagText = new Text(tag.getValue());
+		Text tagText = new Text(tag.getName());
 		tagText.getStyleClass().add("tag");
 		if (tagColor != null)
 			tagText.setStyle("-fx-fill: " + FXUtils.toRGBA(tagColor) + ";");
@@ -183,19 +185,19 @@ public class EditImageTagsDialog extends Stage
 	@FXML
 	protected void addTag()
 	{
-		if (tagValueField.getText().isEmpty())
+		if (tagNameField.getText().isEmpty())
 		{
 			showErrorMessage("Tag is empty");
 			return;
 		}
 		
-		addTag(gallery.getTag(tagValueField.getText()), images.size());
+		addTag(gallery.getTag(tagNameField.getText()), images.size());
 	}
 	
 	@FXML
 	protected void saveParent()
 	{
-		if (tagValueField.getText().isEmpty())
+		if (tagNameField.getText().isEmpty())
 		{
 			showErrorMessage("Tag is empty");
 			return;
@@ -208,12 +210,12 @@ public class EditImageTagsDialog extends Stage
 			return;
 		}
 		
-		Tag tag = gallery.getTag(tagValueField.getText());
+		Tag tag = gallery.getTag(tagNameField.getText());
 		
 		try
 		{
 			tag.setParents(parents);
-			showInfoMessage("Set " + parents + " as parents of " + tag.getValue());
+			showInfoMessage("Set " + parents + " as parents of " + tag.getName());
 		}
 		catch (Exception e)
 		{
