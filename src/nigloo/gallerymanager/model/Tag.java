@@ -54,6 +54,12 @@ public class Tag
 		return name;
 	}
 	
+	@Override
+	public String toString()
+	{
+		return name;
+	}
+	
 	public Collection<Tag> getParents()
 	{
 		return parents == null ? Set.of() : parents.stream().map(TagReference::getTag).collect(Collectors.toUnmodifiableSet());
