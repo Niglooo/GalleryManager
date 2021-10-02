@@ -74,6 +74,12 @@ public class TagReference
 		return ((TagReference) obj).getTagName().equals(getTagName());
 	}
 	
+	@Override
+	public String toString()
+	{
+		return getTagName();
+	}
+	
 	public static class TagReferenceTypeAdapter extends TypeAdapter<TagReference>
 	{
 		@Override
