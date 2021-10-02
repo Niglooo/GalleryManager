@@ -14,15 +14,15 @@ import nigloo.tool.injection.annotation.Inject;
 @JsonAdapter(TagReference.TagReferenceTypeAdapter.class)
 public class TagReference
 {
-	private String tagValue;
+	private String tagName;
 	private transient Tag tag;
 	
 	@Inject
 	private transient Gallery gallery;
 	
-	public TagReference(String tagValue)
+	public TagReference(String tagName)
 	{
-		this.tagValue = Objects.requireNonNull(tagValue, "tagValue");
+		this.tagName = Objects.requireNonNull(tagName, "tagName");
 		this.tag = null;
 		
 		Injector.init(this);
@@ -32,7 +32,7 @@ public class TagReference
 	public TagReference(Tag tag)
 	{
 		this.tag = Objects.requireNonNull(tag, "tag");
-		this.tagValue = tag.getValue();
+		this.tagName = tag.getName();
 		
 		Injector.init(this);
 		registerInstance();
@@ -47,20 +47,20 @@ public class TagReference
 	public Tag getTag()
 	{
 		if (tag == null)
-			tag = gallery.getTag(tagValue);
+			tag = gallery.getTag(tagName);
 		
 		return tag;
 	}
 	
-	public String getTagValue()
+	public String getTagName()
 	{
-		return (tag != null) ? tag.getValue() : tagValue;
+		return (tag != null) ? tag.getName() : tagName;
 	}
 	
 	@Override
 	public int hashCode()
 	{
-		return getTagValue().hashCode();
+		return getTagName().hashCode();
 	}
 	
 	@Override
@@ -71,7 +71,7 @@ public class TagReference
 		if (!(obj instanceof TagReference))
 			return false;
 		
-		return ((TagReference) obj).getTagValue().equals(getTagValue());
+		return ((TagReference) obj).getTagName().equals(getTagName());
 	}
 	
 	public static class TagReferenceTypeAdapter extends TypeAdapter<TagReference>
@@ -79,7 +79,7 @@ public class TagReference
 		@Override
 		public void write(JsonWriter out, TagReference ref) throws IOException
 		{
-			out.value(ref.getTagValue());
+			out.value(ref.getTagName());
 		}
 		
 		@Override

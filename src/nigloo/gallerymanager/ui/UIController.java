@@ -237,15 +237,15 @@ public class UIController extends Application
 		                     .forEachOrdered(entry ->
 		                     {
 			                     Tag tag = entry.getKey();
-			                     String tagValue = tag.getValue();
+			                     String tagName = tag.getName();
 			                     Color tagColor = tag.getColor();
 			                     long count = entry.getValue();
 			                     
-			                     Hyperlink tagText = new Hyperlink(tagValue);
+			                     Hyperlink tagText = new Hyperlink(tagName);
 			                     tagText.getStyleClass().add("tag");
 			                     if (tagColor != null)
 				                     tagText.setStyle("-fx-text-fill: " + FXUtils.toRGBA(tagColor) + ";");
-			                     tagText.setOnAction(event -> tagFilterField.setText(tagValue));
+			                     tagText.setOnAction(event -> tagFilterField.setText(tagName));
 			                     
 			                     Text tagCountText = new Text(String.valueOf(count));
 			                     tagCountText.getStyleClass().add("tag-count");
@@ -291,18 +291,18 @@ public class UIController extends Application
 		
 		for (Tag tag : gallery.getTags())
 		{
-			String tagValue = tag.getValue();
-			String lowTagValue = tagValue.toLowerCase(Locale.ROOT);
+			String tagName = tag.getName();
+			String lowTagValue = tagName.toLowerCase(Locale.ROOT);
 			
 			int pos = lowTagValue.indexOf(tagSearch);
 			if (pos >= 0)
 			{
-				matchingTags.add(tagValue);
-				matchingTagPos.put(tagValue, pos);
+				matchingTags.add(tagName);
+				matchingTagPos.put(tagName, pos);
 			}
 		}
 		
-		matchingTags.sort(Comparator.comparing((String tagValue) -> matchingTagPos.get(tagValue))
+		matchingTags.sort(Comparator.comparing((String tagName) -> matchingTagPos.get(tagName))
 		                            .thenComparing(String.CASE_INSENSITIVE_ORDER));
 		
 		return matchingTags;

@@ -83,9 +83,9 @@ public class Image
 		return tags.add(new TagReference(tag));
 	}
 	
-	public boolean addTag(String tagValue)
+	public boolean addTag(String tagName)
 	{
-		return tags.add(new TagReference(gallery.getTag(tagValue)));
+		return tags.add(new TagReference(gallery.getTag(tagName)));
 	}
 	
 	public boolean removeTag(Tag tag)
@@ -93,9 +93,9 @@ public class Image
 		return tags.remove(new TagReference(tag));
 	}
 	
-	public boolean removeTag(String tagValue)
+	public boolean removeTag(String tagName)
 	{
-		return tags.remove(new TagReference(tagValue));
+		return tags.remove(new TagReference(tagName));
 	}
 	
 	public javafx.scene.image.Image getThumbnail(boolean async)

@@ -21,7 +21,7 @@ public class Tag
 	                                                                                                                        .mapToObj(c -> (char) c)
 	                                                                                                                        .collect(Collectors.toUnmodifiableSet());
 	
-	private String value;
+	private String name;
 	private HashSet<TagReference> parents;
 	@JsonAdapter(ColorTypeAdapter.class)
 	private Color color;
@@ -35,23 +35,23 @@ public class Tag
 		Injector.init(this);
 	}
 	
-	Tag(String value)
+	Tag(String name)
 	{
 		this();
-		this.value = value;
+		this.name = name;
 		
-		Optional<Character> invalidChar = value.chars()
+		Optional<Character> invalidChar = name.chars()
 		                                       .mapToObj(c -> (char) c)
 		                                       .filter(c -> !ALLOWED_CHARS.contains(c))
 		                                       .findFirst();
 		if (invalidChar.isPresent())
 			throw new IllegalArgumentException("The character '" + invalidChar.get()
-			        + "' is not allowed in tags. Got : \"" + value + "\"");
+			        + "' is not allowed in tags. Got : \"" + name + "\"");
 	}
 	
-	public String getValue()
+	public String getName()
 	{
-		return value;
+		return name;
 	}
 	
 	public Collection<Tag> getParents()
@@ -77,9 +77,9 @@ public class Tag
 		{
 			Tag badParent = cycle.getFirst();
 			cycle.addFirst(this);
-			throw new IllegalArgumentException("Cannot set " + badParent.getValue() + " as parent of " + this.getValue()
+			throw new IllegalArgumentException("Cannot set " + badParent.getName() + " as parent of " + this.getName()
 			        + " as that would create the cycle "
-			        + cycle.stream().map(Tag::getValue).collect(Collectors.joining(" -> ", "[", "]")));
+			        + cycle.stream().map(Tag::getName).collect(Collectors.joining(" -> ", "[", "]")));
 		}
 	}
 	
@@ -131,8 +131,8 @@ public class Tag
 		return ALLOWED_CHARS.contains(c);
 	}
 	
-	public static boolean isValideTag(CharSequence tagValue)
+	public static boolean isValideTag(CharSequence tagName)
 	{
-		return tagValue.chars().mapToObj(c -> (char) c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
+		return tagName.chars().mapToObj(c -> (char) c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
 	}
 }

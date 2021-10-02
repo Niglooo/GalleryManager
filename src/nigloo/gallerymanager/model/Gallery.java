@@ -185,21 +185,21 @@ public final class Gallery
 		return Collections.unmodifiableList(images);
 	}
 	
-	public Tag findTag(String tagValue)
+	public Tag findTag(String tagName)
 	{
 		synchronized (tags)
 		{
-			return tags.stream().filter(tag -> tag.getValue().equals(tagValue)).findAny().orElse(null);
+			return tags.stream().filter(tag -> tag.getName().equals(tagName)).findAny().orElse(null);
 		}
 	}
 	
-	public Tag getTag(String tagValue)
+	public Tag getTag(String tagName)
 	{
 		synchronized (tags)
 		{
-			return tags.stream().filter(tag -> tag.getValue().equals(tagValue)).findAny().orElseGet(() ->
+			return tags.stream().filter(tag -> tag.getName().equals(tagName)).findAny().orElseGet(() ->
 			{
-				Tag newTag = new Tag(tagValue);
+				Tag newTag = new Tag(tagName);
 				tags.add(newTag);
 				return newTag;
 			});
