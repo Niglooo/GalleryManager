@@ -82,6 +82,7 @@ public class EditImageTagsDialog extends Stage
 		
 		hideMessage();
 		
+		tagToTextCount = new HashMap<>();
 		tagToCheckBox = new HashMap<>();
 		
 		setOnShowing(e -> updateTags());
@@ -169,6 +170,7 @@ public class EditImageTagsDialog extends Stage
 		checkBox.setAllowIndeterminate(interminate);
 		checkBox.setIndeterminate(interminate);
 		
+		tagToTextCount.put(tag, tagCountText);
 		tagToCheckBox.put(tag, checkBox);
 		
 		int row = tagListView.getRowCount();
@@ -236,12 +238,22 @@ public class EditImageTagsDialog extends Stage
 			
 			checkBox.setAllowIndeterminate(false);
 			
+			int newCount;
+			
 			if (checkBox.isSelected())
+			{
 				for (Image image : images)
 					image.addTag(tag);
+				newCount = images.size();
+			}
 			else
+			{
 				for (Image image : images)
 					image.removeTag(tag);
+				newCount = 0;
+			}
+			
+			tagToTextCount.get(tag).setText(String.valueOf(newCount));
 		}
 		
 		showInfoMessage("Tags updated");
