@@ -105,7 +105,7 @@ public class FileSystemTreeManager
 			{
 				for (File file : oldContent)
 				{
-					TreeItem<FileSystemElement> item = findTreeItem(file.toPath());
+					TreeItem<FileSystemElement> item = getTreeItem(file.toPath());
 					if (item != null)
 					{
 						FileSystemElement element = item.getValue();
@@ -119,7 +119,7 @@ public class FileSystemTreeManager
 			{
 				for (File file : newContent)
 				{
-					TreeItem<FileSystemElement> item = findTreeItem(file.toPath());
+					TreeItem<FileSystemElement> item = getTreeItem(file.toPath());
 					if (item != null)
 					{
 						FileSystemElement element = item.getValue();
@@ -156,7 +156,7 @@ public class FileSystemTreeManager
 		{
 			Platform.runLater(() ->
 			{
-				TreeItem<FileSystemElement> item = findTreeItem(path);
+				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
 					return;
 				
@@ -191,7 +191,7 @@ public class FileSystemTreeManager
 		{
 			Platform.runLater(() ->
 			{
-				TreeItem<FileSystemElement> item = findTreeItem(path);
+				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
 					return;
 				
@@ -213,7 +213,7 @@ public class FileSystemTreeManager
 		{
 			Platform.runLater(() ->
 			{
-				TreeItem<FileSystemElement> item = findTreeItem(path);
+				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
 					return;
 				
@@ -230,7 +230,7 @@ public class FileSystemTreeManager
 		{
 			Platform.runLater(() ->
 			{
-				TreeItem<FileSystemElement> item = findTreeItem(path);
+				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item != null)
 					item.getValue().setStatus(Status.LOADING);
 			});
@@ -272,7 +272,7 @@ public class FileSystemTreeManager
 			
 			Platform.runLater(() ->
 			{
-				TreeItem<FileSystemElement> item = findTreeItem(path);
+				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
 					return;
 				
@@ -281,7 +281,7 @@ public class FileSystemTreeManager
 				
 				for (FileSystemElement subElement : subElements)
 				{
-					TreeItem<FileSystemElement> subItem = findTreeItem(item, subElement.getPath());
+					TreeItem<FileSystemElement> subItem = getTreeItem(item, subElement.getPath());
 					
 					if (subItem == null)
 					{
@@ -321,7 +321,7 @@ public class FileSystemTreeManager
 				CompletableFuture.allOf(subDirectories.stream()
 				                                      .map(subDirectory -> getAsyncAction(subDirectory, deep))
 				                                      .toArray(CompletableFuture[]::new))
-				                 .thenRun(() -> Platform.runLater(() -> updateFolderAndParentStatus(findTreeItem(path),
+				                 .thenRun(() -> Platform.runLater(() -> updateFolderAndParentStatus(getTreeItem(path),
 				                                                                                    deep)));
 			}
 			
@@ -347,12 +347,12 @@ public class FileSystemTreeManager
 		return null;
 	}
 	
-	private TreeItem<FileSystemElement> findTreeItem(Path path)
+	private TreeItem<FileSystemElement> getTreeItem(Path path)
 	{
-		return findTreeItem(treeView.getRoot(), path);
+		return getTreeItem(treeView.getRoot(), path);
 	}
 	
-	private static TreeItem<FileSystemElement> findTreeItem(TreeItem<FileSystemElement> fromItem, Path path)
+	private static TreeItem<FileSystemElement> getTreeItem(TreeItem<FileSystemElement> fromItem, Path path)
 	{
 		if (fromItem.getValue() == null)
 			return null;
@@ -363,7 +363,7 @@ public class FileSystemTreeManager
 		for (TreeItem<FileSystemElement> subItem : fromItem.getChildren())
 		{
 			if (subItem.getValue() != null && path.startsWith(subItem.getValue().getPath()))
-				return findTreeItem(subItem, path);
+				return getTreeItem(subItem, path);
 		}
 		
 		return null;
@@ -378,7 +378,7 @@ public class FileSystemTreeManager
 		for (Image deletedImage : deletedImages)
 		{
 			FileSystemElement currentElement = new FileSystemElement(deletedImage, Status.DELETED);
-			TreeItem<FileSystemElement> currentItem = findTreeItem(item, deletedImage.getAbsolutePath());
+			TreeItem<FileSystemElement> currentItem = getTreeItem(item, deletedImage.getAbsolutePath());
 			if (currentItem == item)
 			{
 				item.setValue(currentElement);
@@ -415,7 +415,7 @@ public class FileSystemTreeManager
 				Path pathParent = currentElement.getPath().getParent();
 				currentElement = new FileSystemElement(pathParent);
 				currentElement.setStatus(Status.DELETED);
-				currentItem = findTreeItem(item, pathParent);
+				currentItem = getTreeItem(item, pathParent);
 			}
 			
 			if (childItemToAdd != null)
@@ -527,7 +527,7 @@ public class FileSystemTreeManager
 		Platform.runLater(() ->
 		{
 			for (Path path : (deep ? commonParents(paths) : paths))
-				doSynchronize(findTreeItem(path), deep);
+				doSynchronize(getTreeItem(path), deep);
 		});
 	}
 	
@@ -565,7 +565,7 @@ public class FileSystemTreeManager
 		Platform.runLater(() ->
 		{
 			List<TreeItem<FileSystemElement>> itemsToDelete = pathsToDelete.stream()
-			                                                               .map(this::findTreeItem)
+			                                                               .map(this::getTreeItem)
 			                                                               .filter(item -> item != null)
 			                                                               .filter(item -> item.getParent() != null)
 			                                                               .toList();
@@ -948,7 +948,7 @@ public class FileSystemTreeManager
 		
 		Platform.runLater(() ->
 		{
-			TreeItem<FileSystemElement> targetItem = findTreeItem(target);
+			TreeItem<FileSystemElement> targetItem = getTreeItem(target);
 			if (targetItem == null)
 				return;
 			
@@ -957,7 +957,7 @@ public class FileSystemTreeManager
 			
 			for (Path path : fPathsToMove)
 			{
-				TreeItem<FileSystemElement> item = findTreeItem(path);
+				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
 					continue;
 				
@@ -1003,7 +1003,7 @@ public class FileSystemTreeManager
 			}
 		});
 	}
-
+	
 	/**
 	 * Update the FileSystemElement of directory elements (Images are moved by
 	 * Gallery.move)
