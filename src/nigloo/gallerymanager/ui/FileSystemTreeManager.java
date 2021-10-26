@@ -140,12 +140,14 @@ public class FileSystemTreeManager
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
 		
-		for (Path path : (deep ? commonParents(paths) : paths))
+		for (Path path : (deep ? withoutChildren(paths) : paths))
+		{
 			getAsyncAction(path, deep).exceptionally(e ->
 			{
 				Platform.runLater(() -> new ExceptionDialog(e, "Error will refreshing " + path).show());
 				return null;
 			});
+		}
 	}
 	
 	// TODO simplify getAsyncAction(Path path, boolean deep)
@@ -526,7 +528,7 @@ public class FileSystemTreeManager
 		
 		Platform.runLater(() ->
 		{
-			for (Path path : (deep ? commonParents(paths) : paths))
+			for (Path path : (deep ? withoutChildren(paths) : paths))
 				doSynchronize(getTreeItem(path), deep);
 		});
 	}
@@ -560,7 +562,7 @@ public class FileSystemTreeManager
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
 		
-		final Collection<Path> pathsToDelete = commonParents(paths);
+		final Collection<Path> pathsToDelete = withoutChildren(paths);
 		
 		Platform.runLater(() ->
 		{
@@ -642,7 +644,7 @@ public class FileSystemTreeManager
 		                     Stream.of(item.getValue()));
 	}
 	
-	private static Collection<Path> commonParents(Collection<Path> paths)
+	private static Collection<Path> withoutChildren(Collection<Path> paths)
 	{
 		return paths.stream().filter(p -> paths.stream().noneMatch(p2 -> p != p2 && p.startsWith(p2))).toList();
 	}
