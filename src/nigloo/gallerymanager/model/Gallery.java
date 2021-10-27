@@ -168,7 +168,7 @@ public final class Gallery
 	
 	public void deleteImages(Collection<Image> images)
 	{
-		synchronized (images)
+		synchronized (this.images)
 		{
 			for (Artist artist : artists)
 				for (BaseDownloader autoDownloader : artist.getAutodownloaders())

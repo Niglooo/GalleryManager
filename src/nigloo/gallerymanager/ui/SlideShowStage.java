@@ -48,6 +48,7 @@ public class SlideShowStage extends Stage
 	private final Timeline autoplay;
 	private final ImageLoaderDaemon fullImageUpdatingThread;
 	
+	//TODO press on alt display file path (and other info ?)
 	public SlideShowStage(List<Image> images, int startingIndex)
 	{
 		assert images.size() > 0;

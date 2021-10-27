@@ -210,14 +210,25 @@ public class TwitterDownloader extends BaseDownloader
 	
 	private String listTweetUrl(String userId, String cursor)
 	{
-		String variables = "{" + "\"userId\":\"" + userId + "\"," + "\"count\":" + PAGE_SIZE + ","
-		        + (cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") + "\"withHighlightedLabel\":false,"
-		        + "\"withTweetQuoteCount\":false," + "\"includePromotedContent\":false," + "\"withTweetResult\":true,"
-		        + "\"withReactions\":false," + "\"withSuperFollowsTweetFields\":false,"
-		        + "\"withSuperFollowsUserFields\":false," + "\"withUserResults\":false,"
-		        + "\"withClientEventToken\":false," + "\"withBirdwatchNotes\":false," + "\"withBirdwatchPivots\":false,"
-		        + "\"withVoice\":false" + "}";
-		
+		// @formatter:off
+		String variables =
+		"{" +
+			"\"userId\":\"" + userId + "\"," +
+			"\"count\":" + PAGE_SIZE + "," + (cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
+			"\"withHighlightedLabel\":false," +
+			"\"withTweetQuoteCount\":false," +
+			"\"includePromotedContent\":false," +
+			"\"withTweetResult\":true," +
+			"\"withReactions\":false," +
+			"\"withSuperFollowsTweetFields\":false," +
+			"\"withSuperFollowsUserFields\":false," +
+			"\"withUserResults\":false," +
+			"\"withClientEventToken\":false," +
+			"\"withBirdwatchNotes\":false," +
+			"\"withBirdwatchPivots\":false," +
+			"\"withVoice\":false" +
+		"}";
+		// @formatter:on
 		return "https://twitter.com/i/api/graphql/-ClzyWY3kWmGS8BSPHgv8w/UserMedia?variables="
 		        + URLEncoder.encode(variables, StandardCharsets.UTF_8);
 	}

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -116,15 +117,18 @@ public class UIController extends Application
 		// gallery.compactIds();
 		
 		for (Artist artist : gallery.getArtists())
+		{
 			for (BaseDownloader autoDownloader : artist.getAutodownloaders())
 			{
-//				Properties config = new Properties();
-//				config.load(new FileInputStream("config.properties"));
-//				autoDownloader.download(config, false);
-//				for (Image image : gallery.getImages())
-//					if (autoDownloader.isHandling(image))
-//						image.addTag(artist.getTag());
+				Properties config = new Properties();
+				config.load(new FileInputStream("config.properties"));
+				autoDownloader.download(config, false);
+				for (Image image : gallery.getImages())
+					if (autoDownloader.isHandling(image))
+						image.addTag(artist.getTag());
 			}
+		}
+		saveGallery();
 		
 		loadFXML(this, primaryStage, "ui.fxml");
 		
@@ -262,6 +266,7 @@ public class UIController extends Application
 	
 	private Node getImageView(Image image)
 	{
+		// TODO we need some cache....
 		GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
 		
 		// Keep imageView instance in thumbnailsView to preserve
