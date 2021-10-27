@@ -65,6 +65,11 @@ public class FileSystemElement
 		{
 			return fullyLoaded;
 		}
+		
+		public boolean isNotFullyLoaded()
+		{
+			return !fullyLoaded;
+		}
 	}
 	
 	private final Image image;
@@ -191,6 +196,7 @@ public class FileSystemElement
 	public long getLastModified()
 	{
 		if (lastModified == -1)
+		{
 			try
 			{
 				lastModified = Files.getLastModifiedTime(getPath()).toMillis();
@@ -199,6 +205,7 @@ public class FileSystemElement
 			{
 				lastModified = 0;
 			}
+		}
 		
 		return lastModified;
 	}

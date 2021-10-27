@@ -195,7 +195,7 @@ public class TwitterDownloader extends BaseDownloader
 			"content-type", "application/json",
 			"cookie", secrets.getProperty("twitter.cookie"),
 			"dnt", "1",
-			"referer", "https://twitter.com/bb83164978/media",
+			"referer", "https://twitter.com",
 			"sec-ch-ua", "\" Not;A Brand\";v=\"99\", \"Google Chrome\";v=\"91\", \"Chromium\";v=\"91\"",
 			"sec-ch-ua-mobile", "?0",
 			"sec-fetch-dest", "empty",
@@ -212,14 +212,25 @@ public class TwitterDownloader extends BaseDownloader
 	
 	private String listTweetUrl(String userId, String cursor)
 	{
-		String variables = "{" + "\"userId\":\"" + userId + "\"," + "\"count\":" + PAGE_SIZE + ","
-		        + (cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") + "\"withHighlightedLabel\":false,"
-		        + "\"withTweetQuoteCount\":false," + "\"includePromotedContent\":false," + "\"withTweetResult\":true,"
-		        + "\"withReactions\":false," + "\"withSuperFollowsTweetFields\":false,"
-		        + "\"withSuperFollowsUserFields\":false," + "\"withUserResults\":false,"
-		        + "\"withClientEventToken\":false," + "\"withBirdwatchNotes\":false," + "\"withBirdwatchPivots\":false,"
-		        + "\"withVoice\":false" + "}";
-		
+		// @formatter:off
+		String variables =
+		"{" +
+			"\"userId\":\"" + userId + "\"," +
+			"\"count\":" + PAGE_SIZE + "," + (cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
+			"\"withHighlightedLabel\":false," +
+			"\"withTweetQuoteCount\":false," +
+			"\"includePromotedContent\":false," +
+			"\"withTweetResult\":true," +
+			"\"withReactions\":false," +
+			"\"withSuperFollowsTweetFields\":false," +
+			"\"withSuperFollowsUserFields\":false," +
+			"\"withUserResults\":false," +
+			"\"withClientEventToken\":false," +
+			"\"withBirdwatchNotes\":false," +
+			"\"withBirdwatchPivots\":false," +
+			"\"withVoice\":false" +
+		"}";
+		// @formatter:on
 		return "https://twitter.com/i/api/graphql/-ClzyWY3kWmGS8BSPHgv8w/UserMedia?variables="
 		        + URLEncoder.encode(variables, StandardCharsets.UTF_8);
 	}
