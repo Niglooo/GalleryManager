@@ -167,7 +167,7 @@ public class FileSystemTreeManager
 				{
 					item.setValue(new FileSystemElement(image, Status.DELETED));
 					item.getChildren().clear();
-					updateFolderAndParentStatus(item.getParent(), deep);
+					updateFolderAndParentStatus(item.getParent(), false);
 				}
 				else
 				{
@@ -179,7 +179,7 @@ public class FileSystemTreeManager
 					createUpdateDeleteItems(deletedImages, item, itemProcessed);
 					removeNotProcessed(item, itemProcessed);
 					sort(item);
-					updateFolderAndParentStatus(item, deep);
+					updateFolderAndParentStatus(item, true);
 				}
 				
 				uiController.requestRefreshThumbnails();
@@ -204,7 +204,8 @@ public class FileSystemTreeManager
 				item.setValue(element);
 				item.getChildren().clear();
 				
-				updateFolderAndParentStatus(item.getParent(), deep);
+				if (item.getParent().getValue().getStatus().isFullyLoaded())
+					updateFolderAndParentStatus(item.getParent(), false);
 			});
 			
 			return CompletableFuture.completedFuture(null);
@@ -221,7 +222,7 @@ public class FileSystemTreeManager
 				
 				TreeItem<FileSystemElement> parent = item.getParent();
 				parent.getChildren().remove(item);
-				updateFolderAndParentStatus(parent, deep);
+				updateFolderAndParentStatus(parent, false);
 			});
 			
 			return CompletableFuture.completedFuture(null);
@@ -312,7 +313,7 @@ public class FileSystemTreeManager
 				removeNotProcessed(item, itemProcessed);
 				sort(item);
 				
-				updateFolderAndParentStatus(item, deep);
+				updateFolderAndParentStatus(item, true);
 				
 				if (changed)
 					uiController.requestRefreshThumbnails();
@@ -324,7 +325,8 @@ public class FileSystemTreeManager
 				                                      .map(subDirectory -> getAsyncAction(subDirectory, deep))
 				                                      .toArray(CompletableFuture[]::new))
 				                 .thenRun(() -> Platform.runLater(() -> updateFolderAndParentStatus(getTreeItem(path),
-				                                                                                    deep)));
+				                                                                                    true)))
+				                 .join();
 			}
 			
 		}, asyncPool);
@@ -451,35 +453,39 @@ public class FileSystemTreeManager
 				sort(subItem);
 	}
 	
-	private static void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean updateOnlyIfFullyLoaded)
+	private static void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean hasAllChildren)
 	{
 		if (item == null)
 			return;
 		
-		EnumSet<Status> statusFound = EnumSet.noneOf(Status.class);
+		Status currentStatus = item.getValue().getStatus();
 		
+		if (currentStatus != Status.NOT_LOADED && currentStatus.isNotFullyLoaded() && !hasAllChildren)
+			return;
+		
+		EnumSet<Status> statusFound = EnumSet.noneOf(Status.class);
 		for (TreeItem<FileSystemElement> subItem : item.getChildren())
 			statusFound.add(subItem.getValue().getStatus());
 		
-		boolean allFullyLoaded = statusFound.stream().allMatch(Status::isFullyLoaded);
-		if (updateOnlyIfFullyLoaded && !allFullyLoaded)
-			return;
-		
 		statusFound.remove(Status.EMPTY); // Ignore empty folders
+		boolean allFullyLoaded = statusFound.stream().allMatch(Status::isFullyLoaded);
+		
 		Status newSatus;
 		if (statusFound.isEmpty())
 			newSatus = Status.EMPTY;
-		else if (statusFound.size() == 1 && statusFound.contains(Status.SYNC))
+		else if (statusFound.size() == 1 && statusFound.contains(Status.SYNC) && allFullyLoaded)
 			newSatus = Status.SYNC;
 		else if (statusFound.size() == 1 && statusFound.contains(Status.DELETED)
 		        && !Files.exists(item.getValue().getPath()))
 			newSatus = Status.DELETED;
+		else if (currentStatus == Status.LOADING && statusFound.contains(Status.LOADING))
+			newSatus = Status.LOADING;
 		else if ((statusFound.contains(Status.UNSYNC) || statusFound.contains(Status.DELETED)) && allFullyLoaded)
 			newSatus = Status.UNSYNC;
 		else
 			newSatus = Status.NOT_FULLY_LOADED;
 		
-		if (newSatus == item.getValue().getStatus())
+		if (newSatus == currentStatus)
 			return;
 		
 		item.getValue().setStatus(newSatus);
@@ -490,7 +496,7 @@ public class FileSystemTreeManager
 			if (newSatus == Status.EMPTY)
 				parent.getChildren().remove(item);
 			
-			updateFolderAndParentStatus(parent, updateOnlyIfFullyLoaded);
+			updateFolderAndParentStatus(parent, false);
 		}
 	}
 	
