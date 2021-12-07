@@ -25,7 +25,7 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.ListChangeListener;
+import javafx.collections.ListChangeListener.Change;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.SelectionMode;
@@ -62,6 +62,7 @@ public class FileSystemTreeManager
 	private Gallery gallery;
 	
 	private final TreeView<FileSystemElement> treeView;
+	private final Path rootPath;
 	private final ExecutorService asyncPool;
 	
 	public FileSystemTreeManager(TreeView<FileSystemElement> treeView)
@@ -69,6 +70,7 @@ public class FileSystemTreeManager
 		Injector.init(this);
 		
 		this.treeView = treeView;
+		this.rootPath = treeView.getRoot().getValue().getPath();
 		this.asyncPool = Executors.newCachedThreadPool();
 		
 		treeView.setCellFactory(new FileSystemTreeCellFactory());
@@ -76,20 +78,7 @@ public class FileSystemTreeManager
 		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		treeView.getSelectionModel()
 		        .getSelectedItems()
-		        .addListener(new ListChangeListener<TreeItem<FileSystemElement>>()
-		        {
-			        @Override
-			        public void onChanged(Change<? extends TreeItem<FileSystemElement>> c)
-			        {
-				        while (c.next())
-					        c.getRemoved()
-					         .stream()
-					         .flatMap(item -> getImages(item))
-					         .forEach(Image::cancelLoadingThumbnail);
-				        
-				        uiController.requestRefreshThumbnails();
-			        }
-		        });
+		        .addListener((Change<? extends TreeItem<FileSystemElement>> c) -> uiController.requestRefreshThumbnails());
 		
 		StrongReference<List<File>> oldContentRef = new StrongReference<>();
 		Timeline clipboardObserver = new Timeline(new KeyFrame(Duration.millis(200), e ->
@@ -153,6 +142,11 @@ public class FileSystemTreeManager
 	// TODO simplify getAsyncAction(Path path, boolean deep)
 	private CompletableFuture<Void> getAsyncAction(Path path, boolean deep)
 	{
+		assert !path.isAbsolute() : "path must be absolute. Got: " + path;
+		
+		if (!path.startsWith(gallery.getRootFolder()))
+			return CompletableFuture.completedFuture(null);
+		
 		// ---- case path doesn't exist ----
 		if (!Files.exists(path))
 		{
@@ -193,14 +187,9 @@ public class FileSystemTreeManager
 		{
 			Platform.runLater(() ->
 			{
-				TreeItem<FileSystemElement> item = getTreeItem(path);
-				if (item == null)
-					return;
-				
+				TreeItem<FileSystemElement> item = getTreeItem(path, true);
 				Image image = gallery.getImage(path);
-				FileSystemElement element = image.isSaved() ? new FileSystemElement(image, Status.SYNC)
-				        : new FileSystemElement(image, Status.UNSYNC);
-				
+				FileSystemElement element = new FileSystemElement(image, image.isSaved() ? Status.SYNC : Status.UNSYNC);
 				item.setValue(element);
 				item.getChildren().clear();
 				
@@ -261,7 +250,7 @@ public class FileSystemTreeManager
 			catch (Exception e)
 			{
 				e.printStackTrace();
-				new ExceptionDialog(e, "Error when listing " + path).show();
+				Platform.runLater(() -> new ExceptionDialog(e, "Error when listing " + path).show());
 				return;
 			}
 			
@@ -284,7 +273,7 @@ public class FileSystemTreeManager
 				
 				for (FileSystemElement subElement : subElements)
 				{
-					TreeItem<FileSystemElement> subItem = getTreeItem(item, subElement.getPath());
+					TreeItem<FileSystemElement> subItem = getTreeItem(item, subElement.getPath(), false);
 					
 					if (subItem == null)
 					{
@@ -334,7 +323,7 @@ public class FileSystemTreeManager
 	
 	private FileSystemElement toFileSystemElement(Path path)
 	{
-		if (!path.startsWith(treeView.getRoot().getValue().getPath()))
+		if (!path.startsWith(rootPath))
 			return null;
 		
 		if (Files.isDirectory(path))
@@ -353,10 +342,17 @@ public class FileSystemTreeManager
 	
 	private TreeItem<FileSystemElement> getTreeItem(Path path)
 	{
-		return getTreeItem(treeView.getRoot(), path);
+		return getTreeItem(path, false);
 	}
 	
-	private static TreeItem<FileSystemElement> getTreeItem(TreeItem<FileSystemElement> fromItem, Path path)
+	private TreeItem<FileSystemElement> getTreeItem(Path path, boolean createWithParents)
+	{
+		return getTreeItem(treeView.getRoot(), path, createWithParents);
+	}
+	
+	private TreeItem<FileSystemElement> getTreeItem(TreeItem<FileSystemElement> fromItem,
+	                                                Path path,
+	                                                boolean createWithParents)
 	{
 		if (fromItem.getValue() == null)
 			return null;
@@ -367,22 +363,40 @@ public class FileSystemTreeManager
 		for (TreeItem<FileSystemElement> subItem : fromItem.getChildren())
 		{
 			if (subItem.getValue() != null && path.startsWith(subItem.getValue().getPath()))
-				return getTreeItem(subItem, path);
+				return getTreeItem(subItem, path, createWithParents);
 		}
 		
-		return null;
+		if (!createWithParents)
+			return null;
+		
+		removeFakeItem(fromItem);
+		
+		Path parentPath = fromItem.getValue().getPath();
+		Path newPath = parentPath.getRoot().resolve(path.subpath(0, parentPath.getNameCount() + 1));
+		TreeItem<FileSystemElement> newItem = new TreeItem<>();
+		fromItem.getChildren().add(newItem);
+		if (newPath.equals(path))
+			return newItem;
+		
+		FileSystemElement newElement = new FileSystemElement(newPath);
+		newElement.setStatus(Status.NOT_FULLY_LOADED);
+		newItem.setValue(newElement);
+		sort(fromItem);
+		updateFolderAndParentStatus(fromItem, false);
+		
+		return getTreeItem(newItem, path, true);
 	}
 	
-	private static boolean createUpdateDeleteItems(Collection<Image> deletedImages,
-	                                               TreeItem<FileSystemElement> item,
-	                                               Collection<TreeItem<FileSystemElement>> itemProcessed)
+	private boolean createUpdateDeleteItems(Collection<Image> deletedImages,
+	                                        TreeItem<FileSystemElement> item,
+	                                        Collection<TreeItem<FileSystemElement>> itemProcessed)
 	{
 		boolean changed = false;
 		
 		for (Image deletedImage : deletedImages)
 		{
 			FileSystemElement currentElement = new FileSystemElement(deletedImage, Status.DELETED);
-			TreeItem<FileSystemElement> currentItem = getTreeItem(item, deletedImage.getAbsolutePath());
+			TreeItem<FileSystemElement> currentItem = getTreeItem(item, deletedImage.getAbsolutePath(), false);
 			if (currentItem == item)
 			{
 				item.setValue(currentElement);
@@ -419,7 +433,7 @@ public class FileSystemTreeManager
 				Path pathParent = currentElement.getPath().getParent();
 				currentElement = new FileSystemElement(pathParent);
 				currentElement.setStatus(Status.DELETED);
-				currentItem = getTreeItem(item, pathParent);
+				currentItem = getTreeItem(item, pathParent, false);
 			}
 			
 			if (childItemToAdd != null)
