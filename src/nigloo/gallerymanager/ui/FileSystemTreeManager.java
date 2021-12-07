@@ -549,31 +549,67 @@ public class FileSystemTreeManager
 		Platform.runLater(() ->
 		{
 			for (Path path : (deep ? withoutChildren(paths) : paths))
-				doSynchronize(getTreeItem(path), deep);
+			{
+				TreeItem<FileSystemElement> item = getTreeItem(path);
+				if (doSynchronize(item, deep))
+				{
+					TreeItem<FileSystemElement> parent = item.getParent();
+					parent.getChildren().remove(item);
+					updateFolderAndParentStatus(parent, false);
+				}
+			}
 		});
 	}
 	
-	private void doSynchronize(TreeItem<FileSystemElement> item, boolean deep)
+	/**
+	 * 
+	 * @param item
+	 * @param deep
+	 * @return true if the item need to be deleted
+	 */
+	private boolean doSynchronize(TreeItem<FileSystemElement> item, boolean deep)
 	{
 		if (item == null || item.getValue() == null)
-			return;
+			return false;
 		
 		FileSystemElement element = item.getValue();
 		
 		if (element.isImage())
 		{
 			Image image = element.getImage();
-			if (!image.isSaved())
+			if (!Files.exists(image.getAbsolutePath()))
+			{
+				gallery.deleteImages(List.of(image));
+				return true;
+			}
+			else if (!image.isSaved())
 			{
 				gallery.saveImage(image);
 				item.setValue(new FileSystemElement(image, Status.SYNC));
 				updateFolderAndParentStatus(item.getParent(), false);
 			}
+			
+			return false;
 		}
 		else
 		{
-			for (TreeItem<FileSystemElement> subItem : item.getChildren())
-				doSynchronize(subItem, deep);
+			boolean removed = false;
+			
+			Iterator<TreeItem<FileSystemElement>> it = item.getChildren().iterator();
+			while (it.hasNext())
+			{
+				TreeItem<FileSystemElement> subItem = it.next();
+				if (subItem.getValue() != null && (subItem.getValue().isImage() || deep) && doSynchronize(subItem, deep))
+				{
+					it.remove();
+					removed = true;
+				}
+			}
+			
+			if (removed)
+				updateFolderAndParentStatus(item, false);
+			
+			return item.getChildren().isEmpty();
 		}
 	}
 	
