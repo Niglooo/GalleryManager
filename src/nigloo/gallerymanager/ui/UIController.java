@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -13,15 +14,19 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
@@ -135,6 +140,7 @@ public class UIController extends Application
 		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
 		
 		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior());
+		tagFilterField.setOnAction(e -> requestRefreshThumbnails());
 		
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
 		root.setExpanded(true);
@@ -198,13 +204,16 @@ public class UIController extends Application
 						if (waitFor <= 0)
 						{
 							isUpdating = true;
-							Platform.runLater(() ->
-							{
-								updateThumbnailImages();
-								lastUpdate = System.currentTimeMillis();
-								updateRequested = false;
-								isUpdating = false;
-							});
+							
+							CompletableFuture.supplyAsync(UIController.this::getThumnailImages, Platform::runLater)
+							                 .thenCompose(fileSystemTreeManager::asyncRefreshAndGetInOrder)
+							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, Platform::runLater)
+							                 .thenRun(() ->
+							                 {
+								                 lastUpdate = System.currentTimeMillis();
+								                 updateRequested = false;
+								                 isUpdating = false;
+							                 });
 						}
 						else
 						{
@@ -221,45 +230,117 @@ public class UIController extends Application
 		}
 	}
 	
-	private void updateThumbnailImages()
+	
+	private Collection<Image> getThumnailImages()
 	{
+		long start = System.currentTimeMillis();
+		long end;
+		
+		Collection<Path> fsSelection = fileSystemTreeManager.getSelectionWithoutChildren();
+		
+		end = System.currentTimeMillis();
+		System.out.println("fileSystemTreeManager.getSelectionWithoutChildren() : "+(end-start)+"ms");
+		start = end;
+		
+		if (tagFilterField.getText().isBlank() && fsSelection.isEmpty())
+			return List.of();
+		
+		Predicate<Image> tagFilter = getTagFilter();
+		
+		List<Image> images = gallery.getAllImages();
+		
+		end = System.currentTimeMillis();
+		System.out.println("gallery.getAllImages() (" + images.size() + ") : " + (end - start) + "ms");
+		start = end;
+		
+		if (!fsSelection.isEmpty())
+		{
+			images = images.stream()
+			               .filter(image -> fsSelection.stream()
+			                                           .anyMatch(selectedPath -> image.getAbsolutePath()
+			                                                                          .startsWith(selectedPath)))
+			               .toList();
+			
+			end = System.currentTimeMillis();
+			System.out.println("Keep only selection (" + images.size() + ") : " + (end - start) + "ms");
+			start = end;
+		}
+		
+		images = images.stream().filter(tagFilter).toList();
+		
+		end = System.currentTimeMillis();
+		System.out.println("Keep only with tags (" + images.size() + ") : " + (end - start) + "ms");
+		start = end;
+
+		return images;
+	}
+	
+	private void updateThumbnailImages(List<Image> sortedImages)
+	{
+		assert Platform.isFxApplicationThread();
+		
+		long start = System.currentTimeMillis();
+		long end;
+		
+		HashSet<Image> oldVisibleImages = thumbnailsView.getTiles()
+		                                                .stream()
+		                                                .map(GalleryImageView.class::cast)
+		                                                .filter(GalleryImageView::isVisible)
+		                                                .map(GalleryImageView::getGalleryImage)
+		                                                .collect(Collectors.toCollection(HashSet::new));
+		oldVisibleImages.removeAll(sortedImages);
+		oldVisibleImages.forEach(Image::cancelLoadingThumbnail);
+		
+		end = System.currentTimeMillis();
+		System.out.println("Cancel old images loading (" + oldVisibleImages.size() + ")  : "
+		        + (end - start) + "ms");
+		start = end;
+		
 		thumbnailsView.getTiles()
-		              .setAll(fileSystemTreeManager.getSelectedImages()
-		                                           .stream()
-		                                           .map(UIController.this::getImageView)
-		                                           .toList());
+		              .setAll(sortedImages.stream()
+		                                  .map(UIController.this::getImageView)
+		                                  .toList());
+		
+		end = System.currentTimeMillis();
+		System.out.println("thumbnailsView.getTiles().setAll(...) (" + sortedImages.size()
+		        + ") : " + (end - start) + "ms");
+		start = end;
 		
 		tagListView.getChildren().clear();
-		
-		fileSystemTreeManager.getSelectedImages()
-		                     .stream()
-		                     .flatMap(image -> image.getTags().stream())
-		                     .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()))
-		                     .entrySet()
-		                     .stream()
-		                     .sorted(Comparator.comparing(Entry::getValue))
-		                     .forEachOrdered(entry ->
-		                     {
-			                     Tag tag = entry.getKey();
-			                     String tagName = tag.getName();
-			                     Color tagColor = tag.getColor();
-			                     long count = entry.getValue();
-			                     
-			                     Hyperlink tagText = new Hyperlink(tagName);
-			                     tagText.getStyleClass().add("tag");
-			                     if (tagColor != null)
-				                     tagText.setStyle("-fx-text-fill: " + FXUtils.toRGBA(tagColor) + ";");
-			                     tagText.setOnAction(event -> tagFilterField.setText(tagName));
-			                     
-			                     Text tagCountText = new Text(String.valueOf(count));
-			                     tagCountText.getStyleClass().add("tag-count");
-			                     
-			                     TextFlow tagEntry = new TextFlow(tagText, new Text(" "), tagCountText);
-			                     tagEntry.getStyleClass().add("tag-entry");
-			                     
-			                     tagListView.getChildren().add(tagEntry);
-		                     });
-		
+		sortedImages.stream()
+		            .flatMap(image -> image.getTags().stream())
+		            .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()))
+		            .entrySet()
+		            .stream()
+		            .sorted(Comparator.comparing(Entry::getValue))
+		            .forEachOrdered(entry ->
+		            {
+			            Tag tag = entry.getKey();
+			            String tagName = tag.getName();
+			            Color tagColor = tag.getColor();
+			            long count = entry.getValue();
+			            
+			            Hyperlink tagText = new Hyperlink(tagName);
+			            tagText.getStyleClass().add("tag");
+			            if (tagColor != null)
+				            tagText.setStyle("-fx-text-fill: " + FXUtils.toRGBA(tagColor)
+				                    + ";");
+			            tagText.setOnAction(event -> tagFilterField.setText(tagName));
+			            
+			            Text tagCountText = new Text(String.valueOf(count));
+			            tagCountText.getStyleClass().add("tag-count");
+			            
+			            TextFlow tagEntry = new TextFlow(tagText,
+			                                             new Text(" "),
+			                                             tagCountText);
+			            tagEntry.getStyleClass().add("tag-entry");
+			            
+			            tagListView.getChildren().add(tagEntry);
+		            });
+		            
+		end = System.currentTimeMillis();
+		System.out.println("Update tagListView : " + (end - start) + "ms");
+		start = end;
 	}
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
@@ -366,6 +447,20 @@ public class UIController extends Application
 				return idxBeginTag;
 			}
 		};
+	}
+	
+	private Predicate<Image> getTagFilter()
+	{
+		List<String> nomalizedTags = Arrays.stream(tagFilterField.getText().split(" "))
+		                                   .filter(t -> !t.isBlank())
+		                                   .map(Tag::normalize)
+		                                   .distinct()
+		                                   .toList();
+		
+		if (nomalizedTags.isEmpty())
+			return image -> true;
+		else
+			return image -> image.getImplicitNormalizedTags().containsAll(nomalizedTags);
 	}
 	
 	private void openGallery() throws IOException

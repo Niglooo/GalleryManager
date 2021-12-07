@@ -3,7 +3,9 @@ package nigloo.gallerymanager.model;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -18,7 +20,7 @@ public class Image
 	private Path path;
 	private Set<TagReference> tags = new HashSet<>();
 	
-	// private transient Set<String> implicitTagsCache = null;
+	private transient Set<String> implicitNormalizedTags = null;
 	private transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
 	private transient SoftReference<javafx.scene.image.Image> fxImageCache = null;
 	
@@ -80,24 +82,58 @@ public class Image
 	
 	public boolean addTag(Tag tag)
 	{
-		return tags.add(new TagReference(tag));
+		boolean added = tags.add(new TagReference(tag));
+		if (added)
+			implicitNormalizedTags = null;
+		
+		return added;
 	}
 	
 	public boolean addTag(String tagName)
 	{
-		return tags.add(new TagReference(gallery.getTag(tagName)));
+		boolean added = tags.add(new TagReference(gallery.getTag(tagName)));
+		if (added)
+			implicitNormalizedTags = null;
+		
+		return added;
 	}
 	
 	public boolean removeTag(Tag tag)
 	{
-		return tags.remove(new TagReference(tag));
+		boolean removed = tags.remove(new TagReference(tag));
+		if (removed)
+			implicitNormalizedTags = null;
+		
+		return removed;
 	}
 	
 	public boolean removeTag(String tagName)
 	{
-		return tags.remove(new TagReference(tagName));
+		boolean removed = tags.remove(new TagReference(tagName));
+		if (removed)
+			implicitNormalizedTags = null;
+		
+		return removed;
 	}
 	
+	public Set<String> getImplicitNormalizedTags()
+	{
+		if (implicitNormalizedTags == null)
+		{
+			implicitNormalizedTags = new HashSet<>();
+			ArrayDeque<Tag> patentsToVisit = new ArrayDeque<>(tags.stream().map(TagReference::getTag).toList());
+			
+			Tag tag;
+			while ((tag = patentsToVisit.poll()) != null)
+				if (implicitNormalizedTags.add(tag.getNomalizedName()))
+					patentsToVisit.addAll(tag.getParents());
+			
+			implicitNormalizedTags = Collections.unmodifiableSet(implicitNormalizedTags);
+		}
+		
+		return implicitNormalizedTags;
+	}
+
 	public javafx.scene.image.Image getThumbnail(boolean async)
 	{
 		javafx.scene.image.Image thumbnail = (thumbnailCache == null) ? null : thumbnailCache.get();
