@@ -3,6 +3,7 @@ package nigloo.gallerymanager.model;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -58,6 +59,11 @@ public class Tag
 	public String toString()
 	{
 		return name;
+	}
+	
+	public String getNomalizedName()
+	{
+		return normalize(name);
 	}
 	
 	public Collection<Tag> getParents()
@@ -140,5 +146,10 @@ public class Tag
 	public static boolean isValideTag(CharSequence tagName)
 	{
 		return tagName.chars().mapToObj(c -> (char) c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
+	}
+	
+	public static String normalize(String tagName)
+	{
+		return tagName == null ? null : tagName.toLowerCase(Locale.ROOT);
 	}
 }

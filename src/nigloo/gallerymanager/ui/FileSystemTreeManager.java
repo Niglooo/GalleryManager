@@ -12,12 +12,14 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
 import javafx.animation.KeyFrame;
@@ -71,7 +73,7 @@ public class FileSystemTreeManager
 		
 		this.treeView = treeView;
 		this.rootPath = treeView.getRoot().getValue().getPath();
-		this.asyncPool = Executors.newCachedThreadPool();
+		this.asyncPool = ForkJoinPool.commonPool();
 		
 		treeView.setCellFactory(new FileSystemTreeCellFactory());
 		treeView.setEditable(true);
@@ -705,14 +707,108 @@ public class FileSystemTreeManager
 		return paths.stream().filter(p -> paths.stream().noneMatch(p2 -> p != p2 && p.startsWith(p2))).toList();
 	}
 	
-	public List<Image> getSelectedImages()
+	public Collection<Path> getSelectionWithoutChildren()
 	{
-		return treeView.getSelectionModel()
+		List<Path> selectedPaths = treeView.getSelectionModel()
 		               .getSelectedItems()
 		               .stream()
-		               .flatMap(FileSystemTreeManager::getImages)
-		               .distinct()
-		               .toList();
+		               .map(TreeItem::getValue)
+		               .map(FileSystemElement::getPath).toList();
+		
+		return withoutChildren(selectedPaths);
+	}
+	
+	public List<Image> refreshAndGetInOrder(Collection<Image> images)
+	{
+		assert Platform.isFxApplicationThread();
+		
+		for (Image image : images)
+		{
+			Path path = image.getAbsolutePath();
+			TreeItem<FileSystemElement> item = getTreeItem(path, true);
+			
+			if (item.getValue() == null || !item.getValue().isImage())
+			{System.out.println("Files.exists("+path+");");
+				boolean exists = Files.exists(path);
+				
+				FileSystemElement element = new FileSystemElement(image, !exists ? Status.DELETED : image.isSaved() ? Status.SYNC : Status.UNSYNC);
+				item.setValue(element);
+				item.getChildren().clear();
+			}
+			
+			if (item.getParent().getValue().getStatus().isFullyLoaded())
+				updateFolderAndParentStatus(item.getParent(), false);
+			
+			sort(item.getParent());
+		}
+		
+		final HashSet<Image> imagesSet = new HashSet<>(images);
+		
+		return getImages(treeView.getRoot()).filter(image -> imagesSet.contains(image)).toList();
+	}
+	
+	public CompletableFuture<List<Image>> asyncRefreshAndGetInOrder(Collection<Image> images)
+	{
+		assert Platform.isFxApplicationThread();
+		
+		long start = System.currentTimeMillis();
+		long end;
+		
+		List<CompletableFuture<Entry<Image, Boolean>>> imagesToUpdate = new ArrayList<>();
+		
+		for (Image image : images) {
+			Path absPath = image.getAbsolutePath();
+			TreeItem<FileSystemElement> item = getTreeItem(absPath, false);
+			
+			if (item == null || !item.getValue().isImage()){
+				imagesToUpdate.add(CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)), asyncPool));
+			}
+		}
+		
+		end = System.currentTimeMillis();
+		System.out.println("Async call Files.exists ("+imagesToUpdate.size()+") : "+(end-start)+"ms");
+		
+		long startf = end;
+		
+		return CompletableFuture.allOf(imagesToUpdate.toArray(CompletableFuture[]::new))
+		.thenApplyAsync(v -> {
+			
+			long end2 = System.currentTimeMillis();
+			System.out.println("Return allOf Files.exists ("+imagesToUpdate.size()+") : "+(end2-startf)+"ms");
+			long start2 = end2;
+			
+			for (CompletableFuture<Entry<Image, Boolean>> future : imagesToUpdate)
+			{
+				Entry<Image, Boolean> entry = future.join();
+				Image image = entry.getKey();
+				boolean exists = entry.getValue();
+			
+				TreeItem<FileSystemElement> item = getTreeItem(image.getAbsolutePath(), true);
+
+				FileSystemElement element = new FileSystemElement(image, !exists ? Status.DELETED : image.isSaved() ? Status.SYNC : Status.UNSYNC);
+				item.setValue(element);
+				
+				if (item.getParent().getValue().getStatus().isFullyLoaded())
+					updateFolderAndParentStatus(item.getParent(), false);
+				
+				sort(item.getParent());
+			}
+			
+			end2 = System.currentTimeMillis();
+			System.out.println("Update treeView ("+imagesToUpdate.size()+") : "+(end2-start2)+"ms");
+			start2 = end2;
+			
+			final HashSet<Image> imagesSet = new HashSet<>(images);
+			
+			List<Image> sortedImages = getImages(treeView.getRoot()).filter(image -> imagesSet.contains(image)).toList();
+			
+			end2 = System.currentTimeMillis();
+			System.out.println("List<Image> sortedImages = getImages(...) ("+sortedImages.size()+") : "+(end2-start2)+"ms");
+			start2 = end2;
+			
+			return sortedImages;
+			
+		}, Platform::runLater);
 	}
 	
 	private static Stream<Image> getImages(TreeItem<FileSystemElement> rootItem)

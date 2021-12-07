@@ -185,6 +185,20 @@ public final class Gallery
 		return Collections.unmodifiableList(images);
 	}
 	
+	public List<Image> getAllImages()
+	{
+		synchronized (images)
+		{
+			Collection<Image> unsavedImages = unsavedImages().values();
+			
+			ArrayList<Image> allImages = new ArrayList<>(images.size() + unsavedImages.size());
+			allImages.addAll(images);
+			allImages.addAll(unsavedImages);
+			
+			return Collections.unmodifiableList(allImages);
+		}
+	}
+	
 	public Tag findTag(String tagName)
 	{
 		synchronized (tags)
