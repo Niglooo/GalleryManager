@@ -655,6 +655,7 @@ public class FileSystemTreeManager
 			{
 				TreeItem<FileSystemElement> parent = item.getParent();
 				parent.getChildren().remove(item);
+				LOGGER.debug("Remove item "+item.getValue()+" from "+parent.getValue());
 				updateFolderAndParentStatus(parent, false);
 			}
 			
@@ -681,7 +682,10 @@ public class FileSystemTreeManager
 						try
 						{
 							if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
+							{
 								Files.delete(element.getPath());
+								LOGGER.debug("Deleting from disk : "+element.getPath());
+							}
 						}
 						catch (IOException e)
 						{
