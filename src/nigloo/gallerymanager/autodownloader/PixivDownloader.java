@@ -116,9 +116,7 @@ public class PixivDownloader extends BaseDownloader
 			                                                                            String.class));
 			
 			updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
-			
-			if (mostRecentPostCheckedDate != null && publishedDatetime.isBefore(mostRecentPostCheckedDate)
-			        && !checkAllPost)
+			if (dontCheckPost(publishedDatetime, checkAllPost))
 				break;
 			
 			// Load post images
