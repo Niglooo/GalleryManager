@@ -124,9 +124,7 @@ public class FanboxDownloader extends BaseDownloader
 				                                                                            String.class));
 				
 				updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
-				
-				if (mostRecentPostCheckedDate != null && publishedDatetime.isBefore(mostRecentPostCheckedDate)
-				        && !checkAllPost)
+				if (dontCheckPost(publishedDatetime, checkAllPost))
 					break mainloop;
 				
 				if (images.size() > 0)

@@ -190,6 +190,12 @@ public abstract class BaseDownloader
 			currentMostRecentPost.set(publishedDatetime);
 	}
 	
+	protected final boolean dontCheckPost(ZonedDateTime publishedDatetime, boolean checkAllPost)
+	{
+		return mostRecentPostCheckedDate != null && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
+		        && !checkAllPost;
+	}
+	
 	protected final void saveCurrentMostRecentPost(StrongReference<ZonedDateTime> currentMostRecentPost)
 	{
 		if (currentMostRecentPost.get() != null && (mostRecentPostCheckedDate == null

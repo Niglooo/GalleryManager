@@ -147,9 +147,7 @@ public class TwitterDownloader extends BaseDownloader
 				                                                            ZonedDateTime::from);
 				
 				updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
-				
-				if (mostRecentPostCheckedDate != null && publishedDatetime.isBefore(mostRecentPostCheckedDate)
-				        && !checkAllPost)
+				if (dontCheckPost(publishedDatetime, checkAllPost))
 					break mainloop;
 				
 				JsonArray images = JsonHelper.followPath(post, "legacy.entities.media", JsonArray.class);
