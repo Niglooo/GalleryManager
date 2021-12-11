@@ -303,11 +303,11 @@ public class SlideShowStage extends Stage
 					                                   images.get(validIndex(current, 2)),
 					                                   images.get(validIndex(current, 3)));
 					
-					previousImagesToLoad.forEach(image ->
+					for (Image image : previousImagesToLoad)
 					{
 						if (!imagesToLoad.contains(image))
 							image.cancelLoadingFXImage();
-					});
+					}
 					
 					for (Image image : imagesToLoad)
 					{
@@ -349,7 +349,8 @@ public class SlideShowStage extends Stage
 			}
 			finally
 			{
-				previousImagesToLoad.forEach(image -> image.cancelLoadingFXImage());
+				for (Image image : previousImagesToLoad)
+					image.cancelLoadingFXImage();
 			}
 		}
 	}

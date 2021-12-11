@@ -667,11 +667,11 @@ public class FileSystemTreeManager
 				                             .filter(FileSystemElement::isImage)
 				                             .map(FileSystemElement::getImage)
 				                             .toList());
-				elements.forEach(element ->
+				for (FileSystemElement element : elements)
 				{
 					gallery.setSortOrder(element.getPath(), null);
 					gallery.setSubDirectoriesSortOrder(element.getPath(), null);
-				});
+				}
 				
 				if (deleteOnDisk)
 				{
@@ -1160,7 +1160,8 @@ public class FileSystemTreeManager
 			if (updateSelection)
 			{
 				treeView.getSelectionModel().clearSelection();
-				movedItems.forEach(i -> treeView.getSelectionModel().select(i));
+				for (TreeItem<FileSystemElement> item : movedItems)
+					treeView.getSelectionModel().select(item);
 			}
 		});
 	}

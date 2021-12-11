@@ -954,7 +954,7 @@ public class ThumbnailsView extends Region
 		List<Node> toSelect = new ArrayList<>();
 		List<Node> toUnselect = new ArrayList<>();
 		
-		enteringNodes.forEach(node ->
+		for(Node node : enteringNodes)
 		{
 			if (invertingSelection)
 			{
@@ -965,9 +965,9 @@ public class ThumbnailsView extends Region
 			}
 			else if (!selectionModel.getSelectedItems().contains(node))
 				toSelect.add(node);
-		});
+		}
 		
-		exitingNodes.forEach(node ->
+		for(Node node : exitingNodes)
 		{
 			if (invertingSelection)
 			{
@@ -978,7 +978,7 @@ public class ThumbnailsView extends Region
 			}
 			else
 				toUnselect.add(node);
-		});
+		}
 		
 		lastSelectionRegionNodes = selectionRegionNode;
 		
