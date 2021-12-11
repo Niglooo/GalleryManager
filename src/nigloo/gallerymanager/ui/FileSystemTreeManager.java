@@ -22,6 +22,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -58,6 +61,8 @@ import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 
 public class FileSystemTreeManager
 {
+	private static final Logger LOGGER = LogManager.getLogger(FileSystemTreeManager.class);
+	
 	@Inject
 	private UIController uiController;
 	@Inject
@@ -251,7 +256,6 @@ public class FileSystemTreeManager
 			}
 			catch (Exception e)
 			{
-				e.printStackTrace();
 				Platform.runLater(() -> new ExceptionDialog(e, "Error when listing " + path).show());
 				return;
 			}
@@ -728,7 +732,7 @@ public class FileSystemTreeManager
 			TreeItem<FileSystemElement> item = getTreeItem(path, true);
 			
 			if (item.getValue() == null || !item.getValue().isImage())
-			{System.out.println("Files.exists("+path+");");
+			{
 				boolean exists = Files.exists(path);
 				
 				FileSystemElement element = new FileSystemElement(image, !exists ? Status.DELETED : image.isSaved() ? Status.SYNC : Status.UNSYNC);
@@ -766,7 +770,7 @@ public class FileSystemTreeManager
 		}
 		
 		end = System.currentTimeMillis();
-		System.out.println("Async call Files.exists ("+imagesToUpdate.size()+") : "+(end-start)+"ms");
+		LOGGER.debug("Async call Files.exists ("+imagesToUpdate.size()+") : "+(end-start)+"ms");
 		
 		long startf = end;
 		
@@ -774,7 +778,7 @@ public class FileSystemTreeManager
 		.thenApplyAsync(v -> {
 			
 			long end2 = System.currentTimeMillis();
-			System.out.println("Return allOf Files.exists ("+imagesToUpdate.size()+") : "+(end2-startf)+"ms");
+			LOGGER.debug("Return allOf Files.exists ("+imagesToUpdate.size()+") : "+(end2-startf)+"ms");
 			long start2 = end2;
 			
 			for (CompletableFuture<Entry<Image, Boolean>> future : imagesToUpdate)
@@ -795,7 +799,7 @@ public class FileSystemTreeManager
 			}
 			
 			end2 = System.currentTimeMillis();
-			System.out.println("Update treeView ("+imagesToUpdate.size()+") : "+(end2-start2)+"ms");
+			LOGGER.debug("Update treeView ("+imagesToUpdate.size()+") : "+(end2-start2)+"ms");
 			start2 = end2;
 			
 			final HashSet<Image> imagesSet = new HashSet<>(images);
@@ -803,7 +807,7 @@ public class FileSystemTreeManager
 			List<Image> sortedImages = getImages(treeView.getRoot()).filter(image -> imagesSet.contains(image)).toList();
 			
 			end2 = System.currentTimeMillis();
-			System.out.println("List<Image> sortedImages = getImages(...) ("+sortedImages.size()+") : "+(end2-start2)+"ms");
+			LOGGER.debug("List<Image> sortedImages = getImages(...) ("+sortedImages.size()+") : "+(end2-start2)+"ms");
 			start2 = end2;
 			
 			return sortedImages;
@@ -1140,7 +1144,6 @@ public class FileSystemTreeManager
 				}
 				catch (Exception e)
 				{
-					e.printStackTrace();
 					new ExceptionDialog(e, "Error while moving files").show();
 				}
 			}

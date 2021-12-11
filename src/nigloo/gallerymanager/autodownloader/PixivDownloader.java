@@ -16,6 +16,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -27,6 +30,8 @@ import nigloo.tool.gson.JsonHelper;
 
 public class PixivDownloader extends BaseDownloader
 {
+	private static final Logger LOGGER = LogManager.getLogger(PixivDownloader.class);
+	
 	@SuppressWarnings("unused")
 	private PixivDownloader()
 	{
@@ -43,8 +48,8 @@ public class PixivDownloader extends BaseDownloader
 	{
 		String cookie = secrets.getProperty("pixiv.cookie");
 		
-		System.out.println(creatorId);
-		System.out.println(imagePathPattern);
+		LOGGER.debug(creatorId);
+		LOGGER.debug(imagePathPattern);
 		
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		

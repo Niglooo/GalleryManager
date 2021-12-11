@@ -24,6 +24,9 @@ import java.util.function.Function;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -36,6 +39,8 @@ import nigloo.tool.gson.JsonHelper;
 
 public class FanboxDownloader extends BaseDownloader
 {
+	private static final Logger LOGGER = LogManager.getLogger(FanboxDownloader.class);
+	
 	private boolean downloadFiles = true;
 	private boolean autoExtractZip = true;
 	
@@ -55,8 +60,8 @@ public class FanboxDownloader extends BaseDownloader
 	{
 		String cookie = secrets.getProperty("fanbox.cookie");
 		
-		System.out.println(creatorId);
-		System.out.println(imagePathPattern);
+		LOGGER.debug(creatorId);
+		LOGGER.debug(imagePathPattern);
 		
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		
@@ -236,7 +241,7 @@ public class FanboxDownloader extends BaseDownloader
 			Path filePath = response.body();
 			Path zipFilePath = filePath.resolveSibling(filePath.getFileName()+".zip");
 			
-			System.out.println("Unziping: " + zipFilePath);
+			LOGGER.debug("Unziping: " + zipFilePath);
 			
 			try
 			{
@@ -262,7 +267,7 @@ public class FanboxDownloader extends BaseDownloader
 			}
 			catch (IOException e)
 			{
-				e.printStackTrace(System.err);
+				LOGGER.error("Cannot rename "+filePath+" to "+zipFilePath, e);
 				return response;
 			}
 			
@@ -299,7 +304,7 @@ public class FanboxDownloader extends BaseDownloader
 			}
 			catch (IOException e)
 			{
-				e.printStackTrace(System.err);
+				LOGGER.error("Error when unzipping "+zipFilePath, e);
 				return response;
 			}
 			
