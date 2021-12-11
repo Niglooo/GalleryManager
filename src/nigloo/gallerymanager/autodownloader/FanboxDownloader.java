@@ -30,6 +30,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import nigloo.gallerymanager.model.Image;
 import nigloo.tool.StrongReference;
 import nigloo.tool.gson.JsonHelper;
 
@@ -281,7 +282,13 @@ public class FanboxDownloader extends BaseDownloader
 					{
 						Files.createDirectories(entryPath.getParent());
 						Files.copy(zis, entryPath);
-						// if an image, gallery.saveImage(image);
+						
+						Image image = gallery.getImage(entryPath);
+						if (image.isNotSaved())
+						{
+							image.addTag(artist.getTag());
+							gallery.saveImage(image);
+						}
 					}
 					zipEntry = zis.getNextEntry();
 				}
