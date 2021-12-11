@@ -15,6 +15,9 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -30,6 +33,7 @@ import nigloo.tool.collection.WeakIdentityHashSet;
 
 public final class Gallery
 {
+	private static final Logger LOGGER = LogManager.getLogger(BaseDownloader.class);
 	private static final Path PATH_WILDCARD = Paths.get("{wildcard}");
 	
 	private transient Path rootFolder;
@@ -170,6 +174,7 @@ public final class Gallery
 	{
 		synchronized (this.images)
 		{
+			LOGGER.debug("Deleting from gallery "+images);
 			for (Artist artist : artists)
 				for (BaseDownloader autoDownloader : artist.getAutodownloaders())
 					autoDownloader.stopHandling(images);
