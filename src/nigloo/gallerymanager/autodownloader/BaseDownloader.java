@@ -37,6 +37,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -64,6 +67,7 @@ import nigloo.tool.injection.annotation.Inject;
 @JsonAdapter(BaseDownloader.BaseDownloaderAdapter.class)
 public abstract class BaseDownloader
 {
+	private static final Logger LOGGER = LogManager.getLogger(BaseDownloader.class);
 	private static final Map<String, Class<? extends BaseDownloader>> TYPE_TO_CLASS = new HashMap<>();
 	private static final Map<Class<? extends BaseDownloader>, String> CLASS_TO_TYPE = new HashMap<>();
 	
@@ -256,15 +260,15 @@ public abstract class BaseDownloader
 		boolean error = response.statusCode() >= 300;
 		
 		if (optionsLst.contains(PrintOption.REQUEST_URL) || error)
-			System.out.println("URL: " + response.request().uri());
+			LOGGER.debug("URL: " + response.request().uri());
 		
 		if (optionsLst.contains(PrintOption.STATUS_CODE) || error)
-			System.out.println("Status: " + response.statusCode());
+			LOGGER.debug("Status: " + response.statusCode());
 		
 		if (optionsLst.contains(PrintOption.RESPONSE_HEADERS) || error)
 		{
-			System.out.println("Headers:");
-			System.out.println(response.headers()
+			LOGGER.debug("Headers:");
+			LOGGER.debug(response.headers()
 			                           .map()
 			                           .entrySet()
 			                           .stream()
@@ -274,8 +278,8 @@ public abstract class BaseDownloader
 		
 		if (optionsLst.contains(PrintOption.RESPONSE_BODY) || error)
 		{
-			System.out.println("Body:");
-			System.out.println(prettyToString(response.body()));
+			LOGGER.debug("Body:");
+			LOGGER.debug(prettyToString(response.body()));
 		}
 		
 		return response;

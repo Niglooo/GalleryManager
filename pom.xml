@@ -61,12 +61,27 @@
 			<artifactId>Tools</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>com.github.mizosoft.methanol</groupId>
 			<artifactId>methanol</artifactId>
 			<version>1.4.1</version>
 		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+			<version>2.15.0</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<version>2.15.0</version>
+		</dependency>
+
 
 		<!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
 		<dependency>

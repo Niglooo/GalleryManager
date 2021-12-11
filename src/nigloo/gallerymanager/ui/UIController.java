@@ -29,6 +29,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -67,6 +70,7 @@ import nigloo.tool.thread.ThreadStopException;
 @Singleton
 public class UIController extends Application
 {
+	private static final Logger LOGGER = LogManager.getLogger(UIController.class);
 	static public final String STYLESHEET_DEFAULT = UIController.class.getModule()
 	                                                                  .getClassLoader()
 	                                                                  .getResource("resources/styles/default.css")
@@ -239,7 +243,7 @@ public class UIController extends Application
 		Collection<Path> fsSelection = fileSystemTreeManager.getSelectionWithoutChildren();
 		
 		end = System.currentTimeMillis();
-		System.out.println("fileSystemTreeManager.getSelectionWithoutChildren() : "+(end-start)+"ms");
+		LOGGER.debug("fileSystemTreeManager.getSelectionWithoutChildren() : "+(end-start)+"ms");
 		start = end;
 		
 		if (tagFilterField.getText().isBlank() && fsSelection.isEmpty())
@@ -250,7 +254,7 @@ public class UIController extends Application
 		List<Image> images = gallery.getAllImages();
 		
 		end = System.currentTimeMillis();
-		System.out.println("gallery.getAllImages() (" + images.size() + ") : " + (end - start) + "ms");
+		LOGGER.debug("gallery.getAllImages() (" + images.size() + ") : " + (end - start) + "ms");
 		start = end;
 		
 		if (!fsSelection.isEmpty())
@@ -262,14 +266,14 @@ public class UIController extends Application
 			               .toList();
 			
 			end = System.currentTimeMillis();
-			System.out.println("Keep only selection (" + images.size() + ") : " + (end - start) + "ms");
+			LOGGER.debug("Keep only selection (" + images.size() + ") : " + (end - start) + "ms");
 			start = end;
 		}
 		
 		images = images.stream().filter(tagFilter).toList();
 		
 		end = System.currentTimeMillis();
-		System.out.println("Keep only with tags (" + images.size() + ") : " + (end - start) + "ms");
+		LOGGER.debug("Keep only with tags (" + images.size() + ") : " + (end - start) + "ms");
 		start = end;
 
 		return images;
@@ -292,7 +296,7 @@ public class UIController extends Application
 		oldVisibleImages.forEach(Image::cancelLoadingThumbnail);
 		
 		end = System.currentTimeMillis();
-		System.out.println("Cancel old images loading (" + oldVisibleImages.size() + ")  : "
+		LOGGER.debug("Cancel old images loading (" + oldVisibleImages.size() + ")  : "
 		        + (end - start) + "ms");
 		start = end;
 		
@@ -302,7 +306,7 @@ public class UIController extends Application
 		                                  .toList());
 		
 		end = System.currentTimeMillis();
-		System.out.println("thumbnailsView.getTiles().setAll(...) (" + sortedImages.size()
+		LOGGER.debug("thumbnailsView.getTiles().setAll(...) (" + sortedImages.size()
 		        + ") : " + (end - start) + "ms");
 		start = end;
 		
@@ -339,7 +343,7 @@ public class UIController extends Application
 		            });
 		            
 		end = System.currentTimeMillis();
-		System.out.println("Update tagListView : " + (end - start) + "ms");
+		LOGGER.debug("Update tagListView : " + (end - start) + "ms");
 		start = end;
 	}
 	

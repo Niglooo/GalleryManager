@@ -21,6 +21,9 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -32,6 +35,7 @@ import nigloo.tool.gson.JsonHelper;
 
 public class TwitterDownloader extends BaseDownloader
 {
+	private static final Logger LOGGER = LogManager.getLogger(TwitterDownloader.class);
 	private static final DateTimeFormatter DATE_TIME_FORMATTER = twitterDateTimeFormmater();
 	private static final int PAGE_SIZE = 20;
 	
@@ -71,8 +75,8 @@ public class TwitterDownloader extends BaseDownloader
 	@Override
 	public void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
-		System.out.println(creatorId);
-		System.out.println(imagePathPattern);
+		LOGGER.debug(creatorId);
+		LOGGER.debug(imagePathPattern);
 		
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		
