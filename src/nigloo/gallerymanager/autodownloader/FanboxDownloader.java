@@ -232,8 +232,6 @@ public class FanboxDownloader extends BaseDownloader
 			if (!isZip || !autoExtractZip)
 				return response;
 			
-			
-			
 			Path filePath = response.body();
 			Path zipFilePath = filePath.resolveSibling(filePath.getFileName()+".zip");
 			
@@ -241,8 +239,24 @@ public class FanboxDownloader extends BaseDownloader
 			
 			try
 			{
-				//FIXME, sometime filePath is still opened by the downloader
-				Files.move(filePath, zipFilePath);
+				int nbAttempt = 0;
+				while (true)
+				{
+					try {
+						Files.move(filePath, zipFilePath);
+						break;
+					}
+					catch (Exception e) {
+						if (nbAttempt++ >= 10)
+							throw e;
+						
+						try {
+							Thread.sleep(200);
+						} catch (InterruptedException e1) {
+							Thread.currentThread().interrupt();
+						}
+					}
+				}
 				Files.createDirectory(filePath);
 			}
 			catch (IOException e)
