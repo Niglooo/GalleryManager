@@ -489,7 +489,24 @@ public class UIController extends Application
 			gson().toJson(gallery, writer);
 		}
 		
-		Files.move(tmpFile, galleryFile, StandardCopyOption.REPLACE_EXISTING);
+		int nbAttempt = 0;
+		while (true)
+		{
+			try {
+				Files.move(tmpFile, galleryFile, StandardCopyOption.REPLACE_EXISTING);
+				break;
+			}
+			catch (Exception e) {
+				if (nbAttempt++ >= 10)
+					throw e;
+				
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e1) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		}
 	}
 	
 	private Gson gson = null;
