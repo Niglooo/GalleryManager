@@ -10,9 +10,9 @@ module nigloo.gallerymanager
 	
 	requires com.google.gson;
 	requires methanol;
-	requires org.apache.logging.log4j;
-	
 	requires nigloo.tools;
+	requires org.apache.logging.log4j;
+	requires org.jsoup;
 	
 	opens nigloo.gallerymanager.model to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.autodownloader to com.google.gson, nigloo.tools;
