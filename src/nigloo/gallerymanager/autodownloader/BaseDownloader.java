@@ -2,6 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.HttpCookie;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -82,6 +84,7 @@ public abstract class BaseDownloader
 		register("FANBOX", FanboxDownloader.class);
 		register("PIXIV", PixivDownloader.class);
 		register("TWITTER", TwitterDownloader.class);
+		register("MASONRY", MasonryDownloader.class);
 	}
 	
 	@Inject
@@ -131,7 +134,6 @@ public abstract class BaseDownloader
 	                                                      String postTitle,
 	                                                      int imageNumber,
 	                                                      String imageFilename)
-	        throws Exception
 	{
 		ImageKey imageKey = new ImageKey(postId, imageId);
 		ImageReference imageReference;
@@ -169,16 +171,20 @@ public abstract class BaseDownloader
 			}
 		}
 		
-		Files.createDirectories(imageDest.getParent());
+		HttpRequest request = null;
+		try {
+			Files.createDirectories(imageDest.getParent());
+			
+			request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
+			maxConcurrentStreams.acquire();
+		}
+		catch (Exception e) {
+			return CompletableFuture.failedFuture(e);
+		}
 		
-		HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-		maxConcurrentStreams.acquire();
 		return httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
 		                 .thenApply(saveInGallery(postId, imageId))
-		                 .thenApply(r -> print(r,
-		                                       PrintOption.REQUEST_URL,
-		                                       PrintOption.STATUS_CODE,
-		                                       PrintOption.RESPONSE_BODY))
+		                 .thenApply(print(PrintOption.REQUEST_URL, PrintOption.STATUS_CODE, PrintOption.RESPONSE_BODY))
 		                 .thenRun(maxConcurrentStreams::release);
 	}
 	
@@ -250,39 +256,47 @@ public abstract class BaseDownloader
 		REQUEST_URL, STATUS_CODE, RESPONSE_HEADERS, RESPONSE_BODY
 	}
 	
-	protected static synchronized <T> HttpResponse<T> print(HttpResponse<T> response, PrintOption... options)
+	protected static <T> HttpResponse<T> print(HttpResponse<T> response, PrintOption... options)
 	{
-		List<PrintOption> optionsLst = (options != null && options.length > 0) ? Arrays.asList(options)
-		        : List.of(PrintOption.REQUEST_URL,
-		                  PrintOption.STATUS_CODE,
-		                  PrintOption.RESPONSE_HEADERS,
-		                  PrintOption.RESPONSE_BODY);
-		boolean error = response.statusCode() >= 300;
-		
-		if (optionsLst.contains(PrintOption.REQUEST_URL) || error)
-			LOGGER.debug("URL: " + response.request().uri());
-		
-		if (optionsLst.contains(PrintOption.STATUS_CODE) || error)
-			LOGGER.debug("Status: " + response.statusCode());
-		
-		if (optionsLst.contains(PrintOption.RESPONSE_HEADERS) || error)
+		synchronized (LOGGER)
 		{
-			LOGGER.debug("Headers:");
-			LOGGER.debug(response.headers()
-			                           .map()
-			                           .entrySet()
-			                           .stream()
-			                           .map(e -> "    " + e.getKey() + ": " + e.getValue())
-			                           .collect(Collectors.joining("\n")));
-		}
-		
-		if (optionsLst.contains(PrintOption.RESPONSE_BODY) || error)
-		{
-			LOGGER.debug("Body:");
-			LOGGER.debug(prettyToString(response.body()));
+			List<PrintOption> optionsLst = (options != null && options.length > 0) ? Arrays.asList(options)
+			        : List.of(PrintOption.REQUEST_URL,
+			                  PrintOption.STATUS_CODE,
+			                  PrintOption.RESPONSE_HEADERS,
+			                  PrintOption.RESPONSE_BODY);
+			boolean error = response.statusCode() >= 300;
+			
+			if (optionsLst.contains(PrintOption.REQUEST_URL) || error)
+				LOGGER.debug("URL: " + response.request().uri());
+			
+			if (optionsLst.contains(PrintOption.STATUS_CODE) || error)
+				LOGGER.debug("Status: " + response.statusCode());
+			
+			if (optionsLst.contains(PrintOption.RESPONSE_HEADERS) || error)
+			{
+				LOGGER.debug("Headers:");
+				LOGGER.debug(response.headers()
+				                           .map()
+				                           .entrySet()
+				                           .stream()
+				                           .map(e -> "    " + e.getKey() + ": " + e.getValue())
+				                           .collect(Collectors.joining("\n")));
+			}
+			
+			if (optionsLst.contains(PrintOption.RESPONSE_BODY) || error)
+			{
+				LOGGER.debug("Body:");
+				LOGGER.debug(prettyToString(response.body()));
+			}
 		}
 		
 		return response;
+	}
+	
+	protected static <T> Function<HttpResponse<T>, HttpResponse<T>> print(PrintOption... options)
+	{
+		return response -> print(response, options);
 	}
 	
 	private static String prettyToString(Object obj)
@@ -304,6 +318,14 @@ public abstract class BaseDownloader
 			return str;
 		}
 	}
+
+	protected static <T> Function<HttpResponse<T>, HttpResponse<T>> release(Semaphore semaphore)
+	{
+		return response -> {
+			semaphore.release();
+			return response;
+		};
+	}
 	
 	@SuppressWarnings("unused")
 	private static String[] parseHeader(String rawHeader)
@@ -313,6 +335,11 @@ public abstract class BaseDownloader
 			int i = s.indexOf(':');
 			return Stream.of(s.substring(0, i).trim(), s.substring(i + 1).trim());
 		}).toArray(String[]::new);
+	}
+	
+	protected static Map<String, HttpCookie> parseCookies(String header)
+	{
+		return HttpCookie.parse(header).stream().collect(Collectors.toMap(HttpCookie::getName, c -> c, (c1, c2) -> c1, () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER)));
 	}
 	
 	@SuppressWarnings("unused")
