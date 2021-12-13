@@ -447,13 +447,13 @@ public abstract class BaseDownloader
 	
 	static class MappingTypeAdapter extends TypeAdapter<Map<ImageKey, ImageReference>>
 	{
+		static private final String DELETED_IMAGE = "deleted";
+		
 		@Override
 		public void write(JsonWriter out, Map<ImageKey, ImageReference> value) throws IOException
 		{
 			if (value == null)
 				value = Collections.emptyMap();
-			
-			boolean serializeNulls = out.getSerializeNulls();
 			
 			out.beginArray();
 			
@@ -472,12 +472,10 @@ public abstract class BaseDownloader
 				out.name("imageId");
 				out.value(imageKey.imageId);
 				out.name("imageRef");
-				out.setSerializeNulls(true);
 				if (ref == null)
-					out.nullValue();
+					out.value(DELETED_IMAGE);
 				else
 					out.value(ref.getImageId());
-				out.setSerializeNulls(serializeNulls);
 				out.endObject();
 			}
 			
@@ -529,7 +527,10 @@ public abstract class BaseDownloader
 							imageId = in.nextString();
 							break;
 						case "imageRef":
-							ref = new ImageReference(in.nextLong());
+							if (in.peek() == JsonToken.NUMBER)
+								ref = new ImageReference(in.nextLong());
+							else
+								in.skipValue();
 							break;
 						default:
 							in.skipValue();
