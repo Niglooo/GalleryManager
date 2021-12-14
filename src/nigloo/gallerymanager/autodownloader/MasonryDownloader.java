@@ -17,8 +17,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -32,6 +30,7 @@ import org.jsoup.select.Elements;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 
+import nigloo.gallerymanager.AsyncPools;
 import nigloo.tool.StrongReference;
 
 public class MasonryDownloader extends BaseDownloader
@@ -47,14 +46,12 @@ public class MasonryDownloader extends BaseDownloader
 		LOGGER.debug(imagePathPattern);
 		
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
-		// TODO common pool for all https request
-		final Executor executor = Executors.newWorkStealingPool();
 		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
 		final Collection<CompletableFuture<?>> downloads = Collections.synchronizedCollection(new ArrayList<>());
 		
 		final HttpClient httpClient = HttpClient.newBuilder()
 		                                        .followRedirects(Redirect.NORMAL)
-		                                        .executor(executor)
+		                                        .executor(AsyncPools.HTTP_REQUEST)
 		                                        .build();
 		HttpRequest request;
 		HttpResponse<?> response;

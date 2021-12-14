@@ -25,6 +25,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import nigloo.gallerymanager.AsyncPools;
 import nigloo.tool.StrongReference;
 import nigloo.tool.gson.JsonHelper;
 
@@ -58,7 +59,7 @@ public class PixivDownloader extends BaseDownloader
 		
 		final HttpClient httpClient = HttpClient.newBuilder()
 		                                        .followRedirects(Redirect.NORMAL)
-		                                        .executor(executor)
+		                                        .executor(AsyncPools.HTTP_REQUEST)
 		                                        .build();
 		HttpRequest request;
 		HttpResponse<?> response;
