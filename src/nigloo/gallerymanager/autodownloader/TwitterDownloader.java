@@ -164,9 +164,9 @@ public class TwitterDownloader extends BaseDownloader
 					String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 					String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 					
-					imagesDownload.add(downloadImage(url,
+					imagesDownload.add(downloadImage(httpClient,
+					                                 url,
 					                                 headers,
-					                                 httpClient,
 					                                 maxConcurrentStreams,
 					                                 postId,
 					                                 imageId,

@@ -148,9 +148,9 @@ public class PixivDownloader extends BaseDownloader
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
-				CompletableFuture<?> asyncResponse = downloadImage(url,
+				CompletableFuture<?> asyncResponse = downloadImage(httpClient,
+				                                                   url,
 				                                                   headers,
-				                                                   httpClient,
 				                                                   maxConcurrentStreams,
 				                                                   postId,
 				                                                   imageId,
