@@ -120,9 +120,9 @@ public abstract class BaseDownloader
 	
 	public abstract void download(Properties secrets, boolean checkAllPost) throws Exception;
 	
-	protected final CompletableFuture<Void> downloadImage(String url,
+	protected final CompletableFuture<Void> downloadImage(HttpClient httpClient,
+	                                                      String url,
 	                                                      String[] headers,
-	                                                      HttpClient httpClient,
 	                                                      Semaphore maxConcurrentStreams,
 	                                                      String postId,
 	                                                      String imageId,

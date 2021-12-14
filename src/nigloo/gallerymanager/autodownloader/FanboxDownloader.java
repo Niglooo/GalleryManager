@@ -141,9 +141,9 @@ public class FanboxDownloader extends BaseDownloader
 						
 						String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 						
-						downloads.add(downloadImage(url,
+						downloads.add(downloadImage(httpClient,
+						                            url,
 						                            headers,
-						                            httpClient,
 						                            maxConcurrentStreams,
 						                            postId,
 						                            imageId,
@@ -165,13 +165,13 @@ public class FanboxDownloader extends BaseDownloader
 						String fileExtention = JsonHelper.followPath(file, "extension", String.class);
 						
 						downloads.add(downloadFile(url,
-						                           headers,
 						                           httpClient,
+						                           headers,
 						                           maxConcurrentStreams,
 						                           postId,
-						                           fileId,
-						                           publishedDatetime,
 						                           postTitle,
+						                           publishedDatetime,
+						                           fileId,
 						                           fileNameWithoutExtention,
 						                           fileExtention));
 					}
@@ -187,13 +187,13 @@ public class FanboxDownloader extends BaseDownloader
 	}
 	
 	private CompletableFuture<Void> downloadFile(String url,
-	                                             String[] headers,
 	                                             HttpClient httpClient,
+	                                             String[] headers,
 	                                             Semaphore maxConcurrentStreams,
 	                                             String postId,
-	                                             String fileId,
-	                                             ZonedDateTime publishedDatetime,
 	                                             String postTitle,
+	                                             ZonedDateTime publishedDatetime,
+	                                             String fileId,
 	                                             String fileNameWithoutExtention,
 	                                             String fileExtention)
 	        throws Exception
