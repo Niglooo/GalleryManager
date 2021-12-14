@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -120,7 +121,7 @@ public abstract class BaseDownloader
 	
 	public abstract void download(Properties secrets, boolean checkAllPost) throws Exception;
 	
-	protected final CompletableFuture<Void> downloadImage(HttpClient httpClient,
+	protected final CompletableFuture<Image> downloadImage(HttpClient httpClient,
 	                                                      String url,
 	                                                      String[] headers,
 	                                                      Semaphore maxConcurrentStreams,
@@ -160,10 +161,14 @@ public abstract class BaseDownloader
 			
 			if (Files.exists(imageDest))
 			{
-				if (!mapping.containsKey(imageKey))
-					saveInGallery(postId, imageId, imageDest);
+				Image image;
+				imageReference = mapping.get(imageKey);
+				if (imageReference == null)
+					image = saveInGallery(postId, imageId, imageDest);
+				else
+					image = imageReference.getImage();
 				
-				return CompletableFuture.completedFuture(null);
+				return CompletableFuture.completedFuture(image);
 			}
 		}
 		
@@ -179,9 +184,9 @@ public abstract class BaseDownloader
 		}
 		
 		return httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
-		                 .thenApply(saveInGallery(postId, imageId))
 		                 .thenApply(print(PrintOption.REQUEST_URL, PrintOption.STATUS_CODE, PrintOption.RESPONSE_BODY))
-		                 .thenRun(maxConcurrentStreams::release);
+		                 .thenApply(saveInGallery(postId, imageId))
+		                 .thenApply(release(maxConcurrentStreams));
 	}
 	
 	protected final StrongReference<ZonedDateTime> initCurrentMostRecentPost()
@@ -221,7 +226,7 @@ public abstract class BaseDownloader
 		return newPath;
 	}
 	
-	private void saveInGallery(String postId, String imageId, Path path)
+	private synchronized Image saveInGallery(String postId, String imageId, Path path)
 	{
 		Image image = gallery.getImage(path);
 		if (image.isNotSaved())
@@ -233,18 +238,13 @@ public abstract class BaseDownloader
 		
 		ImageKey imagekey = new ImageKey(postId, imageId);
 		mapping.put(imagekey, ref);
+		
+		return image;
 	}
 	
-	private Function<HttpResponse<Path>, HttpResponse<Path>> saveInGallery(String postId, String imageId)
+	private Function<HttpResponse<Path>, Image> saveInGallery(String postId, String imageId)
 	{
-		return response ->
-		{
-			synchronized (this)
-			{
-				saveInGallery(postId, imageId, response.body());
-				return response;
-			}
-		};
+		return response -> saveInGallery(postId, imageId, response.body());
 	}
 	
 	protected enum PrintOption
@@ -290,7 +290,7 @@ public abstract class BaseDownloader
 		return response;
 	}
 	
-	protected static <T> Function<HttpResponse<T>, HttpResponse<T>> print(PrintOption... options)
+	protected static <T> UnaryOperator<HttpResponse<T>> print(PrintOption... options)
 	{
 		return response -> print(response, options);
 	}
@@ -315,11 +315,11 @@ public abstract class BaseDownloader
 		}
 	}
 
-	protected static <T> Function<HttpResponse<T>, HttpResponse<T>> release(Semaphore semaphore)
+	protected static <T> UnaryOperator<T> release(Semaphore semaphore)
 	{
-		return response -> {
+		return t -> {
 			semaphore.release();
-			return response;
+			return t;
 		};
 	}
 	
