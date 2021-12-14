@@ -31,8 +31,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
@@ -95,8 +93,6 @@ public abstract class BaseDownloader
 	protected String creatorId;
 	protected String imagePathPattern;
 	protected ZonedDateTime mostRecentPostCheckedDate;
-	
-	protected static final Executor executor = Executors.newWorkStealingPool();
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();

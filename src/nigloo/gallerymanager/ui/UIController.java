@@ -50,6 +50,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.autodownloader.BaseDownloader;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
@@ -209,9 +210,9 @@ public class UIController extends Application
 						{
 							isUpdating = true;
 							
-							CompletableFuture.supplyAsync(UIController.this::getThumnailImages, Platform::runLater)
+							CompletableFuture.supplyAsync(UIController.this::getThumnailImages, AsyncPools.FX_APPLICATION)
 							                 .thenCompose(fileSystemTreeManager::asyncRefreshAndGetInOrder)
-							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, Platform::runLater)
+							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
 							                 .thenRun(() ->
 							                 {
 								                 lastUpdate = System.currentTimeMillis();

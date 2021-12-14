@@ -18,8 +18,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
@@ -49,6 +47,7 @@ import javafx.scene.input.TransferMode;
 import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
+import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
@@ -70,7 +69,6 @@ public class FileSystemTreeManager
 	
 	private final TreeView<FileSystemElement> treeView;
 	private final Path rootPath;
-	private final ExecutorService asyncPool;
 	
 	public FileSystemTreeManager(TreeView<FileSystemElement> treeView)
 	{
@@ -78,7 +76,6 @@ public class FileSystemTreeManager
 		
 		this.treeView = treeView;
 		this.rootPath = treeView.getRoot().getValue().getPath();
-		this.asyncPool = ForkJoinPool.commonPool();
 		
 		treeView.setCellFactory(new FileSystemTreeCellFactory());
 		treeView.setEditable(true);
@@ -324,7 +321,7 @@ public class FileSystemTreeManager
 				                 .join();
 			}
 			
-		}, asyncPool);
+		}, AsyncPools.DISK_IO);
 	}
 	
 	private FileSystemElement toFileSystemElement(Path path)
@@ -697,7 +694,7 @@ public class FileSystemTreeManager
 					if (error != null)
 						new ExceptionDialog(error, "Error when deleting " + errorPath).show();
 				}
-			}, asyncPool);
+			}, AsyncPools.DISK_IO);
 		});
 	}
 	
@@ -769,7 +766,7 @@ public class FileSystemTreeManager
 			TreeItem<FileSystemElement> item = getTreeItem(absPath, false);
 			
 			if (item == null || !item.getValue().isImage()){
-				imagesToUpdate.add(CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)), asyncPool));
+				imagesToUpdate.add(CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)), AsyncPools.DISK_IO));
 			}
 		}
 		
@@ -816,7 +813,7 @@ public class FileSystemTreeManager
 			
 			return sortedImages;
 			
-		}, Platform::runLater);
+		}, AsyncPools.FX_APPLICATION);
 	}
 	
 	private static Stream<Image> getImages(TreeItem<FileSystemElement> rootItem)
