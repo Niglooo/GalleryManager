@@ -123,8 +123,8 @@ public class UIController extends Application
 		
 		openGallery();
 		
-		// gallery.removeImagesNotHandledByAutoDowloader();
-		// gallery.compactIds();
+//		gallery.removeImagesNotHandledByAutoDowloader();
+//		gallery.compactIds();
 		
 		for (Artist artist : gallery.getArtists())
 		{
