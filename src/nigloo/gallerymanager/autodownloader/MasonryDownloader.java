@@ -55,24 +55,22 @@ public class MasonryDownloader extends BaseDownloader
 		HttpRequest request;
 		HttpResponse<?> response;
 		
-		request = HttpRequest.newBuilder()
-		                     .uri(new URI(host))
-		                     .GET()
-		                     .headers(getHeaders(host, null))
-		                     .build();
+		request = HttpRequest.newBuilder().uri(new URI(host)).GET().headers(getHeaders(host, null)).build();
 		maxConcurrentStreams.acquire();
 		response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 		print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
 		maxConcurrentStreams.release();
 		
-		String phpsessidCookie = parseCookies(response.headers().firstValue("Set-Cookie").get()).get("PHPSESSID").toString();
-		String avno = Jsoup.parseBodyFragment(response.body().toString()).selectFirst(".av-masonry-pagination.av-masonry-load-more").attr("data-avno");
-		
-		
+		String phpsessidCookie = parseCookies(response.headers().firstValue("Set-Cookie").get()).get("PHPSESSID")
+		                                                                                        .toString();
+		String avno = Jsoup.parseBodyFragment(response.body().toString())
+		                   .selectFirst(".av-masonry-pagination.av-masonry-load-more")
+		                   .attr("data-avno");
 		
 		String[] headers = getHeaders(host, phpsessidCookie);
 		final String getPostListUrl = host + "/wp/wp-admin/admin-ajax.php";
-		final String postListBaseParam = "avno="+avno+"&categories=1&taxonomy=category&orientation=&custom_bg=&color=custom&query_order=DESC&query_orderby=date&custom_markup=&set_breadcrumb=1&auto_ratio=1.7&columns=5&sort=yes&prod_order=&prod_order_by=&wc_prod_visible=&caption_styling=overlay&caption_display=on-hover&caption_elements=title&paginate=load_more&container_class=&container_links=1&overlay_fx=active&gap=1px&size=fixed+masonry&items=18&post_type=post%2C+page%2C+attachment%2C+revision%2C+nav_menu_item%2C+custom_css%2C+customize_changeset%2C+oembed_cache%2C+user_request%2C+wp_block%2C+feedback%2C+tt_font_control%2C+jp_mem_plan%2C+jp_pay_order%2C+jp_pay_product%2C+portfolio%2C+avia_framework_post&link=category%2C+1&action=avia_ajax_masonry_more&ids=";
+		final String postListBaseParam = "avno=" + avno
+		        + "&categories=1&taxonomy=category&orientation=&custom_bg=&color=custom&query_order=DESC&query_orderby=date&custom_markup=&set_breadcrumb=1&auto_ratio=1.7&columns=5&sort=yes&prod_order=&prod_order_by=&wc_prod_visible=&caption_styling=overlay&caption_display=on-hover&caption_elements=title&paginate=load_more&container_class=&container_links=1&overlay_fx=active&gap=1px&size=fixed+masonry&items=18&post_type=post%2C+page%2C+attachment%2C+revision%2C+nav_menu_item%2C+custom_css%2C+customize_changeset%2C+oembed_cache%2C+user_request%2C+wp_block%2C+feedback%2C+tt_font_control%2C+jp_mem_plan%2C+jp_pay_order%2C+jp_pay_product%2C+portfolio%2C+avia_framework_post&link=category%2C+1&action=avia_ajax_masonry_more&ids=";
 		
 		List<String> loaded = new ArrayList<>();
 		
@@ -184,8 +182,8 @@ public class MasonryDownloader extends BaseDownloader
 				"Cookie", cookie};
 		// @formatter:on
 		
-		if (cookie == null) 
-			headers = Arrays.copyOf(headers, headers.length-2);
+		if (cookie == null)
+			headers = Arrays.copyOf(headers, headers.length - 2);
 		
 		return headers;
 	}
