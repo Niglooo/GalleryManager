@@ -15,7 +15,6 @@ import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -82,7 +81,7 @@ public class TwitterDownloader extends BaseDownloader
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		
 		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
-		final Collection<CompletableFuture<?>> imagesDownload = Collections.synchronizedCollection(new ArrayList<>());
+		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		
 		final HttpClient httpClient = HttpClient.newBuilder()
 		                                        .followRedirects(Redirect.NORMAL)

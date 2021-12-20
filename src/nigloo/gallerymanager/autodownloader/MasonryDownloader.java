@@ -13,7 +13,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -47,7 +46,7 @@ public class MasonryDownloader extends BaseDownloader
 		
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
-		final Collection<CompletableFuture<?>> downloads = Collections.synchronizedCollection(new ArrayList<>());
+		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
 		
 		final HttpClient httpClient = HttpClient.newBuilder()
 		                                        .followRedirects(Redirect.NORMAL)
