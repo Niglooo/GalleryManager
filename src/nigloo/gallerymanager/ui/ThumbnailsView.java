@@ -73,7 +73,7 @@ public class ThumbnailsView extends Region
 	
 	private final DoubleProperty autoScrollDeltaY;
 	private final Timeline autoScroll;
-	
+	//TODO handle focus in ThumbnailsView
 	public ThumbnailsView()
 	{
 		super();

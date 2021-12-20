@@ -253,7 +253,7 @@ public abstract class BaseDownloader
 	}
 	
 	protected static <T> HttpResponse<T> print(HttpResponse<T> response, PrintOption... options)
-	{
+	{//TODO use Markers instead of PrintOption
 		synchronized (LOGGER)
 		{
 			List<PrintOption> optionsLst = (options != null && options.length > 0) ? Arrays.asList(options)
