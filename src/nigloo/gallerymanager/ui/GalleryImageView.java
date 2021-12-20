@@ -92,6 +92,7 @@ public class GalleryImageView extends ImageView
 				{
 					fxImage.progressProperty().removeListener(this);
 					fxImage.errorProperty().removeListener(this);
+					//TODO set brocken icon here
 				}
 			}
 		}
