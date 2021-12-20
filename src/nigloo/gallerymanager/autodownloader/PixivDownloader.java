@@ -9,7 +9,6 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -55,7 +54,7 @@ public class PixivDownloader extends BaseDownloader
 		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
 		
 		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
-		final Collection<CompletableFuture<?>> imagesDownload = Collections.synchronizedCollection(new ArrayList<>());
+		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		
 		final HttpClient httpClient = HttpClient.newBuilder()
 		                                        .followRedirects(Redirect.NORMAL)
@@ -96,8 +95,7 @@ public class PixivDownloader extends BaseDownloader
 					offset += POST_PAGE_SIZE;
 				
 				String url = "https://www.pixiv.net/ajax/user/"
-				        + creatorId + "/profile/illusts?" + postIds
-				                                                   .subList(offset,
+				        + creatorId + "/profile/illusts?" + postIds.subList(offset,
 				                                                            Math.min(offset + POST_PAGE_SIZE,
 				                                                                     postIds.size()))
 				                                                   .stream()
