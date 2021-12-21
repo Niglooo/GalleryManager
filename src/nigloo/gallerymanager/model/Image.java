@@ -20,7 +20,7 @@ public class Image
 	private Path path;
 	private Set<TagReference> tags = new HashSet<>();
 	
-	private transient Set<String> implicitNormalizedTags = null;
+	private transient Set<String> implicitTags = null;
 	private transient SoftReference<javafx.scene.image.Image> thumbnailCache = null;
 	private transient SoftReference<javafx.scene.image.Image> fxImageCache = null;
 	
@@ -84,7 +84,7 @@ public class Image
 	{
 		boolean added = tags.add(new TagReference(tag));
 		if (added)
-			implicitNormalizedTags = null;
+			implicitTags = null;
 		
 		return added;
 	}
@@ -93,7 +93,7 @@ public class Image
 	{
 		boolean added = tags.add(new TagReference(gallery.getTag(tagName)));
 		if (added)
-			implicitNormalizedTags = null;
+			implicitTags = null;
 		
 		return added;
 	}
@@ -102,7 +102,7 @@ public class Image
 	{
 		boolean removed = tags.remove(new TagReference(tag));
 		if (removed)
-			implicitNormalizedTags = null;
+			implicitTags = null;
 		
 		return removed;
 	}
@@ -111,27 +111,27 @@ public class Image
 	{
 		boolean removed = tags.remove(new TagReference(tagName));
 		if (removed)
-			implicitNormalizedTags = null;
+			implicitTags = null;
 		
 		return removed;
 	}
 	
-	public Set<String> getImplicitNormalizedTags()
+	public Set<String> getImplicitTags()
 	{
-		if (implicitNormalizedTags == null)
+		if (implicitTags == null)
 		{
-			implicitNormalizedTags = new HashSet<>();
+			implicitTags = new HashSet<>();
 			ArrayDeque<Tag> patentsToVisit = new ArrayDeque<>(tags.stream().map(TagReference::getTag).toList());
 			
 			Tag tag;
 			while ((tag = patentsToVisit.poll()) != null)
-				if (implicitNormalizedTags.add(tag.getNomalizedName()))
+				if (implicitTags.add(tag.getName()))
 					patentsToVisit.addAll(tag.getParents());
 			
-			implicitNormalizedTags = Collections.unmodifiableSet(implicitNormalizedTags);
+			implicitTags = Collections.unmodifiableSet(implicitTags);
 		}
 		
-		return implicitNormalizedTags;
+		return implicitTags;
 	}
 
 	public javafx.scene.image.Image getThumbnail(boolean async)
