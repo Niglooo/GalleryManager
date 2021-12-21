@@ -10,6 +10,7 @@ import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
@@ -23,6 +24,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.robot.Robot;
 import javafx.scene.text.Text;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -137,12 +139,15 @@ public class SlideShowStage extends Stage
 			if (!event.isAltDown())
 				infoZone.setVisible(false);
 		});
+		Robot robot = new Robot();
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
 			if (event.getButton() == MouseButton.SECONDARY)
-			{// TODO center mouse position
+			{
+				Point2D center = new Point2D(getWidth() / 2, getHeight() / 2);
+				robot.mouseMove(center);
 				contentRoot.setCursor(Cursor.DEFAULT);
-				contextMenu.show(contentRoot, event.getScreenX(), event.getScreenY());
+				contextMenu.show(contentRoot, center.getX(), center.getY());
 			}
 		});
 		addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
