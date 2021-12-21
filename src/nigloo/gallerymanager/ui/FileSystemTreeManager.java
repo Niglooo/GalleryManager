@@ -146,7 +146,7 @@ public class FileSystemTreeManager
 	// TODO simplify getAsyncAction(Path path, boolean deep)
 	private CompletableFuture<Void> getAsyncAction(Path path, boolean deep)
 	{
-		assert !path.isAbsolute() : "path must be absolute. Got: " + path;
+		assert path.isAbsolute() : "path must be absolute. Got: " + path;
 		
 		if (!path.startsWith(gallery.getRootFolder()))
 			return CompletableFuture.completedFuture(null);
