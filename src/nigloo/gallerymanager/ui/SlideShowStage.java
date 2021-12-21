@@ -2,12 +2,15 @@ package nigloo.gallerymanager.ui;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
@@ -17,18 +20,20 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.model.Tag;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
+import nigloo.tool.javafx.FXUtils;
 import nigloo.tool.thread.SafeThread;
 import nigloo.tool.thread.ThreadStopException;
 
@@ -44,11 +49,14 @@ public class SlideShowStage extends Stage
 	private volatile int currentImageIdx;
 	
 	private final ImageView imageView;
+	private final VBox infoZone;
+	private final Text infoImagePath;
+	private final VBox infoImageTags;
 	
 	private final Timeline autoplay;
 	private final ImageLoaderDaemon fullImageUpdatingThread;
 	
-	//TODO press on alt display file path (and other info ?)
+
 	public SlideShowStage(List<Image> images, int startingIndex)
 	{
 		assert images.size() > 0;
@@ -83,9 +91,24 @@ public class SlideShowStage extends Stage
 		setAutoplayDelay(gallery.getSlideShowParameter().getAutoplayDelay());
 		
 		StackPane contentRoot = new StackPane(imageView);
-		contentRoot.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
+		contentRoot.setId("slide_show_content");
 		contentRoot.setCursor(Cursor.NONE);
 		setScene(new Scene(contentRoot));
+		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
+		
+		infoImagePath = new Text();
+		infoImagePath.getStyleClass().add("image-path");
+		
+		infoImageTags = new VBox();
+		infoImageTags.getStyleClass().add("tag-list");
+		
+		infoZone = new VBox(infoImagePath, infoImageTags);
+		infoZone.getStyleClass().add("info-zone");
+		infoZone.setVisible(false);
+		
+		contentRoot.getChildren().add(infoZone);
+		StackPane.setAlignment(infoZone, Pos.TOP_LEFT);
+		StackPane.setMargin(infoZone, new Insets(10));
 		
 		SlideShowContextMenu contextMenu = new SlideShowContextMenu(this);
 		contextMenu.setHideOnEscape(true);
@@ -94,6 +117,9 @@ public class SlideShowStage extends Stage
 		
 		addEventHandler(KeyEvent.KEY_PRESSED, event ->
 		{
+			if (event.isAltDown())
+				infoZone.setVisible(true);
+			
 			if (event.getCode() == KeyCode.ESCAPE)
 				close();
 			else if (event.getCode() == KeyCode.LEFT)
@@ -105,6 +131,11 @@ public class SlideShowStage extends Stage
 				setAutoPlay(!isAutoPlay());
 				contextMenu.updateItems();
 			}
+		});
+		addEventHandler(KeyEvent.KEY_RELEASED, event ->
+		{
+			if (!event.isAltDown())
+				infoZone.setVisible(false);
 		});
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
@@ -259,15 +290,30 @@ public class SlideShowStage extends Stage
 		assert index >= 0 && index < images.size();
 		
 		currentImageIdx = index;
-		javafx.scene.image.Image fxImage = images.get(currentImageIdx).getFXImage(true);
+		Image currentImage = images.get(currentImageIdx);
+		javafx.scene.image.Image fxImage = currentImage.getFXImage(true);
 		
 		if (fxImage.getProgress() >= 1)
 			imageView.setImage(fxImage);
 		else
 		{
-			javafx.scene.image.Image thumbnail = images.get(currentImageIdx).getThumbnail(false);
+			javafx.scene.image.Image thumbnail = currentImage.getThumbnail(false);
 			imageView.setImage(thumbnail);
 		}
+		
+		infoImagePath.setText(currentImage.getPath().toString());
+		infoImageTags.getChildren().clear();
+		currentImage.getTags().stream().sorted(Comparator.comparing(Tag::getName)).forEachOrdered(tag ->
+		{
+			Color tagColor = tag.getColor();
+			
+			Text tagText = new Text(tag.getName());
+			tagText.getStyleClass().add("tag");
+			if (tagColor != null)
+				tagText.setStyle("-fx-fill: " + FXUtils.toRGBA(tagColor) + ";");
+			
+			infoImageTags.getChildren().add(tagText);
+		});
 	}
 	
 	private class ImageLoaderDaemon extends SafeThread
