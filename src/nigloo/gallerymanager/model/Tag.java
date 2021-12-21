@@ -39,7 +39,7 @@ public class Tag
 	Tag(String name)
 	{
 		this();
-		this.name = name;
+		this.name = normalize(name);
 		
 		Optional<Character> invalidChar = name.chars()
 		                                       .mapToObj(c -> (char) c)
@@ -59,11 +59,6 @@ public class Tag
 	public String toString()
 	{
 		return name;
-	}
-	
-	public String getNomalizedName()
-	{
-		return normalize(name);
 	}
 	
 	public Collection<Tag> getParents()

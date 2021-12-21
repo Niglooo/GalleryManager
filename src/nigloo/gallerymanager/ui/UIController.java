@@ -465,7 +465,7 @@ public class UIController extends Application
 		if (nomalizedTags.isEmpty())
 			return image -> true;
 		else
-			return image -> image.getImplicitNormalizedTags().containsAll(nomalizedTags);
+			return image -> image.getImplicitTags().containsAll(nomalizedTags);
 	}
 	
 	private void openGallery() throws IOException
