@@ -111,4 +111,10 @@ public class GalleryImageView extends ImageView
 		        : galleryImage.equals(((GalleryImageView) obj).galleryImage)
 		                && getFXImage.equals(((GalleryImageView) obj).getFXImage);
 	}
+	
+	@Override
+	public String toString()
+	{
+		return getClass().getSimpleName() + "{galleryImage=" + galleryImage + "}";
+	}
 }
