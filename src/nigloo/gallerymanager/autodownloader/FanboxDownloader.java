@@ -286,11 +286,14 @@ public class FanboxDownloader extends BaseDownloader
 						Files.createDirectories(entryPath.getParent());
 						Files.copy(zis, entryPath);
 						
-						Image image = gallery.getImage(entryPath);
-						if (image.isNotSaved())
+						if (Image.isImage(entryPath))
 						{
-							image.addTag(artist.getTag());
-							gallery.saveImage(image);
+							Image image = gallery.getImage(entryPath);
+							if (image.isNotSaved())
+							{
+								image.addTag(artist.getTag());
+								gallery.saveImage(image);
+							}
 						}
 					}
 					zipEntry = zis.getNextEntry();
