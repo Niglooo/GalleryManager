@@ -696,6 +696,28 @@ public class ThumbnailsView extends Region
 		lastVisibleTiles = visibleTiles;
 	}
 	
+	public void scrollTo(int index)
+	{
+		if (index < 0 || index > tiles.size())
+			return;
+		
+		int row = index / actualColumns;
+		double height = getHeight();
+		double top = snapSpaceY(getInsets().getTop());
+		double bottom = snapSpaceY(getInsets().getBottom());
+		double vgap = snapSpaceY(getVgap());
+		double tileHeight = getTileHeight();
+		double contentBottom = top + bottom + actualRows * tileHeight + (actualRows - 1) * vgap;
+		
+		actualYOffset = -row * (tileHeight + vgap);
+		vScrollBar.setValue(-actualYOffset / Math.max(0, contentBottom - height) * contentBottom);
+	}
+	
+	public void scrollTo(Node node)
+	{
+		scrollTo(tiles.indexOf(node));
+	}
+	
 	private TileWrapper wrapNode(Node unwrapped)
 	{
 		if (unwrapped.getParent() instanceof TileWrapper)
@@ -800,11 +822,17 @@ public class ThumbnailsView extends Region
 				{
 					if (event.getClickCount() == 2)
 					{
-						new SlideShowStage(tiles.stream()
-						                        .map(GalleryImageView.class::cast)
-						                        .map(GalleryImageView::getGalleryImage)
-						                        .toList(),
-						                   tiles.indexOf(content)).show();
+						SlideShowStage slideShow = new SlideShowStage(tiles.stream()
+						                                                   .map(GalleryImageView.class::cast)
+						                                                   .map(GalleryImageView::getGalleryImage)
+						                                                   .toList(),
+						                                              tiles.indexOf(content));
+						slideShow.setOnHidden(e -> scrollTo(getTiles().stream()
+						                                              .map(GalleryImageView.class::cast)
+						                                              .filter(iv -> iv.getGalleryImage() == slideShow.getCurrentImage())
+						                                              .findAny()
+						                                              .orElse(null)));
+						slideShow.show();
 					}
 					else
 					{
