@@ -9,6 +9,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectPropertyBase;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -49,6 +51,8 @@ public class SlideShowStage extends Stage
 	private List<Image> imagesOrdered = null;
 	private List<Image> images = null;
 	private volatile int currentImageIdx;
+	
+	private final CurrentImageProperty currentImageProperty = new CurrentImageProperty();
 	
 	private final ImageView imageView;
 	private final VBox infoZone;
@@ -171,10 +175,19 @@ public class SlideShowStage extends Stage
 	@Override
 	public void close()
 	{
-		// TODO Scroll to last slideshow image visible in thumbnailview
 		fullImageUpdatingThread.safeStop();
 		autoplay.stop();
 		super.close();
+	}
+	
+	public ReadOnlyObjectProperty<Image> currentImageProperty()
+	{
+		return currentImageProperty;
+	}
+	
+	public Image getCurrentImage()
+	{
+		return currentImageProperty.get();
 	}
 	
 	public void next()
@@ -319,6 +332,35 @@ public class SlideShowStage extends Stage
 			
 			infoImageTags.getChildren().add(tagText);
 		});
+		
+		currentImageProperty.fireValueChangedEvent();
+	}
+	
+	private class CurrentImageProperty extends ReadOnlyObjectPropertyBase<Image>
+	{
+		@Override
+		public Object getBean()
+		{
+			return SlideShowStage.this;
+		}
+		
+		@Override
+		public String getName()
+		{
+			return "currentImage";
+		}
+		
+		@Override
+		public Image get()
+		{
+			return images.get(currentImageIdx);
+		}
+		
+		@Override
+		public void fireValueChangedEvent()
+		{
+			super.fireValueChangedEvent();
+		}
 	}
 	
 	private class ImageLoaderDaemon extends SafeThread
