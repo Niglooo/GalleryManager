@@ -570,7 +570,7 @@ public class ThumbnailsView extends Region
 		
 		int rows = 1 + (int) ((Math.max(0, insideHeight - getTileHeight())) / (getTileHeight() + getVgap()));
 		
-		int prefColumns = (int) Math.ceil((double) getManagedChildren().size() / (double) rows);
+		int prefColumns = (int) Math.ceil((double) tiles.size() / (double) rows);
 		
 		return getInsets().getLeft() + getInsets().getRight() + vScrollBar.prefWidth(height)
 		        + prefColumns * getTileWidth() + (prefColumns - 1) * getHgap();
@@ -589,7 +589,7 @@ public class ThumbnailsView extends Region
 		
 		int prefColumns = 1 + (int) ((Math.max(0, insideWidth - getTileWidth())) / (getTileWidth() + getHgap()));
 		
-		int rows = (int) Math.ceil(getManagedChildren().size() / (double) prefColumns);
+		int rows = (int) Math.ceil(tiles.size() / (double) prefColumns);
 		
 		return getInsets().getTop() + getInsets().getBottom() + rows * getTileHeight() + (rows - 1) * getVgap();
 	}
@@ -600,7 +600,7 @@ public class ThumbnailsView extends Region
 	
 	private void upadteTilesDisposition()
 	{
-		List<Node> managed = getManagedChildren();
+		int nbTiles = tiles.size();
 		double width = getWidth();
 		double height = getHeight();
 		double top = snapSpaceY(getInsets().getTop());
@@ -615,7 +615,7 @@ public class ThumbnailsView extends Region
 		double tileHeight = getTileHeight();
 		
 		actualColumns = 1 + (int) ((Math.max(0, insideWidth - tileWidth)) / (tileWidth + hgap));
-		actualRows = (int) Math.ceil(managed.size() / (double) actualColumns);
+		actualRows = (int) Math.ceil(nbTiles / (double) actualColumns);
 		
 		double contentBottom = top + bottom + actualRows * tileHeight + (actualRows - 1) * vgap;
 		
@@ -635,7 +635,7 @@ public class ThumbnailsView extends Region
 	{
 		upadteTilesDisposition();
 		
-		List<Node> managed = getManagedChildren();
+		List<Node> children = getChildren();
 		double width = getWidth();
 		double height = getHeight();
 		double top = snapSpaceY(getInsets().getTop());
@@ -660,9 +660,9 @@ public class ThumbnailsView extends Region
 		
 		int c = 0;
 		int r = 0;
-		for (int i = TILE_LIST_OFFSET ; i < managed.size() ; i++)
+		for (int i = TILE_LIST_OFFSET ; i < children.size() ; i++)
 		{
-			TileWrapper tile = (TileWrapper) managed.get(i);
+			TileWrapper tile = (TileWrapper) children.get(i);
 			
 			double tileX = left + (c * (tileWidth + hgap));
 			double tileY = actualYOffset + top + (r * (tileHeight + vgap));
@@ -910,7 +910,7 @@ public class ThumbnailsView extends Region
 	// (updateTilesDisposition is enough)
 	private List<Node> getNodeInSelectionArea()
 	{
-		List<Node> managed = getManagedChildren();
+		List<Node> children = getChildren();
 		double top = snapSpaceY(getInsets().getTop());
 		double left = snapSpaceX(getInsets().getLeft());
 		double vgap = snapSpaceY(getVgap());
@@ -923,9 +923,9 @@ public class ThumbnailsView extends Region
 		
 		int c = 0;
 		int r = 0;
-		for (int i = TILE_LIST_OFFSET ; i < managed.size() ; i++)
+		for (int i = TILE_LIST_OFFSET ; i < children.size() ; i++)
 		{
-			TileWrapper tile = (TileWrapper) managed.get(i);
+			TileWrapper tile = (TileWrapper) children.get(i);
 			
 			double tileX = left + (c * (tileWidth + hgap));
 			double tileY = actualYOffset + top + (r * (tileHeight + vgap));
