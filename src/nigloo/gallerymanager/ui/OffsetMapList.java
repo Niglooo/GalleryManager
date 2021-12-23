@@ -21,7 +21,7 @@ abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 	@Override
 	protected void sourceChanged(Change<? extends F> c)
 	{
-		fireChange(new TileListChange(c));
+		fireChange(new OffsetMapListChange(c));
 	}
 	
 	@Override
@@ -52,11 +52,11 @@ abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 	
 	protected abstract E fromSource(F sourceElem);
 	
-	private class TileListChange extends ListChangeListener.Change<E>
+	private class OffsetMapListChange extends ListChangeListener.Change<E>
 	{
 		private final ListChangeListener.Change<F> c;
 		
-		public TileListChange(ListChangeListener.Change<? extends F> originalChange)
+		public OffsetMapListChange(ListChangeListener.Change<? extends F> originalChange)
 		{
 			super(OffsetMapList.this);
 			this.c = Utils.cast(originalChange);
