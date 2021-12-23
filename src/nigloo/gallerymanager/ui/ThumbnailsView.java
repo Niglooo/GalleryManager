@@ -9,12 +9,10 @@ import java.util.List;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.beans.Observable;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
@@ -31,6 +29,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.control.FocusModel;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.input.GestureEvent;
@@ -60,10 +59,10 @@ public class ThumbnailsView extends Region
 	private static final double DEFAULT_VGAP = 0;
 	private static final Pos DEFAULT_TILE_ALIGNMENT = Pos.CENTER;
 	
-	private static final int TILE_LIST_OFFSET = 2;
+	private static final int TILE_LIST_OFFSET = 2;// vScrollBar,selectionArea
 	private final ScrollBar vScrollBar;
 	private final ObservableList<Node> tiles;
-	private final SimpleMultipleSelectionModel<Node> selectionModel;
+	private final GridFocusSelectionManager<Node> focusSelectionManager;
 	private final ThumbnailsContextMenu contextMenu;
 	
 	private static final double MIDDLE_SCROLL_DEAD_AREA_SIZE = 20;
@@ -73,7 +72,8 @@ public class ThumbnailsView extends Region
 	
 	private final DoubleProperty autoScrollDeltaY;
 	private final Timeline autoScroll;
-	//TODO handle focus in ThumbnailsView
+	
+	// TODO handle focus in ThumbnailsView
 	public ThumbnailsView()
 	{
 		super();
@@ -125,8 +125,7 @@ public class ThumbnailsView extends Region
 			}
 		};
 		
-		selectionModel = new SimpleMultipleSelectionModel<>(tiles);
-		selectionModel.getSelectedItems().addListener((Observable observable) -> requestLayout());
+		focusSelectionManager = new GridFocusSelectionManager<>(tiles);
 		
 		contextMenu = new ThumbnailsContextMenu(this);
 		
@@ -200,7 +199,7 @@ public class ThumbnailsView extends Region
 			                            .map(TileWrapper::getBoundsInParent)
 			                            .anyMatch(bounds -> bounds.contains(currentMousePosition)))
 			{
-				selectionModel.clearSelection();
+				focusSelectionManager.getSelectionModel().clearSelection();
 				requestLayout();
 			}
 			
@@ -272,7 +271,7 @@ public class ThumbnailsView extends Region
 				selectedWhenStartSelectionDrag = null;
 			}
 		});
-	
+		
 		addEventHandler(KeyEvent.KEY_PRESSED, event -> updateInputState(event));
 		
 	}
@@ -282,9 +281,14 @@ public class ThumbnailsView extends Region
 		return tiles;
 	}
 	
+	public FocusModel<Node> getFocusModel()
+	{
+		return focusSelectionManager.getFocusModel();
+	}
+	
 	public MultipleSelectionModel<Node> getSelectionModel()
 	{
-		return selectionModel;
+		return focusSelectionManager.getSelectionModel();
 	}
 	
 	/**
@@ -665,7 +669,6 @@ public class ThumbnailsView extends Region
 			
 			if (tileY + tileHeight >= 0 && tileY < height)
 			{
-				tile.selectedProperty().set(selectionModel.getSelectedItems().contains(unwrapNode(tile)));
 				tile.setVisible(true);
 				
 				layoutInArea(tile,
@@ -758,11 +761,7 @@ public class ThumbnailsView extends Region
 		                                                                                            CORNER_RADIUS,
 		                                                                                            null));
 		
-		private final Region backgroundRegion;
 		private final Node content;
-		private final Region borderRegion;
-		
-		private final BooleanProperty selected;
 		
 		public TileWrapper(Node content)
 		{
@@ -770,9 +769,21 @@ public class ThumbnailsView extends Region
 			
 			setFocusTraversable(true);
 			
-			selected = new SimpleBooleanProperty(this, "selected", true);
+			ObservableList<Node> selection = focusSelectionManager.getSelectionModel().getSelectedItems();
+			BooleanBinding selected = new BooleanBinding()
+			{
+				{
+					bind(selection);
+				}
+				
+				@Override
+				protected boolean computeValue()
+				{
+					return selection.contains(content);
+				}
+			};
 			
-			backgroundRegion = new Region();
+			Region backgroundRegion = new Region();
 			backgroundRegion.backgroundProperty().bind(new ObjectBinding<Background>()
 			{
 				{
@@ -791,7 +802,7 @@ public class ThumbnailsView extends Region
 				}
 			});
 			
-			borderRegion = new Region();
+			Region borderRegion = new Region();
 			borderRegion.setMouseTransparent(true);
 			borderRegion.borderProperty().bind(new ObjectBinding<Border>()
 			{
@@ -836,13 +847,13 @@ public class ThumbnailsView extends Region
 					}
 					else
 					{
-						selectionModel.click(content, event.isShiftDown(), event.isControlDown());
+						focusSelectionManager.click(content, event.isShiftDown(), event.isControlDown());
 					}
 				}
 				else if (event.getButton() == MouseButton.SECONDARY)
 				{
 					if (!selected.get() && !(event.isControlDown() && !event.isShiftDown()))
-						selectionModel.clearAndSelect(content);
+						focusSelectionManager.getSelectionModel().clearAndSelect(tiles.indexOf(content));
 				}
 				
 				requestFocus();
@@ -852,11 +863,6 @@ public class ThumbnailsView extends Region
 		public Node getContent()
 		{
 			return content;
-		}
-		
-		public BooleanProperty selectedProperty()
-		{
-			return selected;
 		}
 	}
 	
@@ -949,12 +955,13 @@ public class ThumbnailsView extends Region
 			firstDragEvent = false;
 			
 			if (!shiftDown && !controlDown)
-				selectionModel.clearSelection();
+				focusSelectionManager.getSelectionModel().clearSelection();
 			
 			if (controlDown)
 			{
 				invertingSelection = true;
-				selectedWhenStartSelectionDrag = List.copyOf(selectionModel.getSelectedItems());
+				selectedWhenStartSelectionDrag = List.copyOf(focusSelectionManager.getSelectionModel()
+				                                                                  .getSelectedItems());
 			}
 			else
 				invertingSelection = false;
@@ -982,7 +989,7 @@ public class ThumbnailsView extends Region
 		List<Node> toSelect = new ArrayList<>();
 		List<Node> toUnselect = new ArrayList<>();
 		
-		for(Node node : enteringNodes)
+		for (Node node : enteringNodes)
 		{
 			if (invertingSelection)
 			{
@@ -991,11 +998,11 @@ public class ThumbnailsView extends Region
 				else
 					toSelect.add(node);
 			}
-			else if (!selectionModel.getSelectedItems().contains(node))
+			else if (!focusSelectionManager.getSelectionModel().getSelectedItems().contains(node))
 				toSelect.add(node);
 		}
 		
-		for(Node node : exitingNodes)
+		for (Node node : exitingNodes)
 		{
 			if (invertingSelection)
 			{
@@ -1010,8 +1017,8 @@ public class ThumbnailsView extends Region
 		
 		lastSelectionRegionNodes = selectionRegionNode;
 		
-		selectionModel.getSelectedItems().addAll(toSelect);
-		selectionModel.getSelectedItems().removeAll(toUnselect);
+		focusSelectionManager.getSelectionModel().getSelectedItems().addAll(toSelect);
+		focusSelectionManager.getSelectionModel().getSelectedItems().removeAll(toUnselect);
 		
 		selectionArea.setVisible(true);
 	}
