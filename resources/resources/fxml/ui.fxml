@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.stage.Stage?>
 <?import nigloo.gallerymanager.ui.AutoCompleteTextField?>
-<?import nigloo.gallerymanager.ui.ThumbnailsView?>
+<?import nigloo.gallerymanager.ui.VScrollablePane?>
 
 <fx:root title="Gallery Manager" type="Stage" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
   <scene>
@@ -28,7 +28,7 @@
                       <TreeView id="file_system_view" fx:id="fileSystemView" />
                     </children>
                   </VBox>
-                  <ThumbnailsView id="thumbnails_view" fx:id="thumbnailsView" />
+                  <VScrollablePane id="thumbnails_view" fx:id="thumbnailsView" />
                 </items>
               </SplitPane>
             </content>

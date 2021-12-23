@@ -14,6 +14,7 @@ import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
 import javafx.css.Styleable;
@@ -29,6 +30,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.FocusModel;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ScrollBar;
@@ -51,7 +53,7 @@ import javafx.util.Duration;
 import nigloo.tool.Utils;
 import nigloo.tool.javafx.ExtraCursors;
 
-public class ThumbnailsView extends Region
+public class VScrollablePane extends Region
 {
 	private static final double DEFAULT_TILE_WIDTH = 100;
 	private static final double DEFAULT_TILE_HEIGHT = 100;
@@ -63,7 +65,6 @@ public class ThumbnailsView extends Region
 	private final ScrollBar vScrollBar;
 	private final ObservableList<Node> tiles;
 	private final GridFocusSelectionManager<Node> focusSelectionManager;
-	private final ThumbnailsContextMenu contextMenu;
 	
 	private static final double MIDDLE_SCROLL_DEAD_AREA_SIZE = 20;
 	private static final double MIDDLE_SCROLL_REFRESH_RATE = 60;
@@ -73,8 +74,8 @@ public class ThumbnailsView extends Region
 	private final DoubleProperty autoScrollDeltaY;
 	private final Timeline autoScroll;
 	
-	// TODO handle focus in ThumbnailsView
-	public ThumbnailsView()
+	// TODO handle focus in VScrollablePane
+	public VScrollablePane()
 	{
 		super();
 		setFocusTraversable(true);
@@ -127,8 +128,6 @@ public class ThumbnailsView extends Region
 		
 		focusSelectionManager = new GridFocusSelectionManager<>(tiles);
 		
-		contextMenu = new ThumbnailsContextMenu(this);
-		
 		selectionArea = new Region();
 		BorderStroke stroke = new BorderStroke(Color.rgb(0, 120, 215),
 		                                       BorderStrokeStyle.SOLID,
@@ -166,7 +165,8 @@ public class ThumbnailsView extends Region
 			updateInputState(event);
 			if (event.getButton() == MouseButton.PRIMARY)
 			{
-				contextMenu.hide();
+				if (getContextMenu() != null)
+					getContextMenu().hide();
 				starAreaSelection(event.getX(), event.getY());
 			}
 			else if (event.getButton() == MouseButton.SECONDARY)
@@ -207,7 +207,8 @@ public class ThumbnailsView extends Region
 			
 			if (event.getButton() == MouseButton.SECONDARY)
 			{
-				contextMenu.show(this, event.getScreenX(), event.getScreenY());
+				if (getContextMenu() != null)
+					getContextMenu().show(this, event.getScreenX(), event.getScreenY());
 			}
 			else if (event.getButton() == MouseButton.MIDDLE)
 			{
@@ -291,6 +292,23 @@ public class ThumbnailsView extends Region
 		return focusSelectionManager.getSelectionModel();
 	}
 	
+	private ObjectProperty<ContextMenu> contextMenu = new SimpleObjectProperty<ContextMenu>(this, "contextMenu");
+	
+	public final ObjectProperty<ContextMenu> contextMenuProperty()
+	{
+		return contextMenu;
+	}
+	
+	public final void setContextMenu(ContextMenu value)
+	{
+		contextMenu.setValue(value);
+	}
+	
+	public final ContextMenu getContextMenu()
+	{
+		return contextMenu == null ? null : contextMenu.getValue();
+	}
+	
 	/**
 	 * The width of each tile.
 	 * 
@@ -309,7 +327,7 @@ public class ThumbnailsView extends Region
 				}
 				
 				@Override
-				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
+				public CssMetaData<VScrollablePane, Number> getCssMetaData()
 				{
 					return StyleableProperties.TILE_WIDTH;
 				}
@@ -317,7 +335,7 @@ public class ThumbnailsView extends Region
 				@Override
 				public Object getBean()
 				{
-					return ThumbnailsView.this;
+					return VScrollablePane.this;
 				}
 				
 				@Override
@@ -360,7 +378,7 @@ public class ThumbnailsView extends Region
 				}
 				
 				@Override
-				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
+				public CssMetaData<VScrollablePane, Number> getCssMetaData()
 				{
 					return StyleableProperties.TILE_HEIGHT;
 				}
@@ -368,7 +386,7 @@ public class ThumbnailsView extends Region
 				@Override
 				public Object getBean()
 				{
-					return ThumbnailsView.this;
+					return VScrollablePane.this;
 				}
 				
 				@Override
@@ -411,7 +429,7 @@ public class ThumbnailsView extends Region
 				}
 				
 				@Override
-				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
+				public CssMetaData<VScrollablePane, Number> getCssMetaData()
 				{
 					return StyleableProperties.HGAP;
 				}
@@ -419,7 +437,7 @@ public class ThumbnailsView extends Region
 				@Override
 				public Object getBean()
 				{
-					return ThumbnailsView.this;
+					return VScrollablePane.this;
 				}
 				
 				@Override
@@ -462,7 +480,7 @@ public class ThumbnailsView extends Region
 				}
 				
 				@Override
-				public CssMetaData<ThumbnailsView, Number> getCssMetaData()
+				public CssMetaData<VScrollablePane, Number> getCssMetaData()
 				{
 					return StyleableProperties.VGAP;
 				}
@@ -470,7 +488,7 @@ public class ThumbnailsView extends Region
 				@Override
 				public Object getBean()
 				{
-					return ThumbnailsView.this;
+					return VScrollablePane.this;
 				}
 				
 				@Override
@@ -514,7 +532,7 @@ public class ThumbnailsView extends Region
 				}
 				
 				@Override
-				public CssMetaData<ThumbnailsView, Pos> getCssMetaData()
+				public CssMetaData<VScrollablePane, Pos> getCssMetaData()
 				{
 					return StyleableProperties.TILE_ALIGNMENT;
 				}
@@ -522,7 +540,7 @@ public class ThumbnailsView extends Region
 				@Override
 				public Object getBean()
 				{
-					return ThumbnailsView.this;
+					return VScrollablePane.this;
 				}
 				
 				@Override
@@ -832,26 +850,9 @@ public class ThumbnailsView extends Region
 			
 			addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 			{
-				if (event.getButton() == MouseButton.PRIMARY)
+				if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1)
 				{
-					if (event.getClickCount() == 2)
-					{
-						SlideShowStage slideShow = new SlideShowStage(tiles.stream()
-						                                                   .map(GalleryImageView.class::cast)
-						                                                   .map(GalleryImageView::getGalleryImage)
-						                                                   .toList(),
-						                                              tiles.indexOf(content));
-						slideShow.setOnHidden(e -> scrollTo(getTiles().stream()
-						                                              .map(GalleryImageView.class::cast)
-						                                              .filter(iv -> iv.getGalleryImage() == slideShow.getCurrentImage())
-						                                              .findAny()
-						                                              .orElse(null)));
-						slideShow.show();
-					}
-					else
-					{
-						focusSelectionManager.click(content, event.isShiftDown(), event.isControlDown());
-					}
+					focusSelectionManager.click(content, event.isShiftDown(), event.isControlDown());
 				}
 				else if (event.getButton() == MouseButton.SECONDARY)
 				{
@@ -1059,96 +1060,96 @@ public class ThumbnailsView extends Region
 	 */
 	private static class StyleableProperties
 	{
-		private static final CssMetaData<ThumbnailsView, Number> TILE_WIDTH = new CssMetaData<ThumbnailsView, Number>("-fx-tile-width",
+		private static final CssMetaData<VScrollablePane, Number> TILE_WIDTH = new CssMetaData<VScrollablePane, Number>("-fx-tile-width",
 		                                                                                                              SizeConverter.getInstance(),
 		                                                                                                              DEFAULT_TILE_WIDTH)
 		{
 			
 			@Override
-			public boolean isSettable(ThumbnailsView node)
+			public boolean isSettable(VScrollablePane node)
 			{
 				return node.tileWidth == null || !node.tileWidth.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
+			public StyleableProperty<Number> getStyleableProperty(VScrollablePane node)
 			{
 				return (StyleableProperty<Number>) node.tileWidthProperty();
 			}
 		};
 		
-		private static final CssMetaData<ThumbnailsView, Number> TILE_HEIGHT = new CssMetaData<ThumbnailsView, Number>("-fx-tile-height",
+		private static final CssMetaData<VScrollablePane, Number> TILE_HEIGHT = new CssMetaData<VScrollablePane, Number>("-fx-tile-height",
 		                                                                                                               SizeConverter.getInstance(),
 		                                                                                                               DEFAULT_TILE_HEIGHT)
 		{
 			
 			@Override
-			public boolean isSettable(ThumbnailsView node)
+			public boolean isSettable(VScrollablePane node)
 			{
 				return node.tileHeight == null || !node.tileHeight.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
+			public StyleableProperty<Number> getStyleableProperty(VScrollablePane node)
 			{
 				return (StyleableProperty<Number>) node.tileHeightProperty();
 			}
 		};
 		
-		private static final CssMetaData<ThumbnailsView, Number> HGAP = new CssMetaData<ThumbnailsView, Number>("-fx-hgap",
+		private static final CssMetaData<VScrollablePane, Number> HGAP = new CssMetaData<VScrollablePane, Number>("-fx-hgap",
 		                                                                                                        SizeConverter.getInstance(),
 		                                                                                                        DEFAULT_HGAP)
 		{
 			
 			@Override
-			public boolean isSettable(ThumbnailsView node)
+			public boolean isSettable(VScrollablePane node)
 			{
 				return node.hgap == null || !node.hgap.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
+			public StyleableProperty<Number> getStyleableProperty(VScrollablePane node)
 			{
 				return (StyleableProperty<Number>) node.hgapProperty();
 			}
 		};
 		
-		private static final CssMetaData<ThumbnailsView, Number> VGAP = new CssMetaData<ThumbnailsView, Number>("-fx-vgap",
+		private static final CssMetaData<VScrollablePane, Number> VGAP = new CssMetaData<VScrollablePane, Number>("-fx-vgap",
 		                                                                                                        SizeConverter.getInstance(),
 		                                                                                                        DEFAULT_VGAP)
 		{
 			
 			@Override
-			public boolean isSettable(ThumbnailsView node)
+			public boolean isSettable(VScrollablePane node)
 			{
 				return node.vgap == null || !node.vgap.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Number> getStyleableProperty(ThumbnailsView node)
+			public StyleableProperty<Number> getStyleableProperty(VScrollablePane node)
 			{
 				return (StyleableProperty<Number>) node.vgapProperty();
 			}
 		};
 		
-		private static final CssMetaData<ThumbnailsView, Pos> TILE_ALIGNMENT = new CssMetaData<ThumbnailsView, Pos>("-fx-tile-alignment",
+		private static final CssMetaData<VScrollablePane, Pos> TILE_ALIGNMENT = new CssMetaData<VScrollablePane, Pos>("-fx-tile-alignment",
 		                                                                                                            new EnumConverter<Pos>(Pos.class),
 		                                                                                                            DEFAULT_TILE_ALIGNMENT)
 		{
 			
 			@Override
-			public boolean isSettable(ThumbnailsView node)
+			public boolean isSettable(VScrollablePane node)
 			{
 				return node.tileAlignment == null || !node.tileAlignment.isBound();
 			}
 			
 			@Override
 			@SuppressWarnings("unchecked")
-			public StyleableProperty<Pos> getStyleableProperty(ThumbnailsView node)
+			public StyleableProperty<Pos> getStyleableProperty(VScrollablePane node)
 			{
 				return (StyleableProperty<Pos>) node.tileAlignmentProperty();
 			}
