@@ -704,7 +704,7 @@ public class ThumbnailsView extends Region
 		if (index < 0 || index > tiles.size())
 			return;
 		
-		int row = index / actualColumns;
+		int r = index / actualColumns;
 		double height = getHeight();
 		double top = snapSpaceY(getInsets().getTop());
 		double bottom = snapSpaceY(getInsets().getBottom());
@@ -712,7 +712,10 @@ public class ThumbnailsView extends Region
 		double tileHeight = getTileHeight();
 		double contentBottom = top + bottom + actualRows * tileHeight + (actualRows - 1) * vgap;
 		
-		actualYOffset = -row * (tileHeight + vgap);
+		double tileY = actualYOffset + top + (r * (tileHeight + vgap));
+		double wantedY = Math.max(top, Math.min(height - tileHeight - bottom, tileY));
+		
+		actualYOffset -= (tileY - wantedY);
 		vScrollBar.setValue(-actualYOffset / Math.max(0, contentBottom - height) * contentBottom);
 	}
 	
