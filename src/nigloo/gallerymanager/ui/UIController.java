@@ -37,6 +37,7 @@ import com.google.gson.GsonBuilder;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -44,6 +45,8 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
@@ -87,7 +90,7 @@ public class UIController extends Application
 	@FXML
 	private Pane tagListView;
 	@FXML
-	private ThumbnailsView thumbnailsView;
+	private VScrollablePane thumbnailsView;
 	private ThumbnailUpdaterThread thumbnailUpdater;
 	
 	private static Path galleryFile;
@@ -111,8 +114,8 @@ public class UIController extends Application
 	@Override
 	public void start(Stage primaryStage) throws Exception
 	{
-		THUMBNAIL_PLACEHOLDER = new javafx.scene.image.Image(ThumbnailsView.class.getModule()
-		                                                                         .getResourceAsStream("resources/images/loading.gif"));
+		THUMBNAIL_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
+		                                                                           .getResourceAsStream("resources/images/loading.gif"));
 		
 		primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
 		
@@ -153,6 +156,8 @@ public class UIController extends Application
 		
 		fileSystemTreeManager = new FileSystemTreeManager(fileSystemView);
 		fileSystemTreeManager.refresh(List.of(root.getValue().getPath()), false);
+		
+		thumbnailsView.setContextMenu(new ThumbnailsContextMenu(thumbnailsView));
 		
 		thumbnailUpdater = new ThumbnailUpdaterThread(500);
 		thumbnailUpdater.start();
@@ -355,11 +360,13 @@ public class UIController extends Application
 		// TODO we need some cache....
 		GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
 		
+		ObservableList<Node> tiles = thumbnailsView.getTiles();
+		
 		// Keep imageView instance in thumbnailsView to preserve
 		// selection
-		int index = thumbnailsView.getTiles().indexOf(imageView);
+		int index = tiles.indexOf(imageView);
 		if (index != -1)
-			return thumbnailsView.getTiles().get(index);
+			return tiles.get(index);
 		
 		imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
 		imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
@@ -369,6 +376,25 @@ public class UIController extends Application
 		Tooltip.install(imageView, tooltip);
 		
 		imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
+		
+		imageView.addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
+		{
+			if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2)
+			{
+				
+				SlideShowStage slideShow = new SlideShowStage(tiles.stream()
+				                                                   .map(GalleryImageView.class::cast)
+				                                                   .map(GalleryImageView::getGalleryImage)
+				                                                   .toList(),
+				                                              tiles.indexOf(imageView));
+				slideShow.setOnHidden(e -> thumbnailsView.scrollTo(tiles.stream()
+				                                                        .map(GalleryImageView.class::cast)
+				                                                        .filter(iv -> iv.getGalleryImage() == slideShow.getCurrentImage())
+				                                                        .findAny()
+				                                                        .orElse(null)));
+				slideShow.show();
+			}
+		});
 		
 		return imageView;
 	}

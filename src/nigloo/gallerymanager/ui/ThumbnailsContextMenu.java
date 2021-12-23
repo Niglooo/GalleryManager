@@ -37,11 +37,11 @@ public class ThumbnailsContextMenu extends ContextMenu
 	@FXML
 	private MenuItem deleteItem;
 	
-	private final ThumbnailsView thumbnailsView;
+	private final VScrollablePane thumbnailsView;
 	private List<Image> allImages;
 	private List<Image> selectedImages;
 	
-	public ThumbnailsContextMenu(ThumbnailsView thumbnailsView)
+	public ThumbnailsContextMenu(VScrollablePane thumbnailsView)
 	{
 		this.thumbnailsView = thumbnailsView;
 		
