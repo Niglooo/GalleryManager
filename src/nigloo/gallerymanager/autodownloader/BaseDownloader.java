@@ -396,8 +396,8 @@ public abstract class BaseDownloader
 		@Override
 		public boolean equals(Object obj)
 		{
-			return !(obj instanceof ImageKey) ? false
-			        : postId.equals(((ImageKey) obj).postId) && imageId.equals(((ImageKey) obj).imageId);
+			return (obj instanceof ImageKey other) ? postId.equals(other.postId) && imageId.equals(other.imageId)
+			        : false;
 		}
 		
 		@Override

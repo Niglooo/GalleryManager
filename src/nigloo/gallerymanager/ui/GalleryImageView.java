@@ -107,9 +107,9 @@ public class GalleryImageView extends ImageView
 	@Override
 	public boolean equals(Object obj)
 	{
-		return !(obj instanceof GalleryImageView) ? false
-		        : galleryImage.equals(((GalleryImageView) obj).galleryImage)
-		                && getFXImage.equals(((GalleryImageView) obj).getFXImage);
+		return obj instanceof GalleryImageView other
+		        ? galleryImage.equals(other.galleryImage) && getFXImage.equals(other.getFXImage)
+		        : false;
 	}
 	
 	@Override
