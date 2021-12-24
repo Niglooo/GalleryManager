@@ -744,8 +744,8 @@ public class VScrollablePane extends Region
 	
 	private TileWrapper wrapNode(Node unwrapped)
 	{
-		if (unwrapped.getParent() instanceof TileWrapper)
-			return (TileWrapper) unwrapped.getParent();
+		if (unwrapped.getParent()instanceof TileWrapper parent)
+			return parent;
 		else
 			return new TileWrapper(unwrapped);
 	}

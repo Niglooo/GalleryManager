@@ -68,10 +68,10 @@ public class TagReference
 	{
 		if (obj == this)
 			return true;
-		if (!(obj instanceof TagReference))
+		if (obj instanceof TagReference other)
+			return getTagName().equals(other.getTagName());
+		else
 			return false;
-		
-		return ((TagReference) obj).getTagName().equals(getTagName());
 	}
 	
 	@Override
