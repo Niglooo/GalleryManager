@@ -66,7 +66,7 @@ public class TwitterDownloader extends BaseDownloader
 		                                     .appendLiteral(':')
 		                                     .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
 		                                     .appendLiteral(' ')
-		                                     .appendOffset("+HHmm", "+0000")
+		                                     .appendOffset("+HHMM", "+0000")
 		                                     .appendLiteral(' ')
 		                                     .appendValue(ChronoField.YEAR, 4)
 		                                     .toFormatter(Locale.US);
