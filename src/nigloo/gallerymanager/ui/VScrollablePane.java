@@ -51,6 +51,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import nigloo.tool.MathUtils;
 import nigloo.tool.Utils;
 import nigloo.tool.javafx.ExtraCursors;
 
@@ -266,6 +267,37 @@ public class VScrollablePane extends Region
 			}
 		});
 		
+		addEventHandler(KeyEvent.KEY_PRESSED, event ->
+		{
+			updateInputState(event);
+			
+			int focusedIndex = Math.max(0, getFocusModel().getFocusedIndex());
+			int shift = switch (event.getCode())
+			{
+				case LEFT -> -1;
+				case RIGHT -> 1;
+				case UP -> -actualColumns;
+				case DOWN -> actualColumns;
+				default -> 0;
+			};
+			
+			if (shift != 0)
+			{
+				focusedIndex = MathUtils.clamp(focusedIndex + shift, 0, tiles.size());
+				
+				// Moving the focus with arrows have the same as a regular clic except when
+				// only ctrl is pressed in which case it only moves the focus. (instead of
+				// moving the focus and adding the element to the selection)
+				if (controlDown && !shiftDown)
+					getFocusModel().focus(focusedIndex);
+				else
+					focusSelectionManager.click(tiles.get(focusedIndex), shiftDown, controlDown);
+				
+				scrollTo(focusedIndex);
+				event.consume();
+			}
+		});
+		
 		addEventHandler(KeyEvent.KEY_RELEASED, event ->
 		{
 			updateInputState(event);
@@ -276,8 +308,6 @@ public class VScrollablePane extends Region
 				selectedWhenStartSelectionDrag = null;
 			}
 		});
-		
-		addEventHandler(KeyEvent.KEY_PRESSED, event -> updateInputState(event));
 		
 		// The focus model drive the focus, but when the focus is changed from external
 		// source, we want the focus model to reflect that change. Note that we don't
