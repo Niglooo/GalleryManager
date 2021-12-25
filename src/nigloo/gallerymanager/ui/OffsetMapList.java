@@ -15,6 +15,8 @@ abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 	OffsetMapList(ObservableList<? extends F> source, int offset)
 	{
 		super(source);
+		if (offset < 0)
+			throw new IllegalArgumentException("offset must be positive");
 		this.offset = offset;
 	}
 	
@@ -27,7 +29,7 @@ abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 	@Override
 	public int getSourceIndex(int index)
 	{
-		return index + offset;
+		return index >= 0 ? index + offset : -1;
 	}
 	
 	@Override
@@ -39,6 +41,9 @@ abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 	@Override
 	public E get(int index)
 	{
+		if (index < 0 || index >= size())
+			throw new IndexOutOfBoundsException(index);
+		
 		return fromSource(getSource().get(getSourceIndex(index)));
 	}
 	

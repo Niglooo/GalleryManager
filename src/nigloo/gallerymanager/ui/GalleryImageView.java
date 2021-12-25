@@ -8,7 +8,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
 
-public class GalleryImageView extends ImageView
+public class GalleryImageView extends ImageView implements Displayable
 {
 	private final Image galleryImage;
 	private final Function<Image, javafx.scene.image.Image> getFXImage;
@@ -33,12 +33,8 @@ public class GalleryImageView extends ImageView
 		return galleryImage;
 	}
 	
-	public boolean isDisplayed()
-	{
-		return displayed;
-	}
-	
-	public void setDisplayed(boolean displayed)
+	@Override
+	public void onDisplayedChange(boolean displayed)
 	{
 		if (this.displayed != displayed)
 		{
