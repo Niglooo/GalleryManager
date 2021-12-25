@@ -15,6 +15,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
 import javafx.css.Styleable;
@@ -65,6 +66,7 @@ public class VScrollablePane extends Region
 	private final ScrollBar vScrollBar;
 	private final ObservableList<Node> tiles;
 	private final GridFocusSelectionManager<Node> focusSelectionManager;
+	private final ChangeListener<Node> applyFocusListener;
 	
 	private static final double MIDDLE_SCROLL_DEAD_AREA_SIZE = 20;
 	private static final double MIDDLE_SCROLL_REFRESH_RATE = 60;
@@ -74,7 +76,7 @@ public class VScrollablePane extends Region
 	private final DoubleProperty autoScrollDeltaY;
 	private final Timeline autoScroll;
 	
-	// TODO handle focus in VScrollablePane
+
 	public VScrollablePane()
 	{
 		super();
@@ -121,6 +123,15 @@ public class VScrollablePane extends Region
 		};
 		
 		focusSelectionManager = new GridFocusSelectionManager<>(tiles);
+		
+		applyFocusListener = (obs, oldValue, newValue) ->
+		{
+			if (newValue == null)
+				VScrollablePane.this.requestFocus();
+			else
+				newValue.getParent().requestFocus();
+		};
+		focusSelectionManager.getFocusModel().focusedItemProperty().addListener(applyFocusListener);
 		
 		selectionArea = new Region();
 		BorderStroke stroke = new BorderStroke(Color.rgb(0, 120, 215),
@@ -193,7 +204,6 @@ public class VScrollablePane extends Region
 				focusSelectionManager.getSelectionModel().clearSelection();
 				requestLayout();
 				focusSelectionManager.getFocusModel().focus(-1);
-				requestFocus();
 			}
 			
 			stopAreaSelection();
@@ -214,6 +224,7 @@ public class VScrollablePane extends Region
 		addEventHandler(MouseEvent.MOUSE_DRAGGED, event ->
 		{
 			updateInputState(event);
+			event.consume();
 			
 			if (event.isPrimaryButtonDown() && isAreaSelectionActive())
 			{
@@ -268,6 +279,10 @@ public class VScrollablePane extends Region
 		
 		addEventHandler(KeyEvent.KEY_PRESSED, event -> updateInputState(event));
 		
+		// The focus model drive the focus, but when the focus is changed from external
+		// source, we want the focus model to reflect that change. Note that we don't
+		// set the focusModel to -1 if we lose the focus. We keep its value so we will
+		// be able to restore it when the VScrollablePane regain focus
 		sceneProperty().addListener((o, nullScene, scene) ->
 		{
 			scene.focusOwnerProperty().addListener((obs, oldValue, newValue) ->
@@ -280,13 +295,24 @@ public class VScrollablePane extends Region
 				{
 					if (node instanceof TileWrapper && node.getParent() == VScrollablePane.this)
 					{
-						getFocusModel().focus(children.indexOf(node) - TILE_LIST_OFFSET);
+						internalSetFocus(children.indexOf(node) - TILE_LIST_OFFSET);
 						return;
 					}
 					else
 						node = node.getParent();
 				}
 			});
+		});
+		
+		// Restore focus on the correct item when regaining focus
+		focusedProperty().addListener((obs, oldValue, newValue) ->
+		{
+			if (newValue)
+			{
+				Node focusedItem = getFocusModel().getFocusedItem();
+				if (focusedItem != null)
+					focusedItem.getParent().requestFocus();
+			}
 		});
 	}
 	
@@ -879,7 +905,6 @@ public class VScrollablePane extends Region
 				if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1)
 				{
 					focusSelectionManager.click(content, event.isShiftDown(), event.isControlDown());
-					requestFocus();
 				}
 				else if (event.getButton() == MouseButton.SECONDARY)
 				{
@@ -887,7 +912,6 @@ public class VScrollablePane extends Region
 					focusSelectionManager.getFocusModel().focus(index);
 					if (!selected.get() && !(event.isControlDown() && !event.isShiftDown()))
 						focusSelectionManager.getSelectionModel().clearAndSelect(index);
-					requestFocus();
 				}
 			});
 			
@@ -925,6 +949,14 @@ public class VScrollablePane extends Region
 					c.onDisplayedChange(displayed);
 			}
 		}
+	}
+	
+	private void internalSetFocus(int index)
+	{
+		FocusModel<Node> focusModel = getFocusModel();
+		focusModel.focusedItemProperty().removeListener(applyFocusListener);
+		focusModel.focus(index);
+		focusModel.focusedItemProperty().addListener(applyFocusListener);
 	}
 	
 	/***************************************************************************
