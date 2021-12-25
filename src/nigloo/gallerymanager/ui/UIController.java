@@ -292,20 +292,6 @@ public class UIController extends Application
 		long start = System.currentTimeMillis();
 		long end;
 		
-		HashSet<Image> oldVisibleImages = thumbnailsView.getTiles()
-		                                                .stream()
-		                                                .map(GalleryImageView.class::cast)
-		                                                .filter(GalleryImageView::isVisible)
-		                                                .map(GalleryImageView::getGalleryImage)
-		                                                .collect(Collectors.toCollection(HashSet::new));
-		oldVisibleImages.removeAll(sortedImages);
-		oldVisibleImages.forEach(Image::cancelLoadingThumbnail);
-		
-		end = System.currentTimeMillis();
-		LOGGER.debug("Cancel old images loading (" + oldVisibleImages.size() + ")  : "
-		        + (end - start) + "ms");
-		start = end;
-		
 		thumbnailsView.getTiles()
 		              .setAll(sortedImages.stream()
 		                                  .map(UIController.this::getImageView)
@@ -355,7 +341,7 @@ public class UIController extends Application
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
 	
-	private Node getImageView(Image image)
+	private GalleryImageView getImageView(Image image)
 	{
 		// TODO we need some cache....
 		GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
@@ -366,7 +352,7 @@ public class UIController extends Application
 		// selection
 		int index = tiles.indexOf(imageView);
 		if (index != -1)
-			return tiles.get(index);
+			return (GalleryImageView) tiles.get(index);
 		
 		imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
 		imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
@@ -374,8 +360,6 @@ public class UIController extends Application
 		
 		Tooltip tooltip = new Tooltip(image.getPath().toString());
 		Tooltip.install(imageView, tooltip);
-		
-		imageView.visibleProperty().addListener((obs, oldValue, newValue) -> imageView.setDisplayed(newValue));
 		
 		imageView.addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 		{

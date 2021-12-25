@@ -3,7 +3,6 @@ package nigloo.gallerymanager.ui;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 
 import javafx.animation.Animation.Status;
@@ -13,6 +12,7 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableList;
@@ -110,12 +110,6 @@ public class VScrollablePane extends Region
 			public boolean setAll(Collection<? extends Node> col)
 			{
 				ObservableList<Node> source = Utils.cast(getSource());
-				List<Node> before = source.stream().skip(offset).map(this::fromSource).toList();
-				
-				HashSet<Node> newNodes = new HashSet<>(col);
-				newNodes.removeAll(before);
-				for (Node newNode : newNodes)
-					newNode.setVisible(false);
 				
 				ArrayList<Node> allNodes = new ArrayList<>(offset + col.size());
 				allNodes.addAll(source.subList(0, offset));
@@ -179,9 +173,6 @@ public class VScrollablePane extends Region
 				setCursor(ExtraCursors.SCROLL_MIDDLE);
 				middleScrollOrigin = new Point2D(event.getX(), event.getY());
 			}
-			
-			if (!getChildren().contains(getScene().getFocusOwner()))
-				requestFocus();
 		});
 		
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
@@ -201,6 +192,8 @@ public class VScrollablePane extends Region
 			{
 				focusSelectionManager.getSelectionModel().clearSelection();
 				requestLayout();
+				focusSelectionManager.getFocusModel().focus(-1);
+				requestFocus();
 			}
 			
 			stopAreaSelection();
@@ -275,6 +268,26 @@ public class VScrollablePane extends Region
 		
 		addEventHandler(KeyEvent.KEY_PRESSED, event -> updateInputState(event));
 		
+		sceneProperty().addListener((o, nullScene, scene) ->
+		{
+			scene.focusOwnerProperty().addListener((obs, oldValue, newValue) ->
+			{
+				ObservableList<Node> children = getChildren();
+				
+				Node node = newValue;
+				
+				while (node != null)
+				{
+					if (node instanceof TileWrapper && node.getParent() == VScrollablePane.this)
+					{
+						getFocusModel().focus(children.indexOf(node) - TILE_LIST_OFFSET);
+						return;
+					}
+					else
+						node = node.getParent();
+				}
+			});
+		});
 	}
 	
 	public ObservableList<Node> getTiles()
@@ -687,7 +700,7 @@ public class VScrollablePane extends Region
 			
 			if (tileY + tileHeight >= 0 && tileY < height)
 			{
-				tile.setVisible(true);
+				tile.setDisplayed(true);
 				
 				layoutInArea(tile,
 				             tileX,
@@ -702,7 +715,7 @@ public class VScrollablePane extends Region
 				visibleTiles.add(tile);
 			}
 			else
-				tile.setVisible(false);
+				tile.setDisplayed(false);
 			
 			if (++c == actualColumns)
 			{
@@ -712,8 +725,8 @@ public class VScrollablePane extends Region
 		}
 		
 		lastVisibleTiles.removeAll(visibleTiles);
-		for (Node node : lastVisibleTiles)
-			node.setVisible(false);
+		for (TileWrapper tile : lastVisibleTiles)
+			tile.setDisplayed(false);
 		lastVisibleTiles = visibleTiles;
 	}
 	
@@ -766,14 +779,14 @@ public class VScrollablePane extends Region
 		                                                                                               CORNER_RADIUS,
 		                                                                                               null));
 		
-		private static final Border SELECTED_REGION_BORDER;
+		private static final Border FOCUSED_REGION_BORDER;
 		static
 		{
 			BorderStroke stroke = new BorderStroke(Color.rgb(153, 209, 255),
 			                                       BorderStrokeStyle.SOLID,
 			                                       CORNER_RADIUS,
 			                                       new BorderWidths(BORDER_WIDTH));
-			SELECTED_REGION_BORDER = new Border(stroke, stroke, stroke, stroke);
+			FOCUSED_REGION_BORDER = new Border(stroke, stroke, stroke, stroke);
 		}
 		
 		private static final Background HOVER_REGION_BACKGROUND = new Background(new BackgroundFill(Color.rgb(229,
@@ -782,6 +795,7 @@ public class VScrollablePane extends Region
 		                                                                                            CORNER_RADIUS,
 		                                                                                            null));
 		
+		private boolean displayed = false;;
 		private final Node content;
 		
 		public TileWrapper(Node content)
@@ -801,6 +815,20 @@ public class VScrollablePane extends Region
 				protected boolean computeValue()
 				{
 					return selection.contains(content);
+				}
+			};
+			
+			ReadOnlyObjectProperty<Node> focusedItem = focusSelectionManager.getFocusModel().focusedItemProperty();
+			BooleanBinding focused = new BooleanBinding()
+			{
+				{
+					bind(focusedItem);
+				}
+				
+				@Override
+				protected boolean computeValue()
+				{
+					return focusedItem.get() == content;
 				}
 			};
 			
@@ -828,14 +856,14 @@ public class VScrollablePane extends Region
 			borderRegion.borderProperty().bind(new ObjectBinding<Border>()
 			{
 				{
-					bind(selected);
+					bind(focused);
 				}
 				
 				@Override
 				protected Border computeValue()
 				{
-					if (selected.get())
-						return SELECTED_REGION_BORDER;
+					if (focused.get())
+						return FOCUSED_REGION_BORDER;
 					else
 						return Border.EMPTY;
 				}
@@ -846,27 +874,56 @@ public class VScrollablePane extends Region
 			getChildren().addAll(backgroundRegion, content, borderRegion);
 			setAlignment(content, getTileAlignment());
 			
-			visibleProperty().bindBidirectional(content.visibleProperty());
-			
 			addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 			{
 				if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 1)
 				{
 					focusSelectionManager.click(content, event.isShiftDown(), event.isControlDown());
+					requestFocus();
 				}
 				else if (event.getButton() == MouseButton.SECONDARY)
 				{
+					int index = tiles.indexOf(content);
+					focusSelectionManager.getFocusModel().focus(index);
 					if (!selected.get() && !(event.isControlDown() && !event.isShiftDown()))
-						focusSelectionManager.getSelectionModel().clearAndSelect(tiles.indexOf(content));
+						focusSelectionManager.getSelectionModel().clearAndSelect(index);
+					requestFocus();
 				}
-				
-				requestFocus();
+			});
+			
+			focusedProperty().addListener((obs, oldValue, newValue) ->
+			{
+				if (newValue)
+				{
+					content.requestFocus();
+				}
 			});
 		}
 		
 		public Node getContent()
 		{
 			return content;
+		}
+		
+		public void setDisplayed(boolean displayed)
+		{
+			if (displayed)
+			{
+				setOpacity(1);
+				setMouseTransparent(false);
+			}
+			else
+			{
+				setOpacity(0);
+				setMouseTransparent(true);
+			}
+			
+			if (this.displayed != displayed)
+			{
+				this.displayed = displayed;
+				if (content instanceof Displayable c)
+					c.onDisplayedChange(displayed);
+			}
 		}
 	}
 	
