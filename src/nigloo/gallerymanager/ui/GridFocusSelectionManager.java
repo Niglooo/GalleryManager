@@ -56,10 +56,10 @@ public class GridFocusSelectionManager<T>
 			// 1 selectedIndex
 			// 2 focusedIndex
 			// 3 first item
-			int anchorIdx = selectionModel.getSelectedIndex() > 0 ? selectionModel.getSelectedIndex()
-			        : focusModel.getFocusedIndex() > 0 ? focusModel.getFocusedIndex() : 0;
+			int anchorIdx = selectionModel.getSelectedIndex() >= 0 ? selectionModel.getSelectedIndex()
+			        : focusModel.getFocusedIndex() >= 0 ? focusModel.getFocusedIndex() : 0;
 			
-			selectionModel.select0(itemIdx);
+			selectionModel.select0(anchorIdx);
 			
 			List<T> itemsToSelect = new ArrayList<>(source.subList(Math.min(anchorIdx, itemIdx),
 			                                                       Math.max(anchorIdx, itemIdx) + 1));
