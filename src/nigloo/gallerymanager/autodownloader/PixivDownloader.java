@@ -1,8 +1,6 @@
 package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
@@ -12,11 +10,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
@@ -24,14 +18,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import nigloo.gallerymanager.AsyncPools;
-import nigloo.tool.StrongReference;
 import nigloo.tool.gson.JsonHelper;
 
 public class PixivDownloader extends BaseDownloader
 {
-	private static final Logger LOGGER = LogManager.getLogger(PixivDownloader.class);
-	
 	@SuppressWarnings("unused")
 	private PixivDownloader()
 	{
@@ -44,22 +34,12 @@ public class PixivDownloader extends BaseDownloader
 	}
 	
 	@Override
-	public void download(Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
 	{
 		String cookie = secrets.getProperty("pixiv.cookie");
 		
-		LOGGER.debug(creatorId);
-		LOGGER.debug(imagePathPattern);
-		
-		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
-		
-		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
 		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		
-		final HttpClient httpClient = HttpClient.newBuilder()
-		                                        .followRedirects(Redirect.NORMAL)
-		                                        .executor(AsyncPools.HTTP_REQUEST)
-		                                        .build();
 		HttpRequest request;
 		HttpResponse<?> response;
 		JsonObject parsedResponse;
@@ -71,10 +51,7 @@ public class PixivDownloader extends BaseDownloader
 		                     .GET()
 		                     .headers(headers)
 		                     .build();
-		maxConcurrentStreams.acquire();
-		response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
-		print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
-		maxConcurrentStreams.release();
+		response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 		
 		List<String> postIds = JsonHelper.followPath(parsedResponse, "body.illusts", JsonObject.class)
@@ -103,10 +80,7 @@ public class PixivDownloader extends BaseDownloader
 				                                                   .collect(Collectors.joining("&"))
 				        + "&work_category=illust&is_first_page=0&lang=en";
 				request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-				maxConcurrentStreams.acquire();
-				response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
-				print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
-				maxConcurrentStreams.release();
+				response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 				parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 				
 				posts = JsonHelper.followPath(parsedResponse, "body.works", JsonObject.class);
@@ -119,8 +93,7 @@ public class PixivDownloader extends BaseDownloader
 			                                                                            "createDate",
 			                                                                            String.class));
 			
-			updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
-			if (dontCheckPost(publishedDatetime, checkAllPost))
+			if (session.stopCheckingPost(publishedDatetime, checkAllPost))
 				break;
 			
 			// Load post images
@@ -129,10 +102,7 @@ public class PixivDownloader extends BaseDownloader
 			                     .GET()
 			                     .headers(headers)
 			                     .build();
-			maxConcurrentStreams.acquire();
-			response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
-			print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
-			maxConcurrentStreams.release();
+			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			
 			JsonArray images = JsonParser.parseString(response.body().toString())
@@ -146,10 +116,9 @@ public class PixivDownloader extends BaseDownloader
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
-				CompletableFuture<?> asyncResponse = downloadImage(httpClient,
+				CompletableFuture<?> asyncResponse = downloadImage(session,
 				                                                   url,
 				                                                   headers,
-				                                                   maxConcurrentStreams,
 				                                                   postId,
 				                                                   imageId,
 				                                                   publishedDatetime,
@@ -164,7 +133,7 @@ public class PixivDownloader extends BaseDownloader
 		
 		CompletableFuture.allOf(imagesDownload.toArray(CompletableFuture[]::new)).join();
 		
-		saveCurrentMostRecentPost(currentMostRecentPost);
+		session.saveLastPublishedDatetime();
 	}
 	
 	private String[] getHeaders(String cookie)

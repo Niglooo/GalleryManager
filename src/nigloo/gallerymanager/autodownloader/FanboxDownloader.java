@@ -1,9 +1,6 @@
 package nigloo.gallerymanager.autodownloader;
 
-import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
@@ -14,16 +11,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Semaphore;
-import java.util.function.Function;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
@@ -31,15 +20,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import nigloo.gallerymanager.AsyncPools;
-import nigloo.gallerymanager.model.Image;
-import nigloo.tool.StrongReference;
 import nigloo.tool.gson.JsonHelper;
 
 public class FanboxDownloader extends BaseDownloader
 {
-	private static final Logger LOGGER = LogManager.getLogger(FanboxDownloader.class);
-	
 	private boolean downloadFiles = true;
 	private boolean autoExtractZip = true;
 	
@@ -55,22 +39,12 @@ public class FanboxDownloader extends BaseDownloader
 	}
 	
 	@Override
-	public void download(Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
 	{
 		String cookie = secrets.getProperty("fanbox.cookie");
 		
-		LOGGER.debug(creatorId);
-		LOGGER.debug(imagePathPattern);
-		
-		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
-		
-		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
-		final Collection<CompletableFuture<?>> downloads = Collections.synchronizedCollection(new ArrayList<>());
-		
-		final HttpClient httpClient = HttpClient.newBuilder()
-		                                        .followRedirects(Redirect.NORMAL)
-		                                        .executor(AsyncPools.HTTP_REQUEST)
-		                                        .build();
+		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
+
 		HttpRequest request;
 		HttpResponse<?> response;
 		JsonObject parsedResponse;
@@ -83,10 +57,7 @@ public class FanboxDownloader extends BaseDownloader
 		while (currentUrl != null)
 		{
 			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
-			maxConcurrentStreams.acquire();
-			response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
-			print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
-			maxConcurrentStreams.release();
+			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 			
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			for (JsonElement item : JsonHelper.followPath(parsedResponse, "body.items", JsonArray.class))
@@ -127,8 +98,7 @@ public class FanboxDownloader extends BaseDownloader
 				                                                                            "publishedDatetime",
 				                                                                            String.class));
 				
-				updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
-				if (dontCheckPost(publishedDatetime, checkAllPost))
+				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
 					break mainloop;
 				
 				if (images.size() > 0)
@@ -141,10 +111,9 @@ public class FanboxDownloader extends BaseDownloader
 						
 						String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 						
-						downloads.add(downloadImage(httpClient,
+						downloads.add(downloadImage(session,
 						                            url,
 						                            headers,
-						                            maxConcurrentStreams,
 						                            postId,
 						                            imageId,
 						                            publishedDatetime,
@@ -164,10 +133,9 @@ public class FanboxDownloader extends BaseDownloader
 						String fileNameWithoutExtention = JsonHelper.followPath(file, "name", String.class);
 						String fileExtention = JsonHelper.followPath(file, "extension", String.class);
 						
-						downloads.add(downloadFile(url,
-						                           httpClient,
+						downloads.add(downloadFile(session,
+						                           url,
 						                           headers,
-						                           maxConcurrentStreams,
 						                           postId,
 						                           postTitle,
 						                           publishedDatetime,
@@ -183,135 +151,51 @@ public class FanboxDownloader extends BaseDownloader
 		
 		CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new)).join();
 		
-		saveCurrentMostRecentPost(currentMostRecentPost);
+		session.saveLastPublishedDatetime();
 	}
 	
-	private CompletableFuture<Void> downloadFile(String url,
-	                                             HttpClient httpClient,
-	                                             String[] headers,
-	                                             Semaphore maxConcurrentStreams,
-	                                             String postId,
-	                                             String postTitle,
-	                                             ZonedDateTime publishedDatetime,
-	                                             String fileId,
-	                                             String fileNameWithoutExtention,
-	                                             String fileExtention)
-	        throws Exception
+	private CompletableFuture<?> downloadFile(DowloadSession session,
+	                                          String url,
+	                                          String[] headers,
+	                                          String postId,
+	                                          String postTitle,
+	                                          ZonedDateTime publishedDatetime,
+	                                          String fileId,
+	                                          String fileNameWithoutExtention,
+	                                          String fileExtention)
 	{
-		String fileName = fileNameWithoutExtention + '.' + fileExtention;
-		if ("zip".equals(fileExtention) && autoExtractZip)
-			fileName = fileNameWithoutExtention;
-		
-		Path fileDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId.trim())
-		                                          .replace("{postId}", postId.trim())
-		                                          .replace("{postDate}",
-		                                                   DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
-		                                          .replace("{postTitle}", postTitle.trim())
-		                                          .replace("{imageNumber} ", "")
-		                                          .replace(" {imageNumber}", "")
-		                                          .replace("{imageNumber}", "")
-		                                          .replace("{imageFilename}", fileName.trim()));
-		fileDest = makeSafe(gallery.toAbsolutePath(fileDest));
-		
-		if (Files.exists(fileDest))
-			return CompletableFuture.completedFuture(null);
-		
-		Files.createDirectories(fileDest.getParent());
-		
-		HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-		maxConcurrentStreams.acquire();
-		return httpClient.sendAsync(request, BodyHandlers.ofFile(fileDest))
-		                 .thenApply(unZip("zip".equals(fileExtention)))
-		                 .thenApply(r -> print(r,
-		                                       PrintOption.REQUEST_URL,
-		                                       PrintOption.STATUS_CODE,
-		                                       PrintOption.RESPONSE_BODY))
-		                 .thenRun(maxConcurrentStreams::release);
-	}
-	
-	private Function<HttpResponse<Path>, HttpResponse<Path>> unZip(boolean isZip)
-	{
-		return response ->
+		HttpRequest request = null;
+		Path fileDest = null;
+		try
 		{
-			if (!isZip || !autoExtractZip)
-				return response;
+			String fileName = fileNameWithoutExtention + '.' + fileExtention;
+			if ("zip".equals(fileExtention) && autoExtractZip)
+				fileName = fileNameWithoutExtention;
 			
-			Path filePath = response.body();
-			Path zipFilePath = filePath.resolveSibling(filePath.getFileName()+".zip");
+			fileDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId.trim())
+			                                     .replace("{postId}", postId.trim())
+			                                     .replace("{postDate}",
+			                                              DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
+			                                     .replace("{postTitle}", postTitle.trim())
+			                                     .replace("{imageNumber} ", "")
+			                                     .replace("{imageNumber}", "")
+			                                     .replace("{imageNumber}", "")
+			                                     .replace("{imageFilename}", fileName.trim()));
+			fileDest = makeSafe(gallery.toAbsolutePath(fileDest));
 			
-			LOGGER.debug("Unziping: " + zipFilePath);
+			if (Files.exists(fileDest))
+				return CompletableFuture.completedFuture(null);
 			
-			try
-			{
-				int nbAttempt = 0;
-				while (true)
-				{
-					try {
-						Files.move(filePath, zipFilePath);
-						break;
-					}
-					catch (Exception e) {
-						if (nbAttempt++ >= 10)
-							throw e;
-						
-						try {
-							Thread.sleep(200);
-						} catch (InterruptedException e1) {
-							Thread.currentThread().interrupt();
-						}
-					}
-				}
-				Files.createDirectory(filePath);
-			}
-			catch (IOException e)
-			{
-				LOGGER.error("Cannot rename "+filePath+" to "+zipFilePath, e);
-				return response;
-			}
+			Files.createDirectories(fileDest.getParent());
 			
-			try
-			{
-				ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFilePath));
-				ZipEntry zipEntry = zis.getNextEntry();
-				while (zipEntry != null)
-				{
-					Path entryPath = filePath.resolve(zipEntry.getName());
-					
-					if (zipEntry.isDirectory())
-					{
-						Files.createDirectories(entryPath);
-					}
-					else
-					{
-						Files.createDirectories(entryPath.getParent());
-						Files.copy(zis, entryPath);
-						
-						if (Image.isImage(entryPath))
-						{
-							Image image = gallery.getImage(entryPath);
-							if (image.isNotSaved())
-							{
-								image.addTag(artist.getTag());
-								gallery.saveImage(image);
-							}
-						}
-					}
-					zipEntry = zis.getNextEntry();
-				}
-				zis.closeEntry();
-				zis.close();
-				
-				Files.delete(zipFilePath);
-			}
-			catch (IOException e)
-			{
-				LOGGER.error("Error when unzipping "+zipFilePath, e);
-				return response;
-			}
-			
-			return response;
-			
-		};
+			request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
+			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
+			              .thenApply(unZip("zip".equals(fileExtention), autoExtractZip));
+		}
+		catch (Exception e)
+		{
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 	
 	private String[] getHeaders(String cookie)

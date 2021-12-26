@@ -6,10 +6,12 @@ import java.net.HttpCookie;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -18,7 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -34,13 +36,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
+import org.jsoup.Jsoup;
 
+import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -56,6 +64,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
+import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
@@ -69,6 +78,17 @@ import nigloo.tool.injection.annotation.Inject;
 public abstract class BaseDownloader
 {
 	private static final Logger LOGGER = LogManager.getLogger(BaseDownloader.class);
+	
+	protected static final Marker HTTP_RESPONSE = MarkerManager.getMarker("HTTP_RESPONSE");
+	protected static final Marker HTTP_RESPONSE_URL = MarkerManager.getMarker("HTTP_RESPONSE_URL")
+	                                                               .setParents(HTTP_RESPONSE);
+	protected static final Marker HTTP_RESPONSE_STATUS = MarkerManager.getMarker("HTTP_RESPONSE_STATUS")
+	                                                                .setParents(HTTP_RESPONSE);
+	protected static final Marker HTTP_RESPONSE_HEADERS = MarkerManager.getMarker("HTTP_RESPONSE_HEADERS")
+	                                                                   .setParents(HTTP_RESPONSE);
+	protected static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
+	                                                                .setParents(HTTP_RESPONSE);
+	
 	private static final Map<String, Class<? extends BaseDownloader>> TYPE_TO_CLASS = new HashMap<>();
 	private static final Map<Class<? extends BaseDownloader>, String> CLASS_TO_TYPE = new HashMap<>();
 	
@@ -119,12 +139,95 @@ public abstract class BaseDownloader
 		this.artist = artist;
 	}
 	
-	public abstract void download(Properties secrets, boolean checkAllPost) throws Exception;
+	public final void download(Properties secrets, boolean checkAllPost) throws Exception
+	{
+		LOGGER.info("Download for {} from {} with pattern {}",
+		            creatorId,
+		            CLASS_TO_TYPE.get(getClass()),
+		            imagePathPattern);
+		DowloadSession session = new DowloadSession();
+		doDownload(session, secrets, checkAllPost);
+	}
 	
-	protected final CompletableFuture<Image> downloadImage(HttpClient httpClient,
+	protected abstract void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost)
+	        throws Exception;
+	
+	protected final class DowloadSession
+	{
+		private final HttpClient httpClient = HttpClient.newBuilder()
+		                                                .followRedirects(Redirect.NORMAL)
+		                                                .executor(AsyncPools.HTTP_REQUEST)
+		                                                .build();
+		// TODO init with max_concurrent_streams from http2
+		private final Semaphore maxConcurrentStreams = new Semaphore(10);
+		private ZonedDateTime currentMostRecentPost = mostRecentPostCheckedDate;
+		
+		private final List<Image> imagesAdded = new ArrayList<>();
+		
+		// TODO handle http errors directly here ? Or in saveInGallery and unZip
+		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler)
+		        throws IOException,
+		        InterruptedException
+		{
+			HttpResponse<T> response = null;
+			maxConcurrentStreams.acquire();
+			try
+			{
+				response = httpClient.send(request, MoreBodyHandlers.decoding(responseBodyHandler));
+			}
+			finally
+			{
+				maxConcurrentStreams.release();
+			}
+			logResponse(response);
+			return response;
+		}
+		
+		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler)
+		        throws InterruptedException
+		{
+			maxConcurrentStreams.acquire();
+			return httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler))
+			                 .handle((response, error) ->
+			                 {
+				                 maxConcurrentStreams.release();
+				                 if (error != null)
+					                 return CompletableFuture.<HttpResponse<T>>failedFuture(error);
+				                 else
+				                 {
+					                 logResponse(response);
+					                 return CompletableFuture.completedFuture(response);
+				                 }
+			                 })
+			                 .thenCompose(f -> f);
+		}
+		
+		public boolean stopCheckingPost(ZonedDateTime publishedDatetime, boolean checkAllPost)
+		{
+			synchronized (BaseDownloader.this)
+			{
+				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(publishedDatetime))
+					currentMostRecentPost = publishedDatetime;
+				
+				return mostRecentPostCheckedDate != null && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
+				        && !checkAllPost;
+			}
+		}
+		
+		protected final void saveLastPublishedDatetime()
+		{
+			synchronized (BaseDownloader.this)
+			{
+				if (currentMostRecentPost != null && (mostRecentPostCheckedDate == null
+				        || mostRecentPostCheckedDate.isBefore(currentMostRecentPost)))
+					mostRecentPostCheckedDate = currentMostRecentPost;
+			}
+		}
+	}
+	
+	protected final CompletableFuture<Image> downloadImage(DowloadSession session,
 	                                                      String url,
 	                                                      String[] headers,
-	                                                      Semaphore maxConcurrentStreams,
 	                                                      String postId,
 	                                                      String imageId,
 	                                                      ZonedDateTime publishedDatetime,
@@ -164,7 +267,7 @@ public abstract class BaseDownloader
 				Image image;
 				imageReference = mapping.get(imageKey);
 				if (imageReference == null)
-					image = saveInGallery(postId, imageId, imageDest);
+					image = saveInGallery(session, postId, imageId, imageDest);
 				else
 					image = imageReference.getImage();
 				
@@ -172,26 +275,105 @@ public abstract class BaseDownloader
 			}
 		}
 		
-		HttpRequest request = null;
 		try {
 			Files.createDirectories(imageDest.getParent());
 			
-			request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-			maxConcurrentStreams.acquire();
+			HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
+			return session.sendAsync(request, BodyHandlers.ofFile(imageDest))
+			              .thenApply(saveInGallery(session, postId, imageId));
 		}
 		catch (Exception e) {
 			return CompletableFuture.failedFuture(e);
 		}
-		
-		return httpClient.sendAsync(request, BodyHandlers.ofFile(imageDest))
-		                 .thenApply(print(PrintOption.REQUEST_URL, PrintOption.STATUS_CODE, PrintOption.RESPONSE_BODY))
-		                 .thenApply(saveInGallery(postId, imageId))
-		                 .thenApply(release(maxConcurrentStreams));
 	}
 	
-	protected final StrongReference<ZonedDateTime> initCurrentMostRecentPost()
+	protected Function<HttpResponse<Path>, HttpResponse<Path>> unZip(boolean isZip, boolean autoExtractZip)
 	{
-		return new StrongReference<>(mostRecentPostCheckedDate);
+		return response ->
+		{
+			if (!isZip || !autoExtractZip)
+				return response;
+			
+			Path filePath = response.body();
+			Path zipFilePath = filePath.resolveSibling(filePath.getFileName() + ".zip");
+			
+			LOGGER.debug("Unziping: " + zipFilePath);
+			
+			try
+			{
+				int nbAttempt = 0;
+				while (true)
+				{
+					try
+					{
+						Files.move(filePath, zipFilePath);
+						break;
+					}
+					catch (Exception e)
+					{
+						if (nbAttempt++ >= 10)
+							throw e;
+						
+						try
+						{
+							Thread.sleep(200);
+						}
+						catch (InterruptedException e1)
+						{
+							Thread.currentThread().interrupt();
+						}
+					}
+				}
+				Files.createDirectory(filePath);
+			}
+			catch (IOException e)
+			{
+				LOGGER.error("Cannot rename " + filePath + " to " + zipFilePath, e);
+				return response;
+			}
+			
+			try
+			{
+				ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFilePath));
+				ZipEntry zipEntry = zis.getNextEntry();
+				while (zipEntry != null)
+				{
+					Path entryPath = filePath.resolve(zipEntry.getName());
+					
+					if (zipEntry.isDirectory())
+					{
+						Files.createDirectories(entryPath);
+					}
+					else
+					{
+						Files.createDirectories(entryPath.getParent());
+						Files.copy(zis, entryPath);
+						
+						if (Image.isImage(entryPath))
+						{
+							Image image = gallery.getImage(entryPath);
+							if (image.isNotSaved())
+							{
+								image.addTag(artist.getTag());
+								gallery.saveImage(image);
+							}
+						}
+					}
+					zipEntry = zis.getNextEntry();
+				}
+				zis.closeEntry();
+				zis.close();
+				
+				Files.delete(zipFilePath);
+			}
+			catch (IOException e)
+			{
+				LOGGER.error("Error when unzipping " + zipFilePath, e);
+				return response;
+			}
+			
+			return response;
+		};
 	}
 	
 	protected final void updateCurrentMostRecentPost(StrongReference<ZonedDateTime> currentMostRecentPost,
@@ -214,7 +396,7 @@ public abstract class BaseDownloader
 			mostRecentPostCheckedDate = currentMostRecentPost.get();
 	}
 	
-	protected final Path makeSafe(Path path)
+	protected static final Path makeSafe(Path path)
 	{
 		Path newPath = path.getRoot();
 		
@@ -226,13 +408,19 @@ public abstract class BaseDownloader
 		return newPath;
 	}
 	
-	private synchronized Image saveInGallery(String postId, String imageId, Path path)
+	protected static boolean isErrorResponse(HttpResponse<?> response)
+	{
+		return response.statusCode() >= 300;
+	}
+	
+	private synchronized Image saveInGallery(DowloadSession session, String postId, String imageId, Path path)
 	{
 		Image image = gallery.getImage(path);
 		if (image.isNotSaved())
 		{
 			image.addTag(artist.getTag());
 			gallery.saveImage(image);
+			session.imagesAdded.add(image);
 		}
 		ImageReference ref = new ImageReference(image);
 		
@@ -242,57 +430,33 @@ public abstract class BaseDownloader
 		return image;
 	}
 	
-	private Function<HttpResponse<Path>, Image> saveInGallery(String postId, String imageId)
+	private Function<HttpResponse<Path>, Image> saveInGallery(DowloadSession session, String postId, String imageId)
 	{
-		return response -> saveInGallery(postId, imageId, response.body());
+		return response -> saveInGallery(session, postId, imageId, response.body());
 	}
 	
-	protected enum PrintOption
+	private static <T> void logResponse(HttpResponse<T> response)
 	{
-		REQUEST_URL, STATUS_CODE, RESPONSE_HEADERS, RESPONSE_BODY
-	}
-	
-	protected static <T> HttpResponse<T> print(HttpResponse<T> response, PrintOption... options)
-	{//TODO use Markers instead of PrintOption
-		synchronized (LOGGER)
+		Level level = isErrorResponse(response) ? Level.ERROR : Level.DEBUG;
+		if (LOGGER.isEnabled(level, HTTP_RESPONSE))
 		{
-			List<PrintOption> optionsLst = (options != null && options.length > 0) ? Arrays.asList(options)
-			        : List.of(PrintOption.REQUEST_URL,
-			                  PrintOption.STATUS_CODE,
-			                  PrintOption.RESPONSE_HEADERS,
-			                  PrintOption.RESPONSE_BODY);
-			boolean error = response.statusCode() >= 300;
-			
-			if (optionsLst.contains(PrintOption.REQUEST_URL) || error)
-				LOGGER.debug("URL: " + response.request().uri());
-			
-			if (optionsLst.contains(PrintOption.STATUS_CODE) || error)
-				LOGGER.debug("Status: " + response.statusCode());
-			
-			if (optionsLst.contains(PrintOption.RESPONSE_HEADERS) || error)
+			synchronized (LOGGER)
 			{
-				LOGGER.debug("Headers:");
-				LOGGER.debug(response.headers()
-				                           .map()
-				                           .entrySet()
-				                           .stream()
-				                           .map(e -> "    " + e.getKey() + ": " + e.getValue())
-				                           .collect(Collectors.joining("\n")));
-			}
-			
-			if (optionsLst.contains(PrintOption.RESPONSE_BODY) || error)
-			{
-				LOGGER.debug("Body:");
-				LOGGER.debug(prettyToString(response.body()));
+				
+				LOGGER.log(level, HTTP_RESPONSE_URL, "URL: {}", response.request().uri());
+				LOGGER.log(level, HTTP_RESPONSE_STATUS, "Status: {}", response.statusCode());
+				LOGGER.log(level,
+				           HTTP_RESPONSE_HEADERS,
+				           "Headers: {}",
+				           () -> response.headers()
+				                         .map()
+				                         .entrySet()
+				                         .stream()
+				                         .map(e -> "    " + e.getKey() + ": " + e.getValue())
+				                         .collect(Collectors.joining("\n")));
+				LOGGER.log(level, HTTP_RESPONSE_BODY, "Body: {}", () -> prettyToString(response.body()));
 			}
 		}
-		
-		return response;
-	}
-	
-	protected static <T> UnaryOperator<HttpResponse<T>> print(PrintOption... options)
-	{
-		return response -> print(response, options);
 	}
 	
 	private static String prettyToString(Object obj)
@@ -306,21 +470,23 @@ public abstract class BaseDownloader
 		{
 			return new GsonBuilder().setPrettyPrinting()
 			                        .disableHtmlEscaping()
+			                        .serializeNulls()
 			                        .create()
 			                        .toJson(JsonParser.parseString(str));
 		}
-		catch (Exception e)
+		catch (Exception ignored)
 		{
-			return str;
 		}
-	}
-
-	protected static <T> UnaryOperator<T> release(Semaphore semaphore)
-	{
-		return t -> {
-			semaphore.release();
-			return t;
-		};
+		
+		try
+		{
+			return Jsoup.parseBodyFragment(str).selectFirst("body").toString();
+		}
+		catch (Exception ignored)
+		{
+		}
+		
+		return str;
 	}
 	
 	@SuppressWarnings("unused")
