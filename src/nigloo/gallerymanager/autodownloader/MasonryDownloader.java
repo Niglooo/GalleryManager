@@ -1,8 +1,6 @@
 package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
@@ -16,12 +14,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Semaphore;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -29,37 +24,20 @@ import org.jsoup.select.Elements;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 
-import nigloo.gallerymanager.AsyncPools;
-import nigloo.tool.StrongReference;
-
 public class MasonryDownloader extends BaseDownloader
 {
-	private static final Logger LOGGER = LogManager.getLogger(MasonryDownloader.class);
-	
 	@Override
-	public void download(Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
 	{
 		String host = "http://" + creatorId + ".com";
 		
-		LOGGER.debug(creatorId);
-		LOGGER.debug(imagePathPattern);
-		
-		final StrongReference<ZonedDateTime> currentMostRecentPost = initCurrentMostRecentPost();
-		final Semaphore maxConcurrentStreams = new Semaphore(10);// TODO init with max_concurrent_streams from http2
 		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
 		
-		final HttpClient httpClient = HttpClient.newBuilder()
-		                                        .followRedirects(Redirect.NORMAL)
-		                                        .executor(AsyncPools.HTTP_REQUEST)
-		                                        .build();
 		HttpRequest request;
 		HttpResponse<?> response;
 		
 		request = HttpRequest.newBuilder().uri(new URI(host)).GET().headers(getHeaders(host, null)).build();
-		maxConcurrentStreams.acquire();
-		response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
-		print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
-		maxConcurrentStreams.release();
+		response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 		
 		String phpsessidCookie = parseCookies(response.headers().firstValue("Set-Cookie").get()).get("PHPSESSID")
 		                                                                                        .toString();
@@ -84,10 +62,7 @@ public class MasonryDownloader extends BaseDownloader
 			                     .POST(BodyPublishers.ofString(postParam))
 			                     .headers(headers)
 			                     .build();
-			maxConcurrentStreams.acquire();
-			response = httpClient.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
-			print(response, PrintOption.REQUEST_URL, PrintOption.STATUS_CODE);
-			maxConcurrentStreams.release();
+			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 			
 			Elements postLinkElements = Jsoup.parseBodyFragment(response.body().toString()).select("body > a");
 			if (postLinkElements.isEmpty())
@@ -104,20 +79,15 @@ public class MasonryDownloader extends BaseDownloader
 				                                           .atTime(0, 0, 0)
 				                                           .atZone(ZoneOffset.UTC);
 				
-				updateCurrentMostRecentPost(currentMostRecentPost, publishedDatetime);
-				if (dontCheckPost(publishedDatetime, checkAllPost))
+				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
 					break mainloop;
 				
 				loaded.add(postId);
 				
 				request = HttpRequest.newBuilder().uri(new URI(postUrl)).GET().headers(headers).build();
-				maxConcurrentStreams.acquire();
-				downloads.add(httpClient.sendAsync(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()))
-				                        .thenApply(print(PrintOption.REQUEST_URL, PrintOption.STATUS_CODE))
-				                        .thenApply(release(maxConcurrentStreams))
-				                        .thenCompose(downloadImages(httpClient,
+				downloads.add(session.sendAsync(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()))
+				                     .thenCompose(downloadImages(session,
 				                                                    headers,
-				                                                    maxConcurrentStreams,
 				                                                    postId,
 				                                                    postTitle,
 				                                                    publishedDatetime)));
@@ -126,12 +96,11 @@ public class MasonryDownloader extends BaseDownloader
 		
 		CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new)).join();
 		
-		saveCurrentMostRecentPost(currentMostRecentPost);
+		session.saveLastPublishedDatetime();
 	}
 	
-	private Function<HttpResponse<String>, CompletableFuture<?>> downloadImages(HttpClient httpClient,
+	private Function<HttpResponse<String>, CompletableFuture<?>> downloadImages(DowloadSession session,
 	                                                                            String[] headers,
-	                                                                            Semaphore maxConcurrentStreams,
 	                                                                            String postId,
 	                                                                            String postTitle,
 	                                                                            ZonedDateTime publishedDatetime)
@@ -149,10 +118,9 @@ public class MasonryDownloader extends BaseDownloader
 				
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				
-				downloads.add(downloadImage(httpClient,
+				downloads.add(downloadImage(session,
 				                            url,
 				                            headers,
-				                            maxConcurrentStreams,
 				                            postId,
 				                            imageId,
 				                            publishedDatetime,
