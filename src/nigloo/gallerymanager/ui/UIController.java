@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -365,22 +364,43 @@ public class UIController extends Application
 		{
 			if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2)
 			{
-				
-				SlideShowStage slideShow = new SlideShowStage(tiles.stream()
-				                                                   .map(GalleryImageView.class::cast)
-				                                                   .map(GalleryImageView::getGalleryImage)
-				                                                   .toList(),
-				                                              tiles.indexOf(imageView));
-				slideShow.setOnHidden(e -> thumbnailsView.scrollTo(tiles.stream()
-				                                                        .map(GalleryImageView.class::cast)
-				                                                        .filter(iv -> iv.getGalleryImage() == slideShow.getCurrentImage())
-				                                                        .findAny()
-				                                                        .orElse(null)));
-				slideShow.show();
+				showSlideShowFromThumbnails(tiles.stream()
+				                                 .map(GalleryImageView.class::cast)
+				                                 .map(GalleryImageView::getGalleryImage)
+				                                 .toList(),
+				                            tiles.indexOf(imageView));
 			}
 		});
 		
 		return imageView;
+	}
+	
+	public void showSlideShowFromThumbnails(List<Image> images, int startingIndex)
+	{
+		SlideShowStage slideShow = new SlideShowStage(images, startingIndex);
+		slideShow.setOnHidden(event ->
+		{
+			Image lastImageSeen = slideShow.getCurrentImage();
+			int lastImageSeenIdx = -1;
+			
+			int i = 0;
+			for (Node imageView : thumbnailsView.getTiles())
+			{
+				if (((GalleryImageView) imageView).getGalleryImage() == lastImageSeen)
+				{
+					lastImageSeenIdx = i;
+					break;
+				}
+				i++;
+			}
+			
+			if (lastImageSeenIdx >= 0)
+			{
+				thumbnailsView.scrollTo(lastImageSeenIdx);
+				thumbnailsView.getFocusModel().focus(lastImageSeenIdx);
+			}
+		});
+		slideShow.show();
 	}
 	
 	public List<String> autocompleteTags(String tagSearch)
