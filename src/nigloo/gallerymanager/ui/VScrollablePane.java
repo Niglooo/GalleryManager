@@ -276,12 +276,12 @@ public class VScrollablePane extends Region
 			{
 				case LEFT -> -1;
 				case RIGHT -> 1;
-				case UP -> -actualColumns;
+				case UP -> focusedIndex >= actualColumns ? -actualColumns : 0;
 				case DOWN -> actualColumns;
-				default -> 0;
+				default -> Integer.MIN_VALUE;
 			};
 			
-			if (shift != 0)
+			if (shift != Integer.MIN_VALUE)
 			{
 				focusedIndex = MathUtils.clamp(focusedIndex + shift, 0, tiles.size() - 1);
 				
