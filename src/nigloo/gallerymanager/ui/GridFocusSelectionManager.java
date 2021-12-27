@@ -27,7 +27,8 @@ public class GridFocusSelectionManager<T>
 		this.source.addListener((Change<? extends T> c) ->
 		{
 			selection.removeIf(item -> !source.contains(item));
-			// TODO update focus
+			if (!source.contains(focusModel.getFocusedItem()))
+				focusModel.focus(-1);
 			
 			if (!source.contains(selectionModel.getSelectedItem()))
 			{
