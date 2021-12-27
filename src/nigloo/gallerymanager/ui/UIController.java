@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -59,6 +61,7 @@ import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
+import nigloo.tool.StopWatch;
 import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
@@ -74,7 +77,9 @@ import nigloo.tool.thread.ThreadStopException;
 public class UIController extends Application
 {
 	private static final Logger LOGGER = LogManager.getLogger(UIController.class);
-	static public final String STYLESHEET_DEFAULT = UIController.class.getModule()
+	public static final Marker UPDATE_THUMBNAILS = MarkerManager.getMarker("UPDATE_THUMBNAILS");
+	
+	public static final String STYLESHEET_DEFAULT = UIController.class.getModule()
 	                                                                  .getClassLoader()
 	                                                                  .getResource("resources/styles/default.css")
 	                                                                  .toExternalForm();
@@ -242,14 +247,15 @@ public class UIController extends Application
 	
 	private Collection<Image> getThumnailImages()
 	{
-		long start = System.currentTimeMillis();
-		long end;
+		StopWatch timer = new StopWatch();
+		timer.start();
 		
 		Collection<Path> fsSelection = fileSystemTreeManager.getSelectionWithoutChildren();
 		
-		end = System.currentTimeMillis();
-		LOGGER.debug("fileSystemTreeManager.getSelectionWithoutChildren() : "+(end-start)+"ms");
-		start = end;
+		LOGGER.debug(UPDATE_THUMBNAILS,
+		             "fileSystemTreeManager.getSelectionWithoutChildren() ({}) : {}ms",
+		             fsSelection.size(),
+		             timer.split());
 		
 		if (tagFilterField.getText().isBlank() && fsSelection.isEmpty())
 			return List.of();
@@ -258,9 +264,7 @@ public class UIController extends Application
 		
 		List<Image> images = gallery.getAllImages();
 		
-		end = System.currentTimeMillis();
-		LOGGER.debug("gallery.getAllImages() (" + images.size() + ") : " + (end - start) + "ms");
-		start = end;
+		LOGGER.debug(UPDATE_THUMBNAILS, "gallery.getAllImages() ({}) : {}ms", images.size(), timer.split());
 		
 		if (!fsSelection.isEmpty())
 		{
@@ -270,17 +274,13 @@ public class UIController extends Application
 			                                                                          .startsWith(selectedPath)))
 			               .toList();
 			
-			end = System.currentTimeMillis();
-			LOGGER.debug("Keep only selection (" + images.size() + ") : " + (end - start) + "ms");
-			start = end;
+			LOGGER.debug(UPDATE_THUMBNAILS, "Keep only selection ({}) : {}ms", images.size(), timer.split());
 		}
 		
 		images = images.stream().filter(tagFilter).toList();
 		
-		end = System.currentTimeMillis();
-		LOGGER.debug("Keep only with tags (" + images.size() + ") : " + (end - start) + "ms");
-		start = end;
-
+		LOGGER.debug(UPDATE_THUMBNAILS, "Keep only with tags ({}) : {}ms", images.size(), timer.split());
+		
 		return images;
 	}
 	
@@ -288,18 +288,12 @@ public class UIController extends Application
 	{
 		assert Platform.isFxApplicationThread();
 		
-		long start = System.currentTimeMillis();
-		long end;
+		StopWatch timer = new StopWatch();
+		timer.start();
 		
-		thumbnailsView.getTiles()
-		              .setAll(sortedImages.stream()
-		                                  .map(UIController.this::getImageView)
-		                                  .toList());
+		thumbnailsView.getTiles().setAll(sortedImages.stream().map(UIController.this::getImageView).toList());
 		
-		end = System.currentTimeMillis();
-		LOGGER.debug("thumbnailsView.getTiles().setAll(...) (" + sortedImages.size()
-		        + ") : " + (end - start) + "ms");
-		start = end;
+		LOGGER.debug("thumbnailsView.getTiles().setAll(...) ({}) : {}ms", sortedImages.size(), timer.split());
 		
 		tagListView.getChildren().clear();
 		sortedImages.stream()
@@ -318,24 +312,19 @@ public class UIController extends Application
 			            Hyperlink tagText = new Hyperlink(tagName);
 			            tagText.getStyleClass().add("tag");
 			            if (tagColor != null)
-				            tagText.setStyle("-fx-text-fill: " + FXUtils.toRGBA(tagColor)
-				                    + ";");
+				            tagText.setStyle("-fx-text-fill: " + FXUtils.toRGBA(tagColor) + ";");
 			            tagText.setOnAction(event -> tagFilterField.setText(tagName));
 			            
 			            Text tagCountText = new Text(String.valueOf(count));
 			            tagCountText.getStyleClass().add("tag-count");
 			            
-			            TextFlow tagEntry = new TextFlow(tagText,
-			                                             new Text(" "),
-			                                             tagCountText);
+			            TextFlow tagEntry = new TextFlow(tagText, new Text(" "), tagCountText);
 			            tagEntry.getStyleClass().add("tag-entry");
 			            
 			            tagListView.getChildren().add(tagEntry);
 		            });
-		            
-		end = System.currentTimeMillis();
-		LOGGER.debug("Update tagListView : " + (end - start) + "ms");
-		start = end;
+		
+		LOGGER.debug("Update tagListView : {}ms", timer.split());
 	}
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
