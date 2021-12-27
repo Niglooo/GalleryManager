@@ -283,7 +283,7 @@ public class VScrollablePane extends Region
 			
 			if (shift != 0)
 			{
-				focusedIndex = MathUtils.clamp(focusedIndex + shift, 0, tiles.size());
+				focusedIndex = MathUtils.clamp(focusedIndex + shift, 0, tiles.size() - 1);
 				
 				// Moving the focus with arrows have the same as a regular clic except when
 				// only ctrl is pressed in which case it only moves the focus. (instead of
@@ -799,11 +799,18 @@ public class VScrollablePane extends Region
 		double tileHeight = getTileHeight();
 		double contentBottom = top + bottom + actualRows * tileHeight + (actualRows - 1) * vgap;
 		
+		// No scroll needed, set the value to 0 as the regular formula would lead to Nan
+		if (height >= contentBottom)
+		{
+			vScrollBar.setValue(0);
+			return;
+		}
+		
 		double tileY = actualYOffset + top + (r * (tileHeight + vgap));
 		double wantedY = Math.max(top, Math.min(height - tileHeight - bottom, tileY));
 		
 		actualYOffset -= (tileY - wantedY);
-		vScrollBar.setValue(-actualYOffset / Math.max(0, contentBottom - height) * contentBottom);
+		vScrollBar.setValue(-actualYOffset / (contentBottom - height) * contentBottom);
 	}
 	
 	public void scrollTo(Node node)
