@@ -18,11 +18,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -220,13 +222,15 @@ public class UIController extends Application
 							isUpdating = true;
 							
 							CompletableFuture.supplyAsync(UIController.this::getThumnailImages, AsyncPools.FX_APPLICATION)
+							                 .thenCompose(UIController.this::cancelIfNoChange)
 							                 .thenCompose(fileSystemTreeManager::asyncRefreshAndGetInOrder)
 							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
-							                 .thenRun(() ->
+							                 .handle((v, e) ->
 							                 {
 								                 lastUpdate = System.currentTimeMillis();
 								                 updateRequested = false;
 								                 isUpdating = false;
+								                 return null;
 							                 });
 						}
 						else
@@ -282,6 +286,20 @@ public class UIController extends Application
 		LOGGER.debug(UPDATE_THUMBNAILS, "Keep only with tags ({}) : {}ms", images.size(), timer.split());
 		
 		return images;
+	}
+	
+	private CompletableFuture<Collection<Image>> cancelIfNoChange(Collection<Image> images)
+	{
+		HashSet<Image> thumnails = thumbnailsView.getTiles()
+		                                         .stream()
+		                                         .map(GalleryImageView.class::cast)
+		                                         .map(GalleryImageView::getGalleryImage)
+		                                         .collect(Collectors.toCollection(HashSet::new));
+		
+		if (new HashSet<>(images).equals(thumnails))
+			return CompletableFuture.failedFuture(new CancellationException());
+		else
+			return CompletableFuture.completedFuture(images);
 	}
 	
 	private void updateThumbnailImages(List<Image> sortedImages)
