@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -51,6 +52,7 @@ import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.tool.StopWatch;
 import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
@@ -61,6 +63,7 @@ import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 public class FileSystemTreeManager
 {
 	private static final Logger LOGGER = LogManager.getLogger(FileSystemTreeManager.class);
+	private static final Marker UPDATE_THUMBNAILS = UIController.UPDATE_THUMBNAILS;
 	
 	@Inject
 	private UIController uiController;
@@ -756,41 +759,45 @@ public class FileSystemTreeManager
 	{
 		assert Platform.isFxApplicationThread();
 		
-		long start = System.currentTimeMillis();
-		long end;
+		StopWatch timer = new StopWatch();
+		timer.start();
 		
 		List<CompletableFuture<Entry<Image, Boolean>>> imagesToUpdate = new ArrayList<>();
 		
-		for (Image image : images) {
+		for (Image image : images)
+		{
 			Path absPath = image.getAbsolutePath();
 			TreeItem<FileSystemElement> item = getTreeItem(absPath, false);
 			
-			if (item == null || !item.getValue().isImage()){
-				imagesToUpdate.add(CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)), AsyncPools.DISK_IO));
+			if (item == null || !item.getValue().isImage())
+			{
+				imagesToUpdate.add(CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)),
+				                                                 AsyncPools.DISK_IO));
 			}
 		}
 		
-		end = System.currentTimeMillis();
-		LOGGER.debug("Async call Files.exists ("+imagesToUpdate.size()+") : "+(end-start)+"ms");
+		LOGGER.debug(UPDATE_THUMBNAILS, "Async call Files.exists ({}) : {}ms", imagesToUpdate.size(), timer.split());
 		
-		long startf = end;
-		
-		return CompletableFuture.allOf(imagesToUpdate.toArray(CompletableFuture[]::new))
-		.thenApplyAsync(v -> {
+		return CompletableFuture.allOf(imagesToUpdate.toArray(CompletableFuture[]::new)).thenApplyAsync(v ->
+		{
 			
-			long end2 = System.currentTimeMillis();
-			LOGGER.debug("Return allOf Files.exists ("+imagesToUpdate.size()+") : "+(end2-startf)+"ms");
-			long start2 = end2;
+			LOGGER.debug(UPDATE_THUMBNAILS,
+			             "Return allOf Files.exists ({}) : {}ms",
+			             imagesToUpdate.size(),
+			             timer.split());
 			
 			for (CompletableFuture<Entry<Image, Boolean>> future : imagesToUpdate)
 			{
 				Entry<Image, Boolean> entry = future.join();
 				Image image = entry.getKey();
 				boolean exists = entry.getValue();
-			
+				
 				TreeItem<FileSystemElement> item = getTreeItem(image.getAbsolutePath(), true);
-
-				FileSystemElement element = new FileSystemElement(image, !exists ? Status.DELETED : image.isSaved() ? Status.SYNC : Status.UNSYNC);
+				
+				FileSystemElement element = new FileSystemElement(image,
+				                                                  !exists ? Status.DELETED
+				                                                          : image.isSaved() ? Status.SYNC
+				                                                                  : Status.UNSYNC);
 				item.setValue(element);
 				
 				if (item.getParent().getValue().getStatus().isFullyLoaded())
@@ -799,17 +806,17 @@ public class FileSystemTreeManager
 				sort(item.getParent());
 			}
 			
-			end2 = System.currentTimeMillis();
-			LOGGER.debug("Update treeView ("+imagesToUpdate.size()+") : "+(end2-start2)+"ms");
-			start2 = end2;
+			LOGGER.debug(UPDATE_THUMBNAILS, "Update treeView ({}) : {}ms", imagesToUpdate.size(), timer.split());
 			
 			final HashSet<Image> imagesSet = new HashSet<>(images);
 			
-			List<Image> sortedImages = getImages(treeView.getRoot()).filter(image -> imagesSet.contains(image)).toList();
+			List<Image> sortedImages = getImages(treeView.getRoot()).filter(image -> imagesSet.contains(image))
+			                                                        .toList();
 			
-			end2 = System.currentTimeMillis();
-			LOGGER.debug("List<Image> sortedImages = getImages(...) ("+sortedImages.size()+") : "+(end2-start2)+"ms");
-			start2 = end2;
+			LOGGER.debug(UPDATE_THUMBNAILS,
+			             "List<Image> sortedImages = getImages(...) ({}) : {}ms",
+			             sortedImages.size(),
+			             timer.split());
 			
 			return sortedImages;
 			
