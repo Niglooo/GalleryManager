@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.lang.ref.SoftReference;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -350,40 +352,43 @@ public class UIController extends Application
 	
 	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
 	
+	private final Map<Image, SoftReference<GalleryImageView>> thumbnailImageViewCache = new WeakHashMap<>();
+	
 	private GalleryImageView getImageView(Image image)
 	{
-		// TODO we need some cache....
-		GalleryImageView imageView = new GalleryImageView(image,
-		                                                  LOAD_THUMBNAIL_ASYNC,
-		                                                  THUMBNAIL_LOADING_PLACEHOLDER,
-		                                                  THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
+		SoftReference<GalleryImageView> ref = thumbnailImageViewCache.get(image);
+		GalleryImageView imageView = ref == null ? null : ref.get();
 		
-		ObservableList<Node> tiles = thumbnailsView.getTiles();
-		
-		// Keep imageView instance in thumbnailsView to preserve
-		// selection
-		int index = tiles.indexOf(imageView);
-		if (index != -1)
-			return (GalleryImageView) tiles.get(index);
-		
-		imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
-		imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
-		imageView.setPreserveRatio(true);
-		
-		Tooltip tooltip = new Tooltip(image.getPath().toString());
-		Tooltip.install(imageView, tooltip);
-		
-		imageView.addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
+		if (imageView == null)
 		{
-			if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2)
+			imageView = new GalleryImageView(image,
+			                                 LOAD_THUMBNAIL_ASYNC,
+			                                 THUMBNAIL_LOADING_PLACEHOLDER,
+			                                 THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
+			
+			imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
+			imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
+			imageView.setPreserveRatio(true);
+			
+			Tooltip tooltip = new Tooltip(image.getPath().toString());
+			Tooltip.install(imageView, tooltip);
+			
+			GalleryImageView finalImageView = imageView;
+			imageView.addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 			{
-				showSlideShowFromThumbnails(tiles.stream()
-				                                 .map(GalleryImageView.class::cast)
-				                                 .map(GalleryImageView::getGalleryImage)
-				                                 .toList(),
-				                            tiles.indexOf(imageView));
-			}
-		});
+				if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2)
+				{
+					ObservableList<Node> tiles = thumbnailsView.getTiles();
+					showSlideShowFromThumbnails(tiles.stream()
+					                                 .map(GalleryImageView.class::cast)
+					                                 .map(GalleryImageView::getGalleryImage)
+					                                 .toList(),
+					                            tiles.indexOf(finalImageView));
+				}
+			});
+			
+			thumbnailImageViewCache.put(image, new SoftReference<>(imageView));
+		}
 		
 		return imageView;
 	}
