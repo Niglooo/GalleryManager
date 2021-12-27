@@ -93,27 +93,13 @@ public class ThumbnailsContextMenu extends ContextMenu
 		if (selectedImages.size() == 1)
 			startingIndex = allImages.indexOf(selectedImages.get(0));
 		
-		SlideShowStage slideShow = new SlideShowStage(allImages, startingIndex);
-		slideShow.setOnHidden(event -> thumbnailsView.scrollTo(thumbnailsView.getTiles()
-		                                                                     .stream()
-		                                                                     .map(GalleryImageView.class::cast)
-		                                                                     .filter(iv -> iv.getGalleryImage() == slideShow.getCurrentImage())
-		                                                                     .findAny()
-		                                                                     .orElse(null)));
-		slideShow.show();
+		uiController.showSlideShowFromThumbnails(allImages, startingIndex);
 	}
 	
 	@FXML
 	protected void startSlideShowSelection()
 	{
-		SlideShowStage slideShow = new SlideShowStage(selectedImages, 0);
-		slideShow.setOnHidden(event -> thumbnailsView.scrollTo(thumbnailsView.getTiles()
-		                                                                     .stream()
-		                                                                     .map(GalleryImageView.class::cast)
-		                                                                     .filter(iv -> iv.getGalleryImage() == slideShow.getCurrentImage())
-		                                                                     .findAny()
-		                                                                     .orElse(null)));
-		slideShow.show();
+		uiController.showSlideShowFromThumbnails(selectedImages, 0);
 	}
 	
 	@FXML
