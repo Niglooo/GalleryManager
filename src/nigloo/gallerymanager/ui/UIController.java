@@ -86,7 +86,8 @@ public class UIController extends Application
 	                                                                  .getResource("resources/styles/default.css")
 	                                                                  .toExternalForm();
 	
-	private static javafx.scene.image.Image THUMBNAIL_PLACEHOLDER;
+	private static javafx.scene.image.Image THUMBNAIL_LOADING_PLACEHOLDER;
+	private static javafx.scene.image.Image THUMBNAIL_CANNOT_LOAD_PLACEHOLDER;
 	
 	@FXML
 	private TreeView<FileSystemElement> fileSystemView;
@@ -120,8 +121,10 @@ public class UIController extends Application
 	@Override
 	public void start(Stage primaryStage) throws Exception
 	{
-		THUMBNAIL_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
-		                                                                           .getResourceAsStream("resources/images/loading.gif"));
+		THUMBNAIL_LOADING_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
+		                                                                                   .getResourceAsStream("resources/images/loading.gif"));
+		THUMBNAIL_CANNOT_LOAD_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
+		                                                                                       .getResourceAsStream("resources/images/image_deleted.png"));
 		
 		primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
 		
@@ -350,7 +353,10 @@ public class UIController extends Application
 	private GalleryImageView getImageView(Image image)
 	{
 		// TODO we need some cache....
-		GalleryImageView imageView = new GalleryImageView(image, LOAD_THUMBNAIL_ASYNC, THUMBNAIL_PLACEHOLDER);
+		GalleryImageView imageView = new GalleryImageView(image,
+		                                                  LOAD_THUMBNAIL_ASYNC,
+		                                                  THUMBNAIL_LOADING_PLACEHOLDER,
+		                                                  THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
 		
 		ObservableList<Node> tiles = thumbnailsView.getTiles();
 		

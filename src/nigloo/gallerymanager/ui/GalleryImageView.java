@@ -15,17 +15,20 @@ public class GalleryImageView extends ImageView implements Displayable
 	private boolean displayed;
 	
 	private javafx.scene.image.Image fxImage;
+	private javafx.scene.image.Image cannotLoadImage;
 	
 	public GalleryImageView(Image galleryImage,
 	                        Function<Image, javafx.scene.image.Image> getFXImage,
-	                        javafx.scene.image.Image placeholder)
+	                        javafx.scene.image.Image loadingPlaceHolder,
+	                        javafx.scene.image.Image cannotLoadImage)
 	{
 		super();
 		this.galleryImage = Objects.requireNonNull(galleryImage, "galleryImage");
 		this.getFXImage = Objects.requireNonNull(getFXImage, "getFXImage");
 		this.displayed = false;
 		this.fxImage = null;
-		setImage(placeholder);
+		setImage(loadingPlaceHolder);
+		this.cannotLoadImage = cannotLoadImage;
 	}
 	
 	public Image getGalleryImage()
@@ -88,7 +91,7 @@ public class GalleryImageView extends ImageView implements Displayable
 				{
 					fxImage.progressProperty().removeListener(this);
 					fxImage.errorProperty().removeListener(this);
-					//TODO set brocken icon here
+					imageView.setImage(imageView.cannotLoadImage);
 				}
 			}
 		}
