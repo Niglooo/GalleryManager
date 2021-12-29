@@ -26,6 +26,7 @@
     <Logger name="nigloo.gallerymanager.autodownloader" level="debug">
       <Filters>
         <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="NEUTRAL"/>
+        <MarkerFilter marker="HTTP_REQUEST_HEADERS" onMatch="DENY" onMismatch="NEUTRAL" />
         <MarkerFilter marker="HTTP_RESPONSE_HEADERS" onMatch="DENY" onMismatch="NEUTRAL" />
         <MarkerFilter marker="HTTP_RESPONSE_BODY" onMatch="DENY" onMismatch="NEUTRAL" />
       </Filters>

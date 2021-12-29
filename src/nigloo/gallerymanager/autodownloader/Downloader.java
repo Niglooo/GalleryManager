@@ -79,11 +79,17 @@ public abstract class Downloader
 {
 	private static final Logger LOGGER = LogManager.getLogger(Downloader.class);
 	
+	protected static final Marker HTTP_REQUEST = MarkerManager.getMarker("HTTP_REQUEST");
+	protected static final Marker HTTP_REQUEST_URL = MarkerManager.getMarker("HTTP_REQUEST_URL")
+	                                                              .setParents(HTTP_REQUEST);
+	protected static final Marker HTTP_REQUEST_HEADERS = MarkerManager.getMarker("HTTP_REQUEST_HEADERS")
+	                                                                  .setParents(HTTP_REQUEST);
+	
 	protected static final Marker HTTP_RESPONSE = MarkerManager.getMarker("HTTP_RESPONSE");
 	protected static final Marker HTTP_RESPONSE_URL = MarkerManager.getMarker("HTTP_RESPONSE_URL")
 	                                                               .setParents(HTTP_RESPONSE);
 	protected static final Marker HTTP_RESPONSE_STATUS = MarkerManager.getMarker("HTTP_RESPONSE_STATUS")
-	                                                                .setParents(HTTP_RESPONSE);
+	                                                                  .setParents(HTTP_RESPONSE);
 	protected static final Marker HTTP_RESPONSE_HEADERS = MarkerManager.getMarker("HTTP_RESPONSE_HEADERS")
 	                                                                   .setParents(HTTP_RESPONSE);
 	protected static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
@@ -169,6 +175,7 @@ public abstract class Downloader
 		        throws IOException,
 		        InterruptedException
 		{
+			logRequest(request);
 			HttpResponse<T> response = null;
 			maxConcurrentStreams.acquire();
 			try
@@ -186,6 +193,7 @@ public abstract class Downloader
 		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler)
 		        throws InterruptedException
 		{
+			logRequest(request);
 			maxConcurrentStreams.acquire();
 			return httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler))
 			                 .handle((response, error) ->
@@ -435,6 +443,19 @@ public abstract class Downloader
 		return response -> saveInGallery(session, postId, imageId, response.body());
 	}
 	
+	private static void logRequest(HttpRequest request)
+	{
+		LOGGER.debug(HTTP_REQUEST_URL, "Request: {}", request.uri());
+		LOGGER.debug(HTTP_REQUEST_HEADERS,
+		             "Headers: {}",
+		             () -> request.headers()
+		                          .map()
+		                          .entrySet()
+		                          .stream()
+		                          .map(e -> "    " + e.getKey() + ": " + e.getValue())
+		                          .collect(Collectors.joining("\n")));
+	}
+	
 	private static <T> void logResponse(HttpResponse<T> response)
 	{
 		Level level = isErrorResponse(response) ? Level.ERROR : Level.DEBUG;
@@ -443,7 +464,7 @@ public abstract class Downloader
 			synchronized (LOGGER)
 			{
 				
-				LOGGER.log(level, HTTP_RESPONSE_URL, "URL: {}", response.request().uri());
+				LOGGER.log(level, HTTP_RESPONSE_URL, "Response: {}", response.request().uri());
 				LOGGER.log(level, HTTP_RESPONSE_STATUS, "Status: {}", response.statusCode());
 				LOGGER.log(level,
 				           HTTP_RESPONSE_HEADERS,
