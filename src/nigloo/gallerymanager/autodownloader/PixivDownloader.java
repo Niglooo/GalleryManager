@@ -20,7 +20,7 @@ import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 
-public class PixivDownloader extends BaseDownloader
+public class PixivDownloader extends Downloader
 {
 	@SuppressWarnings("unused")
 	private PixivDownloader()

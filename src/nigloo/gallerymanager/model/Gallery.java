@@ -27,13 +27,13 @@ import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 
-import nigloo.gallerymanager.autodownloader.BaseDownloader;
+import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.tool.Utils;
 import nigloo.tool.collection.WeakIdentityHashSet;
 
 public final class Gallery
 {
-	private static final Logger LOGGER = LogManager.getLogger(BaseDownloader.class);
+	private static final Logger LOGGER = LogManager.getLogger(Gallery.class);
 	private static final Path PATH_WILDCARD = Paths.get("{wildcard}");
 	
 	private transient Path rootFolder;
@@ -58,7 +58,7 @@ public final class Gallery
 		nextId = images.stream().mapToLong(Image::getId).max().orElse(0) + 1;
 		
 		for (Artist artist : artists)
-			for (BaseDownloader autoDownloader : artist.getAutodownloaders())
+			for (Downloader autoDownloader : artist.getAutodownloaders())
 				autoDownloader.setArtist(artist);
 	}
 	
@@ -176,7 +176,7 @@ public final class Gallery
 		{
 			LOGGER.debug("Deleting from gallery "+images);
 			for (Artist artist : artists)
-				for (BaseDownloader autoDownloader : artist.getAutodownloaders())
+				for (Downloader autoDownloader : artist.getAutodownloaders())
 					autoDownloader.stopHandling(images);
 				
 			// This last or we break every ImageReference
@@ -395,7 +395,7 @@ public final class Gallery
 				Image image = it.next();
 				
 				for (Artist artist : artists)
-					for (BaseDownloader autoDownloader : artist.getAutodownloaders())
+					for (Downloader autoDownloader : artist.getAutodownloaders())
 						if (autoDownloader.isHandling(image))
 							continue imageLoop;
 						

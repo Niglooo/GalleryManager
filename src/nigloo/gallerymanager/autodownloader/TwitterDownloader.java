@@ -25,7 +25,7 @@ import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 
-public class TwitterDownloader extends BaseDownloader
+public class TwitterDownloader extends Downloader
 {
 	private static final DateTimeFormatter DATE_TIME_FORMATTER = twitterDateTimeFormmater();
 	private static final int PAGE_SIZE = 20;

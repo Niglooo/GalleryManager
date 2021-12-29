@@ -24,7 +24,7 @@ import org.jsoup.select.Elements;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 
-public class MasonryDownloader extends BaseDownloader
+public class MasonryDownloader extends Downloader
 {
 	@Override
 	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
