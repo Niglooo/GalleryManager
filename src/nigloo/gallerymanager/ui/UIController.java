@@ -59,7 +59,7 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
-import nigloo.gallerymanager.autodownloader.BaseDownloader;
+import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
@@ -142,7 +142,7 @@ public class UIController extends Application
 		
 		for (Artist artist : gallery.getArtists())
 		{
-			for (BaseDownloader autoDownloader : artist.getAutodownloaders())
+			for (Downloader autoDownloader : artist.getAutodownloaders())
 			{
 				Properties config = new Properties();
 				config.load(new FileInputStream("config.properties"));

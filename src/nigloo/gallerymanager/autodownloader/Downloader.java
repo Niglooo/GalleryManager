@@ -74,10 +74,10 @@ import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
-@JsonAdapter(BaseDownloader.BaseDownloaderAdapter.class)
-public abstract class BaseDownloader
+@JsonAdapter(Downloader.DownloaderAdapter.class)
+public abstract class Downloader
 {
-	private static final Logger LOGGER = LogManager.getLogger(BaseDownloader.class);
+	private static final Logger LOGGER = LogManager.getLogger(Downloader.class);
 	
 	protected static final Marker HTTP_RESPONSE = MarkerManager.getMarker("HTTP_RESPONSE");
 	protected static final Marker HTTP_RESPONSE_URL = MarkerManager.getMarker("HTTP_RESPONSE_URL")
@@ -89,10 +89,10 @@ public abstract class BaseDownloader
 	protected static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
 	                                                                .setParents(HTTP_RESPONSE);
 	
-	private static final Map<String, Class<? extends BaseDownloader>> TYPE_TO_CLASS = new HashMap<>();
-	private static final Map<Class<? extends BaseDownloader>, String> CLASS_TO_TYPE = new HashMap<>();
+	private static final Map<String, Class<? extends Downloader>> TYPE_TO_CLASS = new HashMap<>();
+	private static final Map<Class<? extends Downloader>, String> CLASS_TO_TYPE = new HashMap<>();
 	
-	private static void register(String type, Class<? extends BaseDownloader> clazz)
+	private static void register(String type, Class<? extends Downloader> clazz)
 	{
 		TYPE_TO_CLASS.put(type, clazz);
 		CLASS_TO_TYPE.put(clazz, type);
@@ -118,12 +118,12 @@ public abstract class BaseDownloader
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
 	
-	protected BaseDownloader()
+	protected Downloader()
 	{
 		Injector.init(this);
 	}
 	
-	protected BaseDownloader(String creatorId)
+	protected Downloader(String creatorId)
 	{
 		this();
 		this.creatorId = creatorId;
@@ -204,7 +204,7 @@ public abstract class BaseDownloader
 		
 		public boolean stopCheckingPost(ZonedDateTime publishedDatetime, boolean checkAllPost)
 		{
-			synchronized (BaseDownloader.this)
+			synchronized (Downloader.this)
 			{
 				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(publishedDatetime))
 					currentMostRecentPost = publishedDatetime;
@@ -216,7 +216,7 @@ public abstract class BaseDownloader
 		
 		protected final void saveLastPublishedDatetime()
 		{
-			synchronized (BaseDownloader.this)
+			synchronized (Downloader.this)
 			{
 				if (currentMostRecentPost != null && (mostRecentPostCheckedDate == null
 				        || mostRecentPostCheckedDate.isBefore(currentMostRecentPost)))
@@ -287,7 +287,7 @@ public abstract class BaseDownloader
 		}
 	}
 	
-	protected Function<HttpResponse<Path>, HttpResponse<Path>> unZip(boolean isZip, boolean autoExtractZip)
+	protected final Function<HttpResponse<Path>, HttpResponse<Path>> unZip(boolean isZip, boolean autoExtractZip)
 	{
 		return response ->
 		{
@@ -574,11 +574,11 @@ public abstract class BaseDownloader
 		}
 	}
 	
-	public static class BaseDownloaderAdapter
-	        implements JsonSerializer<BaseDownloader>, JsonDeserializer<BaseDownloader>
+	public static class DownloaderAdapter
+	        implements JsonSerializer<Downloader>, JsonDeserializer<Downloader>
 	{
 		@Override
-		public JsonElement serialize(BaseDownloader src, Type typeOfSrc, JsonSerializationContext context)
+		public JsonElement serialize(Downloader src, Type typeOfSrc, JsonSerializationContext context)
 		{
 			Class<?> clazz = src.getClass();
 			String type = CLASS_TO_TYPE.get(clazz);
@@ -595,7 +595,7 @@ public abstract class BaseDownloader
 		}
 		
 		@Override
-		public BaseDownloader deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+		public Downloader deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
 		        throws JsonParseException
 		{
 			String type = json.getAsJsonObject().get("type").getAsString();

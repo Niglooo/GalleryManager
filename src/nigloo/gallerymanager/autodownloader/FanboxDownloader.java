@@ -22,7 +22,7 @@ import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 
-public class FanboxDownloader extends BaseDownloader
+public class FanboxDownloader extends Downloader
 {
 	private boolean downloadFiles = true;
 	private boolean autoExtractZip = true;
