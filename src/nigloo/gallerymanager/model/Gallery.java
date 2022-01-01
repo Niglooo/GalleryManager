@@ -150,6 +150,7 @@ public final class Gallery
 			image.id = nextId++;
 			images.add(image);
 		}
+		LOGGER.debug("Image saved in gallery: {}", image.getPath());
 	}
 	
 	private transient Map<Path, Image> unsavedImages = new HashMap<>();
@@ -174,7 +175,6 @@ public final class Gallery
 	{
 		synchronized (this.images)
 		{
-			LOGGER.debug("Deleting from gallery "+images);
 			for (Artist artist : artists)
 				for (Downloader autoDownloader : artist.getAutodownloaders())
 					autoDownloader.stopHandling(images);
@@ -183,6 +183,7 @@ public final class Gallery
 			this.images.removeAll(images);
 			unsavedImages().values().removeAll(images);
 		}
+		LOGGER.debug("Images deleted from gallery: {} images", images.size());
 	}
 	
 	public List<Image> getImages()
