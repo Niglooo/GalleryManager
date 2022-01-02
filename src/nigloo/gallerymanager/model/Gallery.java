@@ -215,11 +215,12 @@ public final class Gallery
 	
 	public Tag getTag(String tagName)
 	{
+		String nTagName = Tag.normalize(tagName);
 		synchronized (tags)
 		{
-			return tags.stream().filter(tag -> tag.getName().equals(tagName)).findAny().orElseGet(() ->
+			return tags.stream().filter(tag -> tag.getName().equals(nTagName)).findAny().orElseGet(() ->
 			{
-				Tag newTag = new Tag(tagName);
+				Tag newTag = new Tag(nTagName);
 				tags.add(newTag);
 				return newTag;
 			});

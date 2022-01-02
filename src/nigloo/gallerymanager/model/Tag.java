@@ -39,7 +39,8 @@ public class Tag
 	Tag(String name)
 	{
 		this();
-		this.name = normalize(name);
+		assert name.equals(normalize(name));
+		this.name = name;
 		
 		Optional<Character> invalidChar = name.chars()
 		                                       .mapToObj(c -> (char) c)
