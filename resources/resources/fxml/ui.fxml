@@ -2,6 +2,7 @@
 
 <?import javafx.scene.Scene?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
@@ -24,7 +25,11 @@
                     <children>
                       <Label text="Scan result" />
                       <AutoCompleteTextField fx:id="tagFilterField" styleClass="tag-filter-field" />
-                      <VBox fx:id="tagListView" styleClass="tag-list" />
+                                 <ScrollPane hbarPolicy="NEVER" styleClass="tag-list">
+                                    <content>
+                            <VBox fx:id="tagListView" />
+                                    </content>
+                                 </ScrollPane>
                       <TreeView id="file_system_view" fx:id="fileSystemView" />
                     </children>
                   </VBox>
