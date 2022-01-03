@@ -726,36 +726,7 @@ public class FileSystemTreeManager
 		return withoutChildren(selectedPaths);
 	}
 	
-	public List<Image> refreshAndGetInOrder(Collection<Image> images)
-	{
-		assert Platform.isFxApplicationThread();
-		
-		for (Image image : images)
-		{
-			Path path = image.getAbsolutePath();
-			TreeItem<FileSystemElement> item = getTreeItem(path, true);
-			
-			if (item.getValue() == null || !item.getValue().isImage())
-			{
-				boolean exists = Files.exists(path);
-				
-				FileSystemElement element = new FileSystemElement(image, !exists ? Status.DELETED : image.isSaved() ? Status.SYNC : Status.UNSYNC);
-				item.setValue(element);
-				item.getChildren().clear();
-			}
-			
-			if (item.getParent().getValue().getStatus().isFullyLoaded())
-				updateFolderAndParentStatus(item.getParent(), false);
-			
-			sort(item.getParent());
-		}
-		
-		final HashSet<Image> imagesSet = new HashSet<>(images);
-		
-		return getImages(treeView.getRoot()).filter(image -> imagesSet.contains(image)).toList();
-	}
-	
-	public CompletableFuture<List<Image>> asyncRefreshAndGetInOrder(Collection<Image> images)
+	public CompletableFuture<List<Image>> refreshAndGetInOrder(Collection<Image> images)
 	{
 		assert Platform.isFxApplicationThread();
 		

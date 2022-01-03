@@ -228,7 +228,7 @@ public class UIController extends Application
 							
 							CompletableFuture.supplyAsync(UIController.this::getThumnailImages, AsyncPools.FX_APPLICATION)
 							                 .thenCompose(UIController.this::cancelIfNoChange)
-							                 .thenCompose(fileSystemTreeManager::asyncRefreshAndGetInOrder)
+							                 .thenCompose(fileSystemTreeManager::refreshAndGetInOrder)
 							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
 							                 .handle((v, e) ->
 							                 {
