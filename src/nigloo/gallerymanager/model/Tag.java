@@ -18,9 +18,9 @@ import nigloo.tool.injection.annotation.Inject;
 
 public class Tag
 {
-	public static final Set<Character> ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-()!".chars()
-	                                                                                                                        .mapToObj(c -> (char) c)
-	                                                                                                                        .collect(Collectors.toUnmodifiableSet());
+	private static final Set<Character> FORBIDDEN_CHARS = " -".chars()
+	                                                          .mapToObj(c -> (char) c)
+	                                                          .collect(Collectors.toUnmodifiableSet());
 	
 	private String name;
 	private HashSet<TagReference> parents;
@@ -43,9 +43,9 @@ public class Tag
 		this.name = name;
 		
 		Optional<Character> invalidChar = name.chars()
-		                                       .mapToObj(c -> (char) c)
-		                                       .filter(c -> !ALLOWED_CHARS.contains(c))
-		                                       .findFirst();
+		                                      .mapToObj(c -> (char) c)
+		                                      .filter(((Predicate<Character>)Tag::isCharacterAllowed).negate())
+		                                      .findFirst();
 		if (invalidChar.isPresent())
 			throw new IllegalArgumentException("The character '" + invalidChar.get()
 			        + "' is not allowed in tags. Got : \"" + name + "\"");
@@ -136,16 +136,11 @@ public class Tag
 	
 	public static boolean isCharacterAllowed(char c)
 	{
-		return ALLOWED_CHARS.contains(c);
-	}
-	
-	public static boolean isValideTag(CharSequence tagName)
-	{
-		return tagName.chars().mapToObj(c -> (char) c).filter(c -> !ALLOWED_CHARS.contains(c)).findFirst().isEmpty();
+		return !FORBIDDEN_CHARS.contains(c);
 	}
 	
 	public static String normalize(String tagName)
 	{
-		return tagName == null ? null : tagName.toLowerCase(Locale.ROOT);
+		return tagName == null ? null : tagName.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
 	}
 }

@@ -4,10 +4,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -68,10 +68,10 @@ public class EditImageTagsDialog extends Stage
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
 		tagNameField.setAutoCompletionBehavior((field, searchText) -> uiController.autocompleteTags(searchText));
-		tagNameField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS));
+		tagNameField.setTextFormatter(tagFormatter());
 		
 		parentTagField.setAutoCompletionBehavior(uiController.getMultiTagsAutocompleteBehavior());
-		parentTagField.setTextFormatter(allowOnly(Tag.ALLOWED_CHARS, ' '));
+		parentTagField.setTextFormatter(tagFormatter(' '));
 		
 		tagNameField.textProperty().addListener((obs, oldValue, newValue) ->
 		{
@@ -88,10 +88,9 @@ public class EditImageTagsDialog extends Stage
 		setOnShowing(e -> updateTags());
 	}
 	
-	private static TextFormatter<?> allowOnly(Collection<Character> chars, Character... extraChars)
+	private static TextFormatter<?> tagFormatter(Character... extraChars)
 	{
-		HashSet<Character> allowedChars = new HashSet<>(chars);
-		allowedChars.addAll(Arrays.asList(extraChars));
+		Set<Character> extraCharsSet = Set.of(extraChars);
 		
 		return new TextFormatter<>(new UnaryOperator<TextFormatter.Change>()
 		{
@@ -104,8 +103,11 @@ public class EditImageTagsDialog extends Stage
 					return change;
 				
 				for (int i = 0 ; i < newValue.length() ; i++)
-					if (!allowedChars.contains(newValue.charAt(i)))
+				{
+					char c = newValue.charAt(i);
+					if (!Tag.isCharacterAllowed(c) || !extraCharsSet.contains(c))
 						return null;
+				}
 				
 				return change;
 			}
