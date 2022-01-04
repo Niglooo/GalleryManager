@@ -324,7 +324,7 @@ public class UIController extends Application
 		            .collect(Collectors.groupingBy(tag -> tag, Collectors.counting()))
 		            .entrySet()
 		            .stream()
-		            .sorted(Comparator.comparing(Entry::getValue))
+		            .sorted(Comparator.<Entry<Tag,Long>,Long>comparing(Entry::getValue, Comparator.reverseOrder()).thenComparing(e -> e.getKey().getName()))
 		            .forEachOrdered(entry ->
 		            {
 			            Tag tag = entry.getKey();
