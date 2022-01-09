@@ -92,7 +92,8 @@ public class SlideShowStage extends Stage
 		
 		fullImageUpdatingThread = new ImageLoaderDaemon();
 		
-		autoplay = new Timeline(new KeyFrame(Duration.seconds(1), event -> next()));
+		//Don't call next() as it also reset autoplay timer resulting in a double call
+		autoplay = new Timeline(new KeyFrame(Duration.seconds(1), event -> setCurrent(validIndex(currentImageIdx, 1))));
 		autoplay.setCycleCount(Timeline.INDEFINITE);
 		setAutoplayDelay(gallery.getSlideShowParameter().getAutoplayDelay());
 		
@@ -192,11 +193,13 @@ public class SlideShowStage extends Stage
 	
 	public void next()
 	{
+		autoplay.jumpTo(Duration.ZERO);
 		setCurrent(validIndex(currentImageIdx, 1));
 	}
 	
 	public void previous()
 	{
+		autoplay.jumpTo(Duration.ZERO);
 		setCurrent(validIndex(currentImageIdx, -1));
 	}
 	
