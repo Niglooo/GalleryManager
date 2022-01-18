@@ -150,7 +150,7 @@ public final class Gallery
 			image.id = nextId++;
 			images.add(image);
 		}
-		LOGGER.debug("Image saved in gallery: {}", image.getPath());
+		LOGGER.info("Image saved in gallery: {}", image.getPath());
 	}
 	
 	private transient Map<Path, Image> unsavedImages = new HashMap<>();
