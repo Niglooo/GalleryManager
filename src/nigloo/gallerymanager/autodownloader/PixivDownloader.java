@@ -96,6 +96,25 @@ public class PixivDownloader extends Downloader
 			if (session.stopCheckingPost(publishedDatetime, checkAllPost))
 				break;
 			
+			request = HttpRequest.newBuilder()
+			                     .uri(new URI("https://www.pixiv.net/ajax/illust/" + postId
+			                             + "?ref=https%3A%2F%2Fwww.pixiv.net%2Fusers%2F" + creatorId
+			                             + "%2Fillustrations&lang=en"))
+			                     .GET()
+			                     .headers(headers)
+			                     .build();
+			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
+			JsonArray jTags = JsonHelper.followPath(parsedResponse, "body.tags.tags", JsonArray.class);
+			Collection<String> tags = new ArrayList<>(jTags.size());
+			for (JsonElement jTag : jTags)
+			{
+				String tag = JsonHelper.followPath(jTag, "translation.en", String.class);
+				if (tag == null)
+					tag = JsonHelper.followPath(jTag, "tag", String.class);
+				tags.add(tag);
+			}
+			
 			// Load post images
 			request = HttpRequest.newBuilder()
 			                     .uri(new URI("https://www.pixiv.net/ajax/illust/" + postId + "/pages?lang=en"))
@@ -124,7 +143,8 @@ public class PixivDownloader extends Downloader
 				                                                   publishedDatetime,
 				                                                   postTitle,
 				                                                   imageNumber,
-				                                                   imageFilename);
+				                                                   imageFilename,
+				                                                   tags);
 				
 				imagesDownload.add(asyncResponse);
 				imageNumber++;

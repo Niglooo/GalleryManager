@@ -241,7 +241,8 @@ public abstract class Downloader
 	                                                      ZonedDateTime publishedDatetime,
 	                                                      String postTitle,
 	                                                      int imageNumber,
-	                                                      String imageFilename)
+	                                                      String imageFilename,
+	                                                      Collection<String> tags)
 	{
 		ImageKey imageKey = new ImageKey(postId, imageId);
 		ImageReference imageReference;
@@ -275,9 +276,10 @@ public abstract class Downloader
 				Image image;
 				imageReference = mapping.get(imageKey);
 				if (imageReference == null)
-					image = saveInGallery(session, postId, imageId, imageDest);
+					image = saveInGallery(session, postId, imageId, tags, imageDest);
 				else
 					image = imageReference.getImage();
+				saveInGallery(session, postId, imageId, tags, image.getAbsolutePath());//TODO remove
 				
 				return CompletableFuture.completedFuture(image);
 			}
@@ -288,7 +290,7 @@ public abstract class Downloader
 			
 			HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
 			return session.sendAsync(request, BodyHandlers.ofFile(imageDest))
-			              .thenApply(saveInGallery(session, postId, imageId));
+			              .thenApply(saveInGallery(session, postId, imageId, tags));
 		}
 		catch (Exception e) {
 			return CompletableFuture.failedFuture(e);
@@ -421,15 +423,25 @@ public abstract class Downloader
 		return response.statusCode() >= 300;
 	}
 	
-	private synchronized Image saveInGallery(DownloadSession session, String postId, String imageId, Path path)
+	private synchronized Image saveInGallery(DownloadSession session, String postId, String imageId, Collection<String> tags, Path path)
 	{
 		Image image = gallery.getImage(path);
 		if (image.isNotSaved())
 		{
 			image.addTag(artist.getTag());
+			if (tags != null)
+				tags.forEach(image::addTag);
+			
 			gallery.saveImage(image);
 			session.imagesAdded.add(image);
 		}
+		else {//TODO remove
+		image.getTags().forEach(image::removeTag);
+		image.addTag(artist.getTag());
+		if (tags != null)
+			tags.forEach(image::addTag);
+		}
+		
 		ImageReference ref = new ImageReference(image);
 		
 		ImageKey imagekey = new ImageKey(postId, imageId);
@@ -438,9 +450,9 @@ public abstract class Downloader
 		return image;
 	}
 	
-	private Function<HttpResponse<Path>, Image> saveInGallery(DownloadSession session, String postId, String imageId)
+	private Function<HttpResponse<Path>, Image> saveInGallery(DownloadSession session, String postId, String imageId, Collection<String> tags)
 	{
-		return response -> saveInGallery(session, postId, imageId, response.body());
+		return response -> saveInGallery(session, postId, imageId, tags, response.body());
 	}
 	
 	private static void logRequest(HttpRequest request)

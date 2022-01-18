@@ -73,7 +73,12 @@ public class MasonryDownloader extends Downloader
 				String postUrl = postLinkElement.attr("href");
 				String postId = postLinkElement.attr("data-av-masonry-item");
 				String postTitle = postLinkElement.attr("title");
-				// tags: all postLinkElement.attributes() starting with tag-
+				List<String> tags = postLinkElement.classNames()
+				                                   .stream()
+				                                   .filter(a -> a.startsWith("tag-"))
+				                                   .map(a -> a.substring("tag-".length()))
+				                                   .toList();
+				
 				ZonedDateTime publishedDatetime = LocalDate.parse(postLinkElement.selectFirst(".av-masonry-date")
 				                                                                 .text())
 				                                           .atTime(0, 0, 0)
@@ -90,7 +95,8 @@ public class MasonryDownloader extends Downloader
 				                                                    headers,
 				                                                    postId,
 				                                                    postTitle,
-				                                                    publishedDatetime)));
+				                                                    publishedDatetime,
+				                                                    tags)));
 			}
 		}
 		
@@ -103,7 +109,8 @@ public class MasonryDownloader extends Downloader
 	                                                                            String[] headers,
 	                                                                            String postId,
 	                                                                            String postTitle,
-	                                                                            ZonedDateTime publishedDatetime)
+	                                                                            ZonedDateTime publishedDatetime,
+	                                                                            Collection<String> tags)
 	{
 		return response ->
 		{
@@ -126,7 +133,8 @@ public class MasonryDownloader extends Downloader
 				                            publishedDatetime,
 				                            postTitle,
 				                            imageNumber,
-				                            imageFilename));
+				                            imageFilename,
+				                            tags));
 				
 				imageNumber++;
 			}

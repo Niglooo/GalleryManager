@@ -124,6 +124,7 @@ public class TwitterDownloader extends Downloader
 				                                                                                  "legacy.created_at",
 				                                                                                  String.class),
 				                                                            ZonedDateTime::from);
+				Collection<String> tags = null;//TODO #tags
 				
 				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
 					break mainloop;
@@ -145,7 +146,8 @@ public class TwitterDownloader extends Downloader
 					                                 publishedDatetime,
 					                                 postId,
 					                                 imageNumber,
-					                                 imageFilename));
+					                                 imageFilename,
+					                                 tags));
 					imageNumber++;
 				}
 			}

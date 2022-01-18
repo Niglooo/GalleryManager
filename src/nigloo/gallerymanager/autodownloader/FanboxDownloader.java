@@ -119,7 +119,8 @@ public class FanboxDownloader extends Downloader
 						                            publishedDatetime,
 						                            postTitle,
 						                            imageNumber,
-						                            imageFilename));
+						                            imageFilename,
+						                            null));
 						imageNumber++;
 					}
 				}
