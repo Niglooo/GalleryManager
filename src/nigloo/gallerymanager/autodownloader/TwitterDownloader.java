@@ -64,7 +64,7 @@ public class TwitterDownloader extends Downloader
 	}
 	
 	@Override
-	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
 	{
 		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		

@@ -151,14 +151,14 @@ public abstract class Downloader
 		            creatorId,
 		            CLASS_TO_TYPE.get(getClass()),
 		            imagePathPattern);
-		DowloadSession session = new DowloadSession();
+		DownloadSession session = new DownloadSession();
 		doDownload(session, secrets, checkAllPost);
 	}
 	
-	protected abstract void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost)
+	protected abstract void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost)
 	        throws Exception;
 	
-	protected final class DowloadSession
+	protected final class DownloadSession
 	{
 		private final HttpClient httpClient = HttpClient.newBuilder()
 		                                                .followRedirects(Redirect.NORMAL)
@@ -233,7 +233,7 @@ public abstract class Downloader
 		}
 	}
 	
-	protected final CompletableFuture<Image> downloadImage(DowloadSession session,
+	protected final CompletableFuture<Image> downloadImage(DownloadSession session,
 	                                                      String url,
 	                                                      String[] headers,
 	                                                      String postId,
@@ -421,7 +421,7 @@ public abstract class Downloader
 		return response.statusCode() >= 300;
 	}
 	
-	private synchronized Image saveInGallery(DowloadSession session, String postId, String imageId, Path path)
+	private synchronized Image saveInGallery(DownloadSession session, String postId, String imageId, Path path)
 	{
 		Image image = gallery.getImage(path);
 		if (image.isNotSaved())
@@ -438,7 +438,7 @@ public abstract class Downloader
 		return image;
 	}
 	
-	private Function<HttpResponse<Path>, Image> saveInGallery(DowloadSession session, String postId, String imageId)
+	private Function<HttpResponse<Path>, Image> saveInGallery(DownloadSession session, String postId, String imageId)
 	{
 		return response -> saveInGallery(session, postId, imageId, response.body());
 	}

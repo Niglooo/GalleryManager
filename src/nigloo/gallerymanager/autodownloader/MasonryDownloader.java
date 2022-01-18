@@ -27,7 +27,7 @@ import com.github.mizosoft.methanol.MoreBodyHandlers;
 public class MasonryDownloader extends Downloader
 {
 	@Override
-	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
 	{
 		String host = "http://" + creatorId + ".com";
 		
@@ -99,7 +99,7 @@ public class MasonryDownloader extends Downloader
 		session.saveLastPublishedDatetime();
 	}
 	
-	private Function<HttpResponse<String>, CompletableFuture<?>> downloadImages(DowloadSession session,
+	private Function<HttpResponse<String>, CompletableFuture<Void>> downloadImages(DownloadSession session,
 	                                                                            String[] headers,
 	                                                                            String postId,
 	                                                                            String postTitle,

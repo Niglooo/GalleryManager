@@ -39,7 +39,7 @@ public class FanboxDownloader extends Downloader
 	}
 	
 	@Override
-	protected void doDownload(DowloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
 	{
 		String cookie = secrets.getProperty("fanbox.cookie");
 		
@@ -154,7 +154,7 @@ public class FanboxDownloader extends Downloader
 		session.saveLastPublishedDatetime();
 	}
 	
-	private CompletableFuture<?> downloadFile(DowloadSession session,
+	private CompletableFuture<?> downloadFile(DownloadSession session,
 	                                          String url,
 	                                          String[] headers,
 	                                          String postId,
