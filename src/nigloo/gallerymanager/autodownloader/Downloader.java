@@ -123,6 +123,7 @@ public abstract class Downloader
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
+	//TODO replace by Map<ImageKey, DownloadedItem> where DownloadedItem can be a wrapped Image referere or a ZipFile (containing an internal map pathInZip -> Imagereference  for each image (Image.isImage))
 	
 	protected Downloader()
 	{
@@ -144,7 +145,7 @@ public abstract class Downloader
 	{
 		this.artist = artist;
 	}
-	
+	//TODO put checkAllPost in DowloadSession
 	public final void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
 		LOGGER.info("Download for {} from {} with pattern {}",
@@ -171,6 +172,7 @@ public abstract class Downloader
 		private final List<Image> imagesAdded = new ArrayList<>();
 		
 		// TODO handle http errors directly here ? Or in saveInGallery and unZip
+		//TODO add request/sec limiter (0 = no limit)
 		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler)
 		        throws IOException,
 		        InterruptedException
@@ -178,6 +180,7 @@ public abstract class Downloader
 			logRequest(request);
 			HttpResponse<T> response = null;
 			maxConcurrentStreams.acquire();
+			//Thread.sleep(1000);
 			try
 			{
 				response = httpClient.send(request, MoreBodyHandlers.decoding(responseBodyHandler));
@@ -195,6 +198,7 @@ public abstract class Downloader
 		{
 			logRequest(request);
 			maxConcurrentStreams.acquire();
+			//Thread.sleep(1000);
 			return httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler))
 			                 .handle((response, error) ->
 			                 {

@@ -97,7 +97,7 @@ public class FanboxDownloader extends Downloader
 				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(item,
 				                                                                            "publishedDatetime",
 				                                                                            String.class));
-				
+				// FIXME update curent most recent date only if download succeed
 				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
 					break mainloop;
 				
