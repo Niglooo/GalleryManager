@@ -116,6 +116,7 @@ public class UIController extends Application
 			throw new RuntimeException("missing gallery file");
 		
 		galleryFile = Paths.get(args[0]).toAbsolutePath();
+		Injector.ENABLE();
 		
 		launch(args);
 	}
