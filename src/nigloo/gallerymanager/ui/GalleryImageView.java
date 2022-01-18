@@ -1,6 +1,7 @@
 package nigloo.gallerymanager.ui;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.function.Function;
 
 import javafx.beans.value.ChangeListener;
@@ -70,7 +71,7 @@ public class GalleryImageView extends ImageView implements Displayable
 			this.imageView = imageView;
 			this.fxImage = imageView.fxImage;
 			this.fxImage.progressProperty().addListener(this);
-			this.fxImage.errorProperty().addListener(this);
+			this.fxImage.exceptionProperty().addListener(this);
 		}
 		
 		@Override
@@ -85,14 +86,13 @@ public class GalleryImageView extends ImageView implements Displayable
 					fxImage.errorProperty().removeListener(this);
 				}
 			}
-			else if (observable == fxImage.errorProperty())
+			else if (observable == fxImage.exceptionProperty())
 			{
-				if ((Boolean) newValue)
-				{
-					fxImage.progressProperty().removeListener(this);
-					fxImage.errorProperty().removeListener(this);
+				fxImage.progressProperty().removeListener(this);
+				fxImage.errorProperty().removeListener(this);
+				
+				if (!(newValue instanceof CancellationException))
 					imageView.setImage(imageView.cannotLoadImage);
-				}
 			}
 		}
 	}
