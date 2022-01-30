@@ -145,18 +145,18 @@ public abstract class Downloader
 	{
 		this.artist = artist;
 	}
-	//TODO put checkAllPost in DowloadSession
+	
 	public final void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
 		LOGGER.info("Download for {} from {} with pattern {}",
 		            creatorId,
 		            CLASS_TO_TYPE.get(getClass()),
 		            imagePathPattern);
-		DownloadSession session = new DownloadSession();
-		doDownload(session, secrets, checkAllPost);
+		DownloadSession session = new DownloadSession(secrets, checkAllPost);
+		doDownload(session);
 	}
 	
-	protected abstract void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost)
+	protected abstract void doDownload(DownloadSession session)
 	        throws Exception;
 	
 	protected final class DownloadSession
@@ -170,6 +170,20 @@ public abstract class Downloader
 		private ZonedDateTime currentMostRecentPost = mostRecentPostCheckedDate;
 		
 		private final List<Image> imagesAdded = new ArrayList<>();
+		
+		private final Properties secrets;
+		private final boolean checkAllPost;
+		
+		public DownloadSession(Properties secrets, boolean checkAllPost)
+		{
+			this.secrets = secrets;
+			this.checkAllPost = checkAllPost;
+		}
+		
+		public String getSecret(String key)
+		{
+			return secrets.getProperty(key);
+		}
 		
 		// TODO handle http errors directly here ? Or in saveInGallery and unZip
 		//TODO add request/sec limiter (0 = no limit)
@@ -214,7 +228,7 @@ public abstract class Downloader
 			                 .thenCompose(f -> f);
 		}
 		
-		public boolean stopCheckingPost(ZonedDateTime publishedDatetime, boolean checkAllPost)
+		public boolean stopCheckingPost(ZonedDateTime publishedDatetime)
 		{
 			synchronized (Downloader.this)
 			{

@@ -8,7 +8,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -34,9 +33,9 @@ public class PixivDownloader extends Downloader
 	}
 	
 	@Override
-	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session) throws Exception
 	{
-		String cookie = secrets.getProperty("pixiv.cookie");
+		String cookie = session.getSecret("pixiv.cookie");
 		
 		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		
@@ -93,7 +92,7 @@ public class PixivDownloader extends Downloader
 			                                                                            "createDate",
 			                                                                            String.class));
 			
-			if (session.stopCheckingPost(publishedDatetime, checkAllPost))
+			if (session.stopCheckingPost(publishedDatetime))
 				break;
 			
 			request = HttpRequest.newBuilder()

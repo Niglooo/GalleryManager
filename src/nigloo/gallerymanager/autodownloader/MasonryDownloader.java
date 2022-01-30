@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,7 +26,7 @@ import com.github.mizosoft.methanol.MoreBodyHandlers;
 public class MasonryDownloader extends Downloader
 {
 	@Override
-	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session) throws Exception
 	{
 		String host = "http://" + creatorId + ".com";
 		
@@ -84,7 +83,7 @@ public class MasonryDownloader extends Downloader
 				                                           .atTime(0, 0, 0)
 				                                           .atZone(ZoneOffset.UTC);
 				
-				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
+				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
 				
 				loaded.add(postId);

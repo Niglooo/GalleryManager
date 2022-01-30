@@ -14,7 +14,6 @@ import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Locale;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
@@ -64,7 +63,7 @@ public class TwitterDownloader extends Downloader
 	}
 	
 	@Override
-	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session) throws Exception
 	{
 		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		
@@ -73,7 +72,7 @@ public class TwitterDownloader extends Downloader
 		HttpResponse<?> response;
 		JsonObject parsedResponse;
 		
-		String[] headers = getHeaders(secrets);
+		String[] headers = getHeaders(session);
 		
 		url = "https://twitter.com/i/api/graphql/G07SmTUd0Mx7qy3Az_b52w/UserByScreenNameWithoutResults?variables=%7B%22screen_name%22%3A%22"
 		        + creatorId + "%22%2C%22withHighlightedLabel%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Afalse%7D";
@@ -126,7 +125,7 @@ public class TwitterDownloader extends Downloader
 				                                                            ZonedDateTime::from);
 				Collection<String> tags = null;//TODO #tags
 				
-				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
+				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
 				
 				JsonArray images = JsonHelper.followPath(post, "legacy.entities.media", JsonArray.class);
@@ -158,7 +157,7 @@ public class TwitterDownloader extends Downloader
 		session.saveLastPublishedDatetime();
 	}
 	
-	private String[] getHeaders(Properties secrets)
+	private String[] getHeaders(DownloadSession session)
 	{
 		// @formatter:off
 		//TODO automatic login? (at least retrieve authorization and x-csrf-token)
@@ -166,9 +165,9 @@ public class TwitterDownloader extends Downloader
 			"accept", "*/*",
 			"accept-encoding", "gzip, deflate",
 			"accept-language", "fr-FR,fr;q=0.9",
-			"authorization", secrets.getProperty("twitter.authorization"),
+			"authorization", session.getSecret("twitter.authorization"),
 			"content-type", "application/json",
-			"cookie", secrets.getProperty("twitter.cookie"),
+			"cookie", session.getSecret("twitter.cookie"),
 			"dnt", "1",
 			"referer", "https://twitter.com",
 			"sec-ch-ua", "\" Not;A Brand\";v=\"99\", \"Google Chrome\";v=\"91\", \"Chromium\";v=\"91\"",
@@ -177,7 +176,7 @@ public class TwitterDownloader extends Downloader
 			"sec-fetch-mode", "cors",
 			"sec-fetch-site", "same-origin",
 			"user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-			"x-csrf-token", secrets.getProperty("twitter.x-csrf-token"),
+			"x-csrf-token", session.getSecret("twitter.x-csrf-token"),
 			"x-twitter-active-user", "yes",
 			"x-twitter-auth-type", "OAuth2Session",
 			"x-twitter-client-language", "fr"

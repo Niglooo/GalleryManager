@@ -11,7 +11,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
@@ -39,9 +38,9 @@ public class FanboxDownloader extends Downloader
 	}
 	
 	@Override
-	protected void doDownload(DownloadSession session, Properties secrets, boolean checkAllPost) throws Exception
+	protected void doDownload(DownloadSession session) throws Exception
 	{
-		String cookie = secrets.getProperty("fanbox.cookie");
+		String cookie = session.getSecret("fanbox.cookie");
 		
 		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
 
@@ -98,7 +97,7 @@ public class FanboxDownloader extends Downloader
 				                                                                            "publishedDatetime",
 				                                                                            String.class));
 				// FIXME update curent most recent date only if download succeed
-				if (session.stopCheckingPost(publishedDatetime, checkAllPost))
+				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
 				
 				if (images.size() > 0)
