@@ -21,7 +21,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -424,7 +423,7 @@ public class UIController extends Application
 	
 	public List<String> autocompleteTags(String tagSearch)
 	{
-		tagSearch = tagSearch.toLowerCase(Locale.ROOT);
+		tagSearch = Tag.normalize(tagSearch);
 		
 		List<String> matchingTags = new ArrayList<>();
 		Map<String, Integer> matchingTagPos = new HashMap<>();
@@ -432,9 +431,8 @@ public class UIController extends Application
 		for (Tag tag : gallery.getTags())
 		{
 			String tagName = tag.getName();
-			String lowTagValue = tagName.toLowerCase(Locale.ROOT);
 			
-			int pos = lowTagValue.indexOf(tagSearch);
+			int pos = tagName.indexOf(tagSearch);
 			if (pos >= 0)
 			{
 				matchingTags.add(tagName);
