@@ -105,7 +105,7 @@ public class EditImageTagsDialog extends Stage
 				for (int i = 0 ; i < newValue.length() ; i++)
 				{
 					char c = newValue.charAt(i);
-					if (!Tag.isCharacterAllowed(c) || !extraCharsSet.contains(c))
+					if (!Tag.isCharacterAllowed(c) && !extraCharsSet.contains(c))
 						return null;
 				}
 				
