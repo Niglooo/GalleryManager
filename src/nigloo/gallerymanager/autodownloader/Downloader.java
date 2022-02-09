@@ -148,8 +148,9 @@ public abstract class Downloader
 	
 	public final void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
-		LOGGER.info("Download for {} from {} with pattern {}",
+		LOGGER.info("Download for {} ({}) from {} with pattern {}",
 		            creatorId,
+		            artist.getName(),
 		            CLASS_TO_TYPE.get(getClass()),
 		            imagePathPattern);
 		DownloadSession session = new DownloadSession(secrets, checkAllPost);
