@@ -80,7 +80,7 @@ public class TwitterDownloader extends Downloader
 		response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 		
-		String restId = JsonHelper.followPath(parsedResponse, "data.user.rest_id", String.class);
+		String restId = JsonHelper.followPath(parsedResponse, "data.user.rest_id");
 		
 		String currentUrl = listTweetUrl(restId, null);
 		String previousCursor = null;
@@ -106,9 +106,9 @@ public class TwitterDownloader extends Downloader
 				
 				if (post == null)
 				{
-					if ("Bottom".equals(JsonHelper.followPath(item, "content.cursorType", String.class)))
+					if ("Bottom".equals(JsonHelper.followPath(item, "content.cursorType")))
 					{
-						String cursor = JsonHelper.followPath(item, "content.value", String.class);
+						String cursor = JsonHelper.followPath(item, "content.value");
 						if (cursor.equals(previousCursor))
 							break;
 						
@@ -118,10 +118,9 @@ public class TwitterDownloader extends Downloader
 					continue;
 				}
 				
-				String postId = JsonHelper.followPath(post, "rest_id", String.class);
+				String postId = JsonHelper.followPath(post, "rest_id");
 				ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(JsonHelper.followPath(post,
-				                                                                                  "legacy.created_at",
-				                                                                                  String.class),
+				                                                                                  "legacy.created_at"),
 				                                                            ZonedDateTime::from);
 				Collection<String> tags = null;//TODO #tags
 				
@@ -133,7 +132,7 @@ public class TwitterDownloader extends Downloader
 				int imageNumber = 1;
 				for (JsonElement image : images)
 				{
-					url = JsonHelper.followPath(image, "media_url_https", String.class);
+					url = JsonHelper.followPath(image, "media_url_https");
 					String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 					String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 					

@@ -71,10 +71,10 @@ public class FanboxDownloader extends Downloader
 						JsonArray blocks = JsonHelper.followPath(item, "body.blocks", JsonArray.class);
 						for (JsonElement block : blocks)
 						{
-							String type = JsonHelper.followPath(block, "type", String.class);
+							String type = JsonHelper.followPath(block, "type");
 							if ("image".equals(type))
 							{
-								String imageId = JsonHelper.followPath(block, "imageId", String.class);
+								String imageId = JsonHelper.followPath(block, "imageId");
 								images.add(imageMap.get(imageId));
 							}
 							
@@ -91,11 +91,9 @@ public class FanboxDownloader extends Downloader
 				if (images.size() == 0 && files.size() == 0)
 					continue;
 				
-				String postId = JsonHelper.followPath(item, "id", String.class);
-				String postTitle = JsonHelper.followPath(item, "title", String.class);
-				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(item,
-				                                                                            "publishedDatetime",
-				                                                                            String.class));
+				String postId = JsonHelper.followPath(item, "id");
+				String postTitle = JsonHelper.followPath(item, "title");
+				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(item, "publishedDatetime"));
 				// FIXME update curent most recent date only if download succeed
 				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
@@ -105,8 +103,8 @@ public class FanboxDownloader extends Downloader
 					int imageNumber = 1;
 					for (JsonElement image : images)
 					{
-						String imageId = JsonHelper.followPath(image, "id", String.class);
-						String url = JsonHelper.followPath(image, "originalUrl", String.class);
+						String imageId = JsonHelper.followPath(image, "id");
+						String url = JsonHelper.followPath(image, "originalUrl");
 						
 						String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 						
@@ -128,10 +126,10 @@ public class FanboxDownloader extends Downloader
 				{
 					for (JsonElement file : files)
 					{
-						String fileId = JsonHelper.followPath(file, "id", String.class);
-						String url = JsonHelper.followPath(file, "url", String.class);
-						String fileNameWithoutExtention = JsonHelper.followPath(file, "name", String.class);
-						String fileExtention = JsonHelper.followPath(file, "extension", String.class);
+						String fileId = JsonHelper.followPath(file, "id");
+						String url = JsonHelper.followPath(file, "url");
+						String fileNameWithoutExtention = JsonHelper.followPath(file, "name");
+						String fileExtention = JsonHelper.followPath(file, "extension");
 						
 						downloads.add(downloadFile(session,
 						                           url,
@@ -146,7 +144,7 @@ public class FanboxDownloader extends Downloader
 				}
 			}
 			
-			currentUrl = JsonHelper.followPath(parsedResponse, "body.nextUrl", String.class);
+			currentUrl = JsonHelper.followPath(parsedResponse, "body.nextUrl");
 		}
 		
 		CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new)).join();

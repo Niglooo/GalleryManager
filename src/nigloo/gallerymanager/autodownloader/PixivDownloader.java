@@ -87,10 +87,8 @@ public class PixivDownloader extends Downloader
 			
 			JsonObject post = posts.get(postId).getAsJsonObject();
 			
-			String postTitle = JsonHelper.followPath(post, "title", String.class);
-			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post,
-			                                                                            "createDate",
-			                                                                            String.class));
+			String postTitle = JsonHelper.followPath(post, "title");
+			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "createDate"));
 			
 			if (session.stopCheckingPost(publishedDatetime))
 				break;
@@ -108,9 +106,9 @@ public class PixivDownloader extends Downloader
 			Collection<String> tags = new ArrayList<>(jTags.size());
 			for (JsonElement jTag : jTags)
 			{
-				String tag = JsonHelper.followPath(jTag, "translation.en", String.class);
+				String tag = JsonHelper.followPath(jTag, "translation.en");
 				if (tag == null)
-					tag = JsonHelper.followPath(jTag, "tag", String.class);
+					tag = JsonHelper.followPath(jTag, "tag");
 				tags.add(tag);
 			}
 			
@@ -130,7 +128,7 @@ public class PixivDownloader extends Downloader
 			int imageNumber = 1;
 			for (JsonElement image : images)
 			{
-				String url = JsonHelper.followPath(image, "urls.original", String.class);
+				String url = JsonHelper.followPath(image, "urls.original");
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
