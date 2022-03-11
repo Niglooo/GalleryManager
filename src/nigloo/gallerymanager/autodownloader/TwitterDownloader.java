@@ -118,6 +118,9 @@ public class TwitterDownloader extends Downloader
 					continue;
 				}
 				
+				if ("TweetTombstone".equals(JsonHelper.followPath(post, "__typename")))
+					continue;
+				
 				String postId = JsonHelper.followPath(post, "rest_id");
 				ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(JsonHelper.followPath(post,
 				                                                                                  "legacy.created_at"),
