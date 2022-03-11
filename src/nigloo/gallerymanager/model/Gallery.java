@@ -183,7 +183,8 @@ public final class Gallery
 			this.images.removeAll(images);
 			unsavedImages().values().removeAll(images);
 		}
-		LOGGER.debug("Images deleted from gallery: {} images", images.size());
+		for (Image image : images)
+			LOGGER.info("Image deleted from gallery: {}", image.getPath());
 	}
 	
 	public List<Image> getImages()
