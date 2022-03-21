@@ -12,10 +12,23 @@
 <?import nigloo.gallerymanager.ui.AutoCompleteTextField?>
 <?import nigloo.gallerymanager.ui.VScrollablePane?>
 
-<fx:root title="Gallery Manager" type="Stage" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root
+  title="Gallery Manager"
+  type="Stage"
+  xmlns="http://javafx.com/javafx/16"
+  xmlns:fx="http://javafx.com/fxml/1">
   <scene>
     <Scene>
-      <TabPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="1200.0" tabClosingPolicy="UNAVAILABLE" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1">
+      <TabPane
+        maxHeight="-Infinity"
+        maxWidth="-Infinity"
+        minHeight="-Infinity"
+        minWidth="-Infinity"
+        prefHeight="800.0"
+        prefWidth="1200.0"
+        tabClosingPolicy="UNAVAILABLE"
+        xmlns="http://javafx.com/javafx/11.0.1"
+        xmlns:fx="http://javafx.com/fxml/1">
         <tabs>
           <Tab text="Gallery">
             <content>
@@ -24,16 +37,24 @@
                   <VBox id="left_part">
                     <children>
                       <Label text="Scan result" />
-                      <AutoCompleteTextField fx:id="tagFilterField" styleClass="tag-filter-field" />
-                                 <ScrollPane hbarPolicy="NEVER" styleClass="tag-list">
-                                    <content>
-                            <VBox fx:id="tagListView" />
-                                    </content>
-                                 </ScrollPane>
-                      <TreeView id="file_system_view" fx:id="fileSystemView" />
+                      <AutoCompleteTextField
+                        fx:id="tagFilterField"
+                        styleClass="tag-filter-field" />
+                      <ScrollPane
+                        hbarPolicy="NEVER"
+                        styleClass="tag-list">
+                        <content>
+                          <VBox fx:id="tagListView" />
+                        </content>
+                      </ScrollPane>
+                      <TreeView
+                        id="file_system_view"
+                        fx:id="fileSystemView" />
                     </children>
                   </VBox>
-                  <VScrollablePane id="thumbnails_view" fx:id="thumbnailsView" />
+                  <VScrollablePane
+                    id="thumbnails_view"
+                    fx:id="thumbnailsView" />
                 </items>
               </SplitPane>
             </content>

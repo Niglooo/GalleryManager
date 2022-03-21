@@ -4,18 +4,42 @@
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SeparatorMenuItem?>
 
-<fx:root type="ContextMenu" xmlns="http://javafx.com/javafx/16" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root
+  type="ContextMenu"
+  xmlns="http://javafx.com/javafx/16"
+  xmlns:fx="http://javafx.com/fxml/1">
   <items>
-    <MenuItem fx:id="openItem" mnemonicParsing="false" onAction="#open"
+    <MenuItem
+      fx:id="openItem"
+      mnemonicParsing="false"
+      onAction="#open"
       text="Open" />
-    <MenuItem fx:id="startSlideShowAllImagesItem" mnemonicParsing="false" onAction="#startSlideShow"
+    <MenuItem
+      fx:id="startSlideShowAllImagesItem"
+      mnemonicParsing="false"
+      onAction="#startSlideShow"
       text="Slide show" />
-    <MenuItem fx:id="startSlideShowSelectionItem" mnemonicParsing="false" onAction="#startSlideShowSelection"
+    <MenuItem
+      fx:id="startSlideShowSelectionItem"
+      mnemonicParsing="false"
+      onAction="#startSlideShowSelection"
       text="Slide show selection" />
     <SeparatorMenuItem />
-    <MenuItem fx:id="selectAllItem" mnemonicParsing="false" onAction="#selectAll" text="Select all" />
-    <MenuItem fx:id="editTagsItem" mnemonicParsing="false" onAction="#editTags" text="Edit tags" />
+    <MenuItem
+      fx:id="selectAllItem"
+      mnemonicParsing="false"
+      onAction="#selectAll"
+      text="Select all" />
+    <MenuItem
+      fx:id="editTagsItem"
+      mnemonicParsing="false"
+      onAction="#editTags"
+      text="Edit tags" />
     <SeparatorMenuItem />
-    <MenuItem fx:id="deleteItem" mnemonicParsing="false" onAction="#delete" text="Delete" />
+    <MenuItem
+      fx:id="deleteItem"
+      mnemonicParsing="false"
+      onAction="#delete"
+      text="Delete" />
   </items>
 </fx:root>
