@@ -517,6 +517,7 @@ public class UIController extends Application
 	
 	private void openGallery() throws IOException
 	{
+		LOGGER.info("Opening gallery {}", galleryFile);
 		try (Reader reader = Files.newBufferedReader(galleryFile, StandardCharsets.UTF_8))
 		{
 			gallery = gson().fromJson(reader, Gallery.class);
@@ -528,6 +529,7 @@ public class UIController extends Application
 	@FXML
 	protected void saveGallery() throws IOException
 	{
+		LOGGER.info("Saving gallery {}", galleryFile);
 		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
 		                                   .format(Instant.now().atZone(ZoneId.systemDefault()));
 		
