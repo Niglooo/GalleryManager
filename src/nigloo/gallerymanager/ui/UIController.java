@@ -525,7 +525,8 @@ public class UIController extends Application
 		gallery.finishConstruct();
 	}
 	
-	private void saveGallery() throws IOException
+	@FXML
+	protected void saveGallery() throws IOException
 	{
 		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
 		                                   .format(Instant.now().atZone(ZoneId.systemDefault()));
