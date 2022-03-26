@@ -143,7 +143,6 @@ public class UIController extends Application
 		
 		openGallery();
 		
-//		gallery.removeImagesNotHandledByAutoDowloader();
 //		gallery.compactIds();
 		
 		loadFXML(this, primaryStage, "ui.fxml");

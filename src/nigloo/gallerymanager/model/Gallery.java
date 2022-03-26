@@ -407,27 +407,6 @@ public final class Gallery
 		}
 	}
 	
-	public void removeImagesNotHandledByAutoDowloader()
-	{
-		synchronized (images)
-		{
-			Iterator<Image> it = images.iterator();
-			
-			imageLoop:
-			while (it.hasNext())
-			{
-				Image image = it.next();
-				
-				for (Artist artist : artists)
-					for (Downloader autoDownloader : artist.getAutodownloaders())
-						if (autoDownloader.isHandling(image))
-							continue imageLoop;
-						
-				it.remove();
-			}
-		}
-	}
-	
 	static private class SortOrderSerializer
 	        implements JsonSerializer<Map<Path, FileFolderOrder>>, JsonDeserializer<Map<Path, FileFolderOrder>>
 	{
