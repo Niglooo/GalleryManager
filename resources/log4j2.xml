@@ -15,14 +15,15 @@
     <!-- Console Appender -->
     <Console name="STDOUT" target="SYSTEM_OUT">
       <PatternLayout pattern="[%-5p] %m%n" />
+      <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
     </Console>
   </Appenders>
   <Loggers>
-    <Root level="info">
+    <Root level="all">
       <AppenderRef ref="STDOUT" />
       <AppenderRef ref="FILE" />
     </Root>
-    <Logger name="nigloo.gallerymanager" level="debug" />
+<!--     <Logger name="nigloo.gallerymanager" level="debug" />
     <Logger name="nigloo.gallerymanager.autodownloader" level="debug">
       <Filters>
         <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="NEUTRAL"/>
@@ -30,6 +31,6 @@
         <MarkerFilter marker="HTTP_RESPONSE_HEADERS" onMatch="DENY" onMismatch="NEUTRAL" />
         <MarkerFilter marker="HTTP_RESPONSE_BODY" onMatch="DENY" onMismatch="NEUTRAL" />
       </Filters>
-    </Logger>
+    </Logger> -->
   </Loggers>
 </Configuration>
