@@ -69,6 +69,7 @@ import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
+import nigloo.gallerymanager.model.Tag;
 import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
@@ -448,8 +449,7 @@ public abstract class Downloader
 		if (image.isNotSaved())
 		{
 			image.addTag(artist.getTag());
-			if (tags != null)
-				tags.forEach(image::addTag);
+			addTags(image, tags);
 			
 			gallery.saveImage(image);
 			session.imagesAdded.add(image);
@@ -457,8 +457,7 @@ public abstract class Downloader
 		else {//TODO remove
 		image.getTags().forEach(image::removeTag);
 		image.addTag(artist.getTag());
-		if (tags != null)
-			tags.forEach(image::addTag);
+		addTags(image, tags);
 		}
 		
 		ImageReference ref = new ImageReference(image);
@@ -467,6 +466,24 @@ public abstract class Downloader
 		mapping.put(imagekey, ref);
 		
 		return image;
+	}
+	
+	private void addTags(Image image, Collection<String> tags)
+	{
+		if (tags == null)
+			return;
+		
+		for (String tagName : tags)
+		{
+			Tag tag = gallery.findTag(tagName);
+			if (tag == null)
+			{
+				tag = gallery.getTag(tagName);
+				tag.setParents(List.of(gallery.getTag("unchecked_tag")));
+			}
+			
+			image.addTag(tag);
+		}
 	}
 	
 	private Function<HttpResponse<Path>, Image> saveInGallery(DownloadSession session, String postId, String imageId, Collection<String> tags)
