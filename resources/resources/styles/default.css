@@ -58,6 +58,21 @@
 }
 
 
+.script-pane-list
+{
+    -fx-padding: 10px;
+    -fx-spacing: 10px;
+}
+
+.script-pane
+{
+    -fx-spacing: 5px;
+}
+
+.script-button-bar
+{
+    -fx-spacing: 5px;
+}
 
 #edit_image_tag_popup_content
 {

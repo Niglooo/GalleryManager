@@ -98,6 +98,21 @@
 		</dependency>
 
 
+		<!-- https://mvnrepository.com/artifact/org.graalvm.js/js-scriptengine -->
+		<dependency>
+			<groupId>org.graalvm.js</groupId>
+			<artifactId>js-scriptengine</artifactId>
+			<version>21.3.0</version>
+		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/org.graalvm.js/js -->
+		<dependency>
+			<groupId>org.graalvm.js</groupId>
+			<artifactId>js</artifactId>
+			<version>21.3.0</version>
+		</dependency>
+
+
 		<!-- https://mvnrepository.com/artifact/org.openjfx/javafx-base -->
 		<dependency>
 			<groupId>org.openjfx</groupId>

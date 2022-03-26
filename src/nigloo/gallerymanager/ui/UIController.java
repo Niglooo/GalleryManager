@@ -1,6 +1,5 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -23,13 +22,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Properties;
+import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,6 +49,8 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -58,13 +63,14 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
-import nigloo.gallerymanager.autodownloader.Downloader;
-import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
+import nigloo.gallerymanager.script.ScriptAPI;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
+import nigloo.tool.PrintString;
 import nigloo.tool.StopWatch;
+import nigloo.tool.Utils;
 import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
@@ -140,20 +146,6 @@ public class UIController extends Application
 //		gallery.removeImagesNotHandledByAutoDowloader();
 //		gallery.compactIds();
 		
-		for (Artist artist : gallery.getArtists())
-		{
-			for (Downloader autoDownloader : artist.getAutodownloaders())
-			{
-				Properties config = new Properties();
-				config.load(new FileInputStream("config.properties"));
-				autoDownloader.download(config, false);
-				for (Image image : gallery.getImages())
-					if (autoDownloader.isHandling(image))
-						image.addTag(artist.getTag());
-			}
-		}
-		saveGallery();
-		
 		loadFXML(this, primaryStage, "ui.fxml");
 		
 		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
@@ -172,6 +164,11 @@ public class UIController extends Application
 		
 		thumbnailUpdater = new ThumbnailUpdaterThread(500);
 		thumbnailUpdater.start();
+		
+		afterGalleryLoadScript.textProperty().addListener((obs, oldValue, newValue) -> updateAfterGalleryLoadScriptModified());
+		afterGalleryLoadScript.setText(gallery.getScripts().getAfterGalleryLoad());
+		
+		runAfterGalleryLoadScript();
 		
 		primaryStage.show();
 	}
@@ -527,7 +524,7 @@ public class UIController extends Application
 	}
 	
 	@FXML
-	protected void saveGallery() throws IOException
+	public void saveGallery() throws IOException
 	{
 		LOGGER.info("Saving gallery {}", galleryFile);
 		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
@@ -627,5 +624,84 @@ public class UIController extends Application
 			throw new Error("Error while loading FXML for " + controller.getClass().getSimpleName()
 			        + " (resources/fxml/" + filename + ")", e);
 		}
+	}
+	
+	
+	
+	// Scripts edition (TODO move out of UIController)
+	
+	@FXML
+	private Label afterGalleryLoadScriptTitle;
+	@FXML
+	private TextArea afterGalleryLoadScript;
+	@FXML
+	private TextArea afterGalleryLoadScriptOutput;
+	
+	@FXML
+	protected void saveAfterGalleryLoadScript()
+	{
+		System.out.println("saveAfterGalleryLoadScript");
+		gallery.getScripts().setAfterGalleryLoad(afterGalleryLoadScript.getText());
+		updateAfterGalleryLoadScriptModified();
+	}
+	
+	@FXML
+	protected void reloadAfterGalleryLoadScript()
+	{
+		System.out.println("cancelAfterGalleryLoadScript");
+		afterGalleryLoadScript.setText(gallery.getScripts().getAfterGalleryLoad());
+		updateAfterGalleryLoadScriptModified();
+	}
+	
+	@FXML
+	protected void runAfterGalleryLoadScript()
+	{
+		System.out.println("runAfterGalleryLoadScript");
+		
+		String script = afterGalleryLoadScript.getText();
+		if (Utils.isBlank(script))
+			return;
+		
+		PrintString output = new PrintString();
+		
+		try {
+			ScriptEngine engine = new ScriptEngineManager().getEngineByExtension("js");
+			System.out.println("getEngineName: " + engine.getFactory().getEngineName());
+			System.out.println("getEngineVersion: " + engine.getFactory().getEngineVersion());
+			System.out.println("getLanguageName: " + engine.getFactory().getLanguageName());
+			System.out.println("getLanguageVersion: " + engine.getFactory().getLanguageVersion());
+			
+			engine.getContext().setWriter(output);
+			engine.getContext().setErrorWriter(output);
+			engine.getContext().setAttribute("polyglot.js.allowAllAccess", true, ScriptContext.ENGINE_SCOPE);
+			
+			engine.getContext().setAttribute("api", Injector.getInstance(ScriptAPI.class), ScriptContext.ENGINE_SCOPE);
+			
+			System.out.println(script);
+			//afterGalleryLoadScriptOutput.setText("Executing script...");
+			long begin = System.currentTimeMillis();
+			engine.eval(script);
+			long end = System.currentTimeMillis();
+			output.println("Finished in "+(end-begin)+"ms");
+		}
+		catch (Exception e) {
+			e.printStackTrace(output);
+		}
+		
+		afterGalleryLoadScriptOutput.setText(output.toString());
+	}
+	
+	private static final String HAS_CHANGED_MARKER = "*";
+	
+	private void updateAfterGalleryLoadScriptModified()
+	{
+		String scriptTitle = afterGalleryLoadScriptTitle.getText();
+		boolean modified = !Objects.equals(afterGalleryLoadScript.getText(), gallery.getScripts().getAfterGalleryLoad());
+		boolean markerPresent = scriptTitle.endsWith(HAS_CHANGED_MARKER);
+		
+		if (modified && !markerPresent)
+			afterGalleryLoadScriptTitle.setText(scriptTitle+HAS_CHANGED_MARKER);
+		else if (!modified && markerPresent)
+			afterGalleryLoadScriptTitle.setText(scriptTitle.substring(0, scriptTitle.length()-HAS_CHANGED_MARKER.length()));
 	}
 }
