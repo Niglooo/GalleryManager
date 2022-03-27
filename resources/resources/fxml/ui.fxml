@@ -20,15 +20,17 @@
 <?import nigloo.gallerymanager.ui.VScrollablePane?>
 
 <fx:root
+  height="800.0"
   title="Gallery Manager"
   type="Stage"
+  width="1200.0"
   xmlns="http://javafx.com/javafx/17"
   xmlns:fx="http://javafx.com/fxml/1">
   <scene>
     <Scene>
       <VBox>
         <children>
-          <MenuBar>
+          <MenuBar VBox.vgrow="NEVER">
             <menus>
               <Menu
                 mnemonicParsing="false"
@@ -43,13 +45,8 @@
             </menus>
           </MenuBar>
           <TabPane
-            maxHeight="-Infinity"
-            maxWidth="-Infinity"
-            minHeight="-Infinity"
-            minWidth="-Infinity"
-            prefHeight="800.0"
-            prefWidth="1200.0"
-            tabClosingPolicy="UNAVAILABLE">
+            tabClosingPolicy="UNAVAILABLE"
+            VBox.vgrow="ALWAYS">
             <tabs>
               <Tab text="Gallery">
                 <content>
