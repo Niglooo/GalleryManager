@@ -60,7 +60,7 @@ public class EditImageTagsDialog extends Stage
 	{
 		super(StageStyle.UTILITY);
 		initOwner(owner);
-		initModality(Modality.WINDOW_MODAL);
+		initModality(Modality.APPLICATION_MODAL);
 		
 		UIController.loadFXML(this, "edit_image_tags_popup.fxml");
 		Injector.init(this);
