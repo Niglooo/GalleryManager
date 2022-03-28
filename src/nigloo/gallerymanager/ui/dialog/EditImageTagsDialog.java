@@ -208,11 +208,6 @@ public class EditImageTagsDialog extends Stage
 		}
 		
 		List<Tag> parents = Arrays.stream(parentTagField.getText().split(" ")).filter(s -> !s.isEmpty()).distinct().map(s -> gallery.getTag(s)).toList();
-		if (parents.isEmpty())
-		{
-			showErrorMessage("Parents is empty");
-			return;
-		}
 		
 		Tag tag = gallery.getTag(tagNameField.getText());
 		
