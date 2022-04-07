@@ -674,7 +674,7 @@ public class UIController extends Application
 			engine.getContext().setErrorWriter(output);
 			engine.getContext().setAttribute("polyglot.js.allowAllAccess", true, ScriptContext.ENGINE_SCOPE);
 			
-			engine.getContext().setAttribute("api", Injector.getInstance(ScriptAPI.class), ScriptContext.ENGINE_SCOPE);
+			engine.getContext().setAttribute("api", new ScriptAPI(output), ScriptContext.ENGINE_SCOPE);
 			
 			System.out.println(script);
 			//afterGalleryLoadScriptOutput.setText("Executing script...");
