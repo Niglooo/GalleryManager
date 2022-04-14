@@ -21,8 +21,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.github.mizosoft.methanol.MoreBodyHandlers;
-
 public class MasonryDownloader extends Downloader
 {
 	@Override
@@ -36,7 +34,7 @@ public class MasonryDownloader extends Downloader
 		HttpResponse<?> response;
 		
 		request = HttpRequest.newBuilder().uri(new URI(host)).GET().headers(getHeaders(host, null)).build();
-		response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+		response = session.send(request, BodyHandlers.ofString());
 		
 		String phpsessidCookie = parseCookies(response.headers().firstValue("Set-Cookie").get()).get("PHPSESSID")
 		                                                                                        .toString();
@@ -61,7 +59,7 @@ public class MasonryDownloader extends Downloader
 			                     .POST(BodyPublishers.ofString(postParam))
 			                     .headers(headers)
 			                     .build();
-			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+			response = session.send(request, BodyHandlers.ofString());
 			
 			Elements postLinkElements = Jsoup.parseBodyFragment(response.body().toString()).select("body > a");
 			if (postLinkElements.isEmpty())
@@ -89,13 +87,13 @@ public class MasonryDownloader extends Downloader
 				loaded.add(postId);
 				
 				request = HttpRequest.newBuilder().uri(new URI(postUrl)).GET().headers(headers).build();
-				downloads.add(session.sendAsync(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()))
+				downloads.add(session.sendAsync(request, BodyHandlers.ofString())
 				                     .thenCompose(downloadImages(session,
-				                                                    headers,
-				                                                    postId,
-				                                                    postTitle,
-				                                                    publishedDatetime,
-				                                                    tags)));
+				                                                 headers,
+				                                                 postId,
+				                                                 postTitle,
+				                                                 publishedDatetime,
+				                                                 tags)));
 			}
 		}
 		
@@ -105,11 +103,11 @@ public class MasonryDownloader extends Downloader
 	}
 	
 	private Function<HttpResponse<String>, CompletableFuture<Void>> downloadImages(DownloadSession session,
-	                                                                            String[] headers,
-	                                                                            String postId,
-	                                                                            String postTitle,
-	                                                                            ZonedDateTime publishedDatetime,
-	                                                                            Collection<String> tags)
+	                                                                               String[] headers,
+	                                                                               String postId,
+	                                                                               String postTitle,
+	                                                                               ZonedDateTime publishedDatetime,
+	                                                                               Collection<String> tags)
 	{
 		return response ->
 		{

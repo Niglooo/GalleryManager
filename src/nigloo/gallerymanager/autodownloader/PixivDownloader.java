@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -50,7 +49,7 @@ public class PixivDownloader extends Downloader
 		                     .GET()
 		                     .headers(headers)
 		                     .build();
-		response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+		response = session.send(request, BodyHandlers.ofString());
 		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 		
 		List<String> postIds = JsonHelper.followPath(parsedResponse, "body.illusts", JsonObject.class)
@@ -79,7 +78,7 @@ public class PixivDownloader extends Downloader
 				                                                   .collect(Collectors.joining("&"))
 				        + "&work_category=illust&is_first_page=0&lang=en";
 				request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-				response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+				response = session.send(request, BodyHandlers.ofString());
 				parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 				
 				posts = JsonHelper.followPath(parsedResponse, "body.works", JsonObject.class);
@@ -100,7 +99,7 @@ public class PixivDownloader extends Downloader
 			                     .GET()
 			                     .headers(headers)
 			                     .build();
-			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+			response = session.send(request, BodyHandlers.ofString());
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			JsonArray jTags = JsonHelper.followPath(parsedResponse, "body.tags.tags", JsonArray.class);
 			Collection<String> tags = new ArrayList<>(jTags.size());
@@ -118,7 +117,7 @@ public class PixivDownloader extends Downloader
 			                     .GET()
 			                     .headers(headers)
 			                     .build();
-			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+			response = session.send(request, BodyHandlers.ofString());
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			
 			JsonArray images = JsonParser.parseString(response.body().toString())

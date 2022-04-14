@@ -16,7 +16,6 @@ import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
-import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -77,7 +76,7 @@ public class TwitterDownloader extends Downloader
 		url = "https://twitter.com/i/api/graphql/G07SmTUd0Mx7qy3Az_b52w/UserByScreenNameWithoutResults?variables=%7B%22screen_name%22%3A%22"
 		        + creatorId + "%22%2C%22withHighlightedLabel%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Afalse%7D";
 		request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-		response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+		response = session.send(request, BodyHandlers.ofString());
 		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 		
 		String restId = JsonHelper.followPath(parsedResponse, "data.user.rest_id");
@@ -89,7 +88,7 @@ public class TwitterDownloader extends Downloader
 		while (currentUrl != null)
 		{
 			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
-			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+			response = session.send(request, BodyHandlers.ofString());
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			
 			JsonArray posts = JsonHelper.followPath(parsedResponse,

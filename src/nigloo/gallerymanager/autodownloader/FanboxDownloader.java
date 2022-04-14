@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.StreamSupport;
 
-import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -58,7 +57,7 @@ public class FanboxDownloader extends Downloader
 		while (currentUrl != null)
 		{
 			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
-			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+			response = session.send(request, BodyHandlers.ofString());
 			
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
 			
@@ -78,7 +77,7 @@ public class FanboxDownloader extends Downloader
 				                     .GET()
 				                     .headers(headers)
 				                     .build();
-				response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+				response = session.send(request, BodyHandlers.ofString());
 				
 				JsonElement item = JsonHelper.followPath(JsonParser.parseString(response.body().toString()),
 				                                         "body",
