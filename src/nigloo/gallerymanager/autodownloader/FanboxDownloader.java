@@ -2,7 +2,6 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,7 +17,6 @@ import java.util.stream.StreamSupport;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 
@@ -46,8 +44,6 @@ public class FanboxDownloader extends Downloader
 		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
 		
 		HttpRequest request;
-		HttpResponse<?> response;
-		JsonObject parsedResponse;
 		
 		String[] headers = getHeaders(cookie);
 		
@@ -57,13 +53,9 @@ public class FanboxDownloader extends Downloader
 		while (currentUrl != null)
 		{
 			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
-			response = session.send(request, BodyHandlers.ofString());
+			JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 			
-			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
-			
-			List<String> postIds = StreamSupport.stream(JsonHelper.followPath(parsedResponse,
-			                                                                  "body.items",
-			                                                                  JsonArray.class)
+			List<String> postIds = StreamSupport.stream(JsonHelper.followPath(response, "body.items", JsonArray.class)
 			                                                      .spliterator(),
 			                                            false)
 			                                    .map(JsonElement::getAsJsonObject)
@@ -77,20 +69,19 @@ public class FanboxDownloader extends Downloader
 				                     .GET()
 				                     .headers(headers)
 				                     .build();
-				response = session.send(request, BodyHandlers.ofString());
+				JsonElement post = session.send(request, JsonHelper.httpBodyHandler())
+				                          .body()
+				                          .getAsJsonObject()
+				                          .get("body");
 				
-				JsonElement item = JsonHelper.followPath(JsonParser.parseString(response.body().toString()),
-				                                         "body",
-				                                         JsonElement.class);
-				
-				JsonArray images = JsonHelper.followPath(item, "body.images", JsonArray.class);
+				JsonArray images = JsonHelper.followPath(post, "body.images", JsonArray.class);
 				if (images == null)
 				{
-					JsonObject imageMap = JsonHelper.followPath(item, "body.imageMap", JsonObject.class);
+					JsonObject imageMap = JsonHelper.followPath(post, "body.imageMap", JsonObject.class);
 					if (imageMap != null)
 					{
 						images = new JsonArray(imageMap.size());
-						JsonArray blocks = JsonHelper.followPath(item, "body.blocks", JsonArray.class);
+						JsonArray blocks = JsonHelper.followPath(post, "body.blocks", JsonArray.class);
 						for (JsonElement block : blocks)
 						{
 							String type = JsonHelper.followPath(block, "type");
@@ -99,22 +90,21 @@ public class FanboxDownloader extends Downloader
 								String imageId = JsonHelper.followPath(block, "imageId");
 								images.add(imageMap.get(imageId));
 							}
-							
 						}
 					}
 					else
 						images = new JsonArray(0);
 				}
 				
-				JsonArray files = downloadFiles ? JsonHelper.followPath(item, "body.files", JsonArray.class) : null;
+				JsonArray files = downloadFiles ? JsonHelper.followPath(post, "body.files", JsonArray.class) : null;
 				if (files == null)
 					files = new JsonArray(0);
 				
 				if (images.size() == 0 && files.size() == 0)
 					continue;
 				
-				String postTitle = JsonHelper.followPath(item, "title");
-				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(item, "publishedDatetime"));
+				String postTitle = JsonHelper.followPath(post, "title");
+				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "publishedDatetime"));
 				// FIXME update current most recent date only if download succeed
 				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
@@ -165,7 +155,7 @@ public class FanboxDownloader extends Downloader
 				}
 			}
 			
-			currentUrl = JsonHelper.followPath(parsedResponse, "body.nextUrl");
+			currentUrl = JsonHelper.followPath(response, "body.nextUrl");
 		}
 		
 		CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new)).join();

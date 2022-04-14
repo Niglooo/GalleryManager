@@ -2,8 +2,6 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,7 +12,6 @@ import java.util.stream.Collectors;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 
@@ -39,8 +36,7 @@ public class PixivDownloader extends Downloader
 		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
 		
 		HttpRequest request;
-		HttpResponse<?> response;
-		JsonObject parsedResponse;
+		JsonElement response;
 		
 		String[] headers = getHeaders(cookie);
 		
@@ -49,10 +45,9 @@ public class PixivDownloader extends Downloader
 		                     .GET()
 		                     .headers(headers)
 		                     .build();
-		response = session.send(request, BodyHandlers.ofString());
-		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
+		response = session.send(request, JsonHelper.httpBodyHandler()).body();
 		
-		List<String> postIds = JsonHelper.followPath(parsedResponse, "body.illusts", JsonObject.class)
+		List<String> postIds = JsonHelper.followPath(response, "body.illusts", JsonObject.class)
 		                                 .keySet()
 		                                 .stream()
 		                                 .toList();
@@ -78,13 +73,12 @@ public class PixivDownloader extends Downloader
 				                                                   .collect(Collectors.joining("&"))
 				        + "&work_category=illust&is_first_page=0&lang=en";
 				request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-				response = session.send(request, BodyHandlers.ofString());
-				parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
+				response = session.send(request, JsonHelper.httpBodyHandler()).body();
 				
-				posts = JsonHelper.followPath(parsedResponse, "body.works", JsonObject.class);
+				posts = JsonHelper.followPath(response, "body.works", JsonObject.class);
 			}
 			
-			JsonObject post = posts.get(postId).getAsJsonObject();
+			JsonElement post = posts.get(postId);
 			
 			String postTitle = JsonHelper.followPath(post, "title");
 			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "createDate"));
@@ -99,9 +93,8 @@ public class PixivDownloader extends Downloader
 			                     .GET()
 			                     .headers(headers)
 			                     .build();
-			response = session.send(request, BodyHandlers.ofString());
-			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
-			JsonArray jTags = JsonHelper.followPath(parsedResponse, "body.tags.tags", JsonArray.class);
+			response = session.send(request, JsonHelper.httpBodyHandler()).body();
+			JsonArray jTags = JsonHelper.followPath(response, "body.tags.tags", JsonArray.class);
 			Collection<String> tags = new ArrayList<>(jTags.size());
 			for (JsonElement jTag : jTags)
 			{
@@ -117,12 +110,9 @@ public class PixivDownloader extends Downloader
 			                     .GET()
 			                     .headers(headers)
 			                     .build();
-			response = session.send(request, BodyHandlers.ofString());
-			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
+			response = session.send(request, JsonHelper.httpBodyHandler()).body();
 			
-			JsonArray images = JsonParser.parseString(response.body().toString())
-			                             .getAsJsonObject()
-			                             .getAsJsonArray("body");
+			JsonArray images = JsonHelper.followPath(response, "body", JsonArray.class);
 			
 			int imageNumber = 1;
 			for (JsonElement image : images)

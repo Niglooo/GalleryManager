@@ -3,8 +3,6 @@ package nigloo.gallerymanager.autodownloader;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -19,7 +17,6 @@ import java.util.concurrent.CompletableFuture;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 
@@ -68,18 +65,16 @@ public class TwitterDownloader extends Downloader
 		
 		String url;
 		HttpRequest request;
-		HttpResponse<?> response;
-		JsonObject parsedResponse;
+		JsonElement response;
 		
 		String[] headers = getHeaders(session);
 		
 		url = "https://twitter.com/i/api/graphql/G07SmTUd0Mx7qy3Az_b52w/UserByScreenNameWithoutResults?variables=%7B%22screen_name%22%3A%22"
 		        + creatorId + "%22%2C%22withHighlightedLabel%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Afalse%7D";
 		request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-		response = session.send(request, BodyHandlers.ofString());
-		parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
+		response = session.send(request, JsonHelper.httpBodyHandler()).body();
 		
-		String restId = JsonHelper.followPath(parsedResponse, "data.user.rest_id");
+		String restId = JsonHelper.followPath(response, "data.user.rest_id");
 		
 		String currentUrl = listTweetUrl(restId, null);
 		String previousCursor = null;
@@ -88,10 +83,9 @@ public class TwitterDownloader extends Downloader
 		while (currentUrl != null)
 		{
 			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
-			response = session.send(request, BodyHandlers.ofString());
-			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
+			response = session.send(request, JsonHelper.httpBodyHandler()).body();
 			
-			JsonArray posts = JsonHelper.followPath(parsedResponse,
+			JsonArray posts = JsonHelper.followPath(response,
 			                                        "data.user.result.timeline.timeline.instructions[0].entries",
 			                                        JsonArray.class);
 			
@@ -193,7 +187,8 @@ public class TwitterDownloader extends Downloader
 		String variables =
 		"{" +
 			"\"userId\":\"" + userId + "\"," +
-			"\"count\":" + PAGE_SIZE + "," + (cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
+			"\"count\":" + PAGE_SIZE + "," + 
+			(cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
 			"\"withHighlightedLabel\":false," +
 			"\"withTweetQuoteCount\":false," +
 			"\"includePromotedContent\":false," +
