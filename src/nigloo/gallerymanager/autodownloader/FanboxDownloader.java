@@ -11,7 +11,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.StreamSupport;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
 import com.google.gson.JsonArray;
@@ -43,7 +45,7 @@ public class FanboxDownloader extends Downloader
 		String cookie = session.getSecret("fanbox.cookie");
 		
 		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
-
+		
 		HttpRequest request;
 		HttpResponse<?> response;
 		JsonObject parsedResponse;
@@ -59,8 +61,29 @@ public class FanboxDownloader extends Downloader
 			response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
 			
 			parsedResponse = JsonParser.parseString(response.body().toString()).getAsJsonObject();
-			for (JsonElement item : JsonHelper.followPath(parsedResponse, "body.items", JsonArray.class))
+			
+			List<String> postIds = StreamSupport.stream(JsonHelper.followPath(parsedResponse,
+			                                                                  "body.items",
+			                                                                  JsonArray.class)
+			                                                      .spliterator(),
+			                                            false)
+			                                    .map(JsonElement::getAsJsonObject)
+			                                    .map(post -> post.get("id").getAsString())
+			                                    .toList();
+			
+			for (String postId : postIds)
 			{
+				request = HttpRequest.newBuilder()
+				                     .uri(new URI("https://api.fanbox.cc/post.info?postId=" + postId))
+				                     .GET()
+				                     .headers(headers)
+				                     .build();
+				response = session.send(request, MoreBodyHandlers.decoding(BodyHandlers.ofString()));
+				
+				JsonElement item = JsonHelper.followPath(JsonParser.parseString(response.body().toString()),
+				                                         "body",
+				                                         JsonElement.class);
+				
 				JsonArray images = JsonHelper.followPath(item, "body.images", JsonArray.class);
 				if (images == null)
 				{
@@ -91,10 +114,9 @@ public class FanboxDownloader extends Downloader
 				if (images.size() == 0 && files.size() == 0)
 					continue;
 				
-				String postId = JsonHelper.followPath(item, "id");
 				String postTitle = JsonHelper.followPath(item, "title");
 				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(item, "publishedDatetime"));
-				// FIXME update curent most recent date only if download succeed
+				// FIXME update current most recent date only if download succeed
 				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
 				
