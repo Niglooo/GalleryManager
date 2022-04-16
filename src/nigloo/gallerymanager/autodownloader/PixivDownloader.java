@@ -65,10 +65,9 @@ public class PixivDownloader extends Downloader
 					offset += POST_PAGE_SIZE;
 				
 				String url = "https://www.pixiv.net/ajax/user/"
-				        + creatorId + "/profile/illusts?" + postIds.subList(offset,
-				                                                            Math.min(offset + POST_PAGE_SIZE,
-				                                                                     postIds.size()))
-				                                                   .stream()
+				        + creatorId + "/profile/illusts?" + postIds.stream()
+				                                                   .skip(offset)
+				                                                   .limit(POST_PAGE_SIZE)
 				                                                   .map(id -> "ids%5B%5D=" + id)
 				                                                   .collect(Collectors.joining("&"))
 				        + "&work_category=illust&is_first_page=0&lang=en";
