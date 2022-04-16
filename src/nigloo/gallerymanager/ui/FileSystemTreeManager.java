@@ -289,6 +289,7 @@ public class FileSystemTreeManager
 						if (subElement.isDirectory())
 						{
 							subItem.getChildren().add(new TreeItem<>());
+							//FIXME always add fake item? should be only if !deep
 							subItem.expandedProperty().addListener(new NewFolderExpandListener(subItem));
 						}
 						
@@ -556,16 +557,21 @@ public class FileSystemTreeManager
 		
 		Platform.runLater(() ->
 		{
+			StrongReference<Boolean> refreshThumbnails = new StrongReference<>(false);
+			
 			for (Path path : (deep ? withoutChildren(paths) : paths))
 			{
 				TreeItem<FileSystemElement> item = getTreeItem(path);
-				if (doSynchronize(item, deep))
+				if (doSynchronize(item, deep, refreshThumbnails))
 				{
 					TreeItem<FileSystemElement> parent = item.getParent();
 					parent.getChildren().remove(item);
 					updateFolderAndParentStatus(parent, false);
 				}
 			}
+			
+			if (refreshThumbnails.get())
+				uiController.requestRefreshThumbnails();
 		});
 	}
 	
@@ -573,24 +579,30 @@ public class FileSystemTreeManager
 	 * 
 	 * @param item
 	 * @param deep
+	 * @param refreshThumbnails Out parameter. Set to true if a a refresh to the
+	 *                          thumbnail should be requested.
 	 * @return true if the item need to be deleted
 	 */
-	private boolean doSynchronize(TreeItem<FileSystemElement> item, boolean deep)
+	private boolean doSynchronize(TreeItem<FileSystemElement> item,
+	                              boolean deep,
+	                              StrongReference<Boolean> refreshThumbnails)
 	{
 		if (item == null || item.getValue() == null)
 			return false;
 		
 		FileSystemElement element = item.getValue();
 		
+		if (!Files.exists(element.getPath()))
+		{
+			gallery.deleteImages(gallery.findImagesIn(element.getPath()));
+			refreshThumbnails.set(true);
+			return true;
+		}
+		
 		if (element.isImage())
 		{
 			Image image = element.getImage();
-			if (!Files.exists(image.getAbsolutePath()))
-			{
-				gallery.deleteImages(List.of(image));
-				return true;
-			}
-			else if (!image.isSaved())
+			if (!image.isSaved())
 			{
 				gallery.saveImage(image);
 				item.setValue(new FileSystemElement(image, Status.SYNC));
@@ -607,7 +619,8 @@ public class FileSystemTreeManager
 			while (it.hasNext())
 			{
 				TreeItem<FileSystemElement> subItem = it.next();
-				if (subItem.getValue() != null && (subItem.getValue().isImage() || deep) && doSynchronize(subItem, deep))
+				if (subItem.getValue() != null && (subItem.getValue().isImage() || deep)
+				        && doSynchronize(subItem, deep, refreshThumbnails))
 				{
 					it.remove();
 					removed = true;
