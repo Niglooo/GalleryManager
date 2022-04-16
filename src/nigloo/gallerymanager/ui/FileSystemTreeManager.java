@@ -65,6 +65,8 @@ public class FileSystemTreeManager
 	private static final Logger LOGGER = LogManager.getLogger(FileSystemTreeManager.class);
 	private static final Marker UPDATE_THUMBNAILS = UIController.UPDATE_THUMBNAILS;
 	
+	private static boolean KEEP_EMPTY_FOLDER = true;
+	
 	@Inject
 	private UIController uiController;
 	@Inject
@@ -513,7 +515,7 @@ public class FileSystemTreeManager
 		TreeItem<FileSystemElement> parent = item.getParent();
 		if (parent != null)
 		{
-			if (newSatus == Status.EMPTY)
+			if (newSatus == Status.EMPTY && !KEEP_EMPTY_FOLDER)
 				parent.getChildren().remove(item);
 			
 			updateFolderAndParentStatus(parent, false);
@@ -615,7 +617,10 @@ public class FileSystemTreeManager
 			if (removed)
 				updateFolderAndParentStatus(item, false);
 			
-			return item.getChildren().isEmpty();
+			if (!KEEP_EMPTY_FOLDER)
+				return item.getChildren().isEmpty();
+			
+			return false;
 		}
 	}
 	
