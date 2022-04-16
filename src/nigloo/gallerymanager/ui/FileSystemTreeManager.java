@@ -872,7 +872,9 @@ public class FileSystemTreeManager
 							Path source = oldElement.getPath();
 							Path target = newElement.getPath();
 							
-							Utils.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+							if (Files.exists(source))
+								Utils.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+							
 							gallery.move(source, target);
 							
 							// If oldElement is an image, then gallery.move updated its Image, which we want
@@ -1108,7 +1110,8 @@ public class FileSystemTreeManager
 				try
 				{
 					// Move files on disk
-					Utils.move(path, newPath, StandardCopyOption.REPLACE_EXISTING);
+					if (Files.exists(path))
+						Utils.move(path, newPath, StandardCopyOption.REPLACE_EXISTING);
 					
 					// Move images in gallery, sort order preference, etc
 					gallery.move(path, newPath);
