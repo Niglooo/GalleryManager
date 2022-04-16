@@ -122,6 +122,9 @@ public class FileSystemElement
 		return (image != null) ? image.equals(other.image) : path.equals(other.path);
 	}
 	
+	/**
+	 * @return The absolute path of the element
+	 */
 	public Path getPath()
 	{
 		return image != null ? image.getAbsolutePath() : path;
