@@ -200,7 +200,7 @@ public final class Gallery
 				if (this.images.remove(image))
 					deleted.add(image);
 			
-			unsavedImages().values().removeAll(images);
+			unsavedImages().keySet().removeAll(images.stream().map(Image::getPath).toList());
 		}
 		for (Image image : deleted)
 			LOGGER.info("Image deleted from gallery: {}", image.getPath());
