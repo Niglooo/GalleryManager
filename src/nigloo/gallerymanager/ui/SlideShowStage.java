@@ -57,6 +57,7 @@ public class SlideShowStage extends Stage
 	private final ImageView imageView;
 	private final VBox infoZone;
 	private final Text infoImagePath;
+	private final Text infoImageSize;
 	private final VBox infoImageTags;
 	
 	private final Timeline autoplay;
@@ -106,10 +107,13 @@ public class SlideShowStage extends Stage
 		infoImagePath = new Text();
 		infoImagePath.getStyleClass().add("image-path");
 		
+		infoImageSize = new Text();
+		infoImagePath.getStyleClass().add("image-size");
+		
 		infoImageTags = new VBox();
 		infoImageTags.getStyleClass().add("tag-list");
 		
-		infoZone = new VBox(infoImagePath, infoImageTags);
+		infoZone = new VBox(infoImagePath, infoImageSize, infoImageTags);
 		infoZone.getStyleClass().add("info-zone");
 		infoZone.setVisible(false);
 		
@@ -323,6 +327,7 @@ public class SlideShowStage extends Stage
 		}
 		
 		infoImagePath.setText(currentImage.getPath().toString());
+		updateInfoImageSize(fxImage);
 		infoImageTags.getChildren().clear();
 		currentImage.getTags().stream().sorted(Comparator.comparing(Tag::getName)).forEachOrdered(tag ->
 		{
@@ -337,6 +342,14 @@ public class SlideShowStage extends Stage
 		});
 		
 		currentImageProperty.fireValueChangedEvent();
+	}
+	
+	private void updateInfoImageSize(javafx.scene.image.Image fxImage)
+	{
+		if (fxImage.getProgress() >= 1)
+			infoImageSize.setText("%.0fx%.0f".formatted(fxImage.getWidth(), fxImage.getHeight()));
+		else
+			infoImageSize.setText("???x???");
 	}
 	
 	private class CurrentImageProperty extends ReadOnlyObjectPropertyBase<Image>
@@ -430,7 +443,10 @@ public class SlideShowStage extends Stage
 						}
 						
 						if (fxImage.getProgress() >= 1 && image.equals(images.get(currentImageIdx)))
+						{
 							imageView.setImage(fxImage);
+							updateInfoImageSize(fxImage);
+						}
 					}
 					
 					while (current == currentImageIdx && !forceRefresh.get())
