@@ -188,17 +188,21 @@ public final class Gallery
 	
 	public void deleteImages(Collection<Image> images)
 	{
+		List<Image> deleted = new ArrayList<>(images.size());
 		synchronized (this.images)
 		{
 			for (Artist artist : artists)
 				for (Downloader autoDownloader : artist.getAutodownloaders())
 					autoDownloader.stopHandling(images);
-				
+			
 			// This last or we break every ImageReference
-			this.images.removeAll(images);
+			for (Image image : images)
+				if (this.images.remove(image))
+					deleted.add(image);
+			
 			unsavedImages().values().removeAll(images);
 		}
-		for (Image image : images)
+		for (Image image : deleted)
 			LOGGER.info("Image deleted from gallery: {}", image.getPath());
 	}
 	
