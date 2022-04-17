@@ -212,7 +212,7 @@ public class UIController extends Application
 			{
 				while (true)
 				{
-					checkThreadState();
+					SafeThread.checkThreadState();
 					
 					if (updateRequested && !isUpdating)
 					{
@@ -236,7 +236,7 @@ public class UIController extends Application
 						}
 						else
 						{
-							uninterruptedSleep(waitFor);
+							SafeThread.uninterruptedSleep(waitFor);
 						}
 					}
 					else

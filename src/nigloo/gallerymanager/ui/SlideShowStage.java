@@ -390,7 +390,7 @@ public class SlideShowStage extends Stage
 				mainLoop:
 				while (true)
 				{
-					checkThreadState();
+					SafeThread.checkThreadState();
 					
 					int current = currentImageIdx;
 					List<Image> imagesToLoad = List.of(images.get(validIndex(current, 0)),
@@ -407,7 +407,7 @@ public class SlideShowStage extends Stage
 					
 					for (Image image : imagesToLoad)
 					{
-						checkThreadState();
+						SafeThread.checkThreadState();
 						
 						javafx.scene.image.Image fxImage = image.getFXImage(true);
 						
@@ -419,7 +419,7 @@ public class SlideShowStage extends Stage
 						
 						while (fxImage.getProgress() < 1)
 						{
-							checkThreadState();
+							SafeThread.checkThreadState();
 							Thread.sleep(100);
 							
 							if (current != currentImageIdx || forceRefresh.compareAndSet(true, false))
@@ -435,7 +435,7 @@ public class SlideShowStage extends Stage
 					
 					while (current == currentImageIdx && !forceRefresh.get())
 					{
-						checkThreadState();
+						SafeThread.checkThreadState();
 						Thread.sleep(100);
 					}
 				}
