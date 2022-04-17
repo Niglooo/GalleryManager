@@ -359,15 +359,26 @@ public final class Gallery
 		{
 			synchronized (sortOrder)
 			{
-				Stream.concat(images.stream(), unsavedImages().values().stream()).forEach(image ->
+				List<Image> allImages = getAllImages();
+				Map<Path, Image> pathToImage = allImages.stream()
+				                                        .collect(Collectors.toMap(i -> i.getAbsolutePath(), i -> i));
+				
+				for (Image image : allImages)
 				{
 					Path path = image.getAbsolutePath();
 					if (path.startsWith(fSource))
 					{
 						Path newPath = fTarget.resolve(fSource.relativize(path));
+						Image existing = pathToImage.get(newPath);
+						if (existing != null)
+						{
+							images.remove(existing);
+							unsavedImages().remove(existing.getPath());
+						}
+						
 						image.move(toRelativePath(newPath));
 					}
-				});
+				}
 				
 				Map<Path, Path> mapping = new HashMap<>();
 				for (Path path : sortOrder.keySet())
