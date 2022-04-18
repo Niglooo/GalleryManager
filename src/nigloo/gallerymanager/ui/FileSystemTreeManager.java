@@ -660,7 +660,12 @@ public class FileSystemTreeManager
 			
 			AlertWithIcon warningPopup = new AlertWithIcon(AlertType.WARNING);
 			warningPopup.setTitle("Delete images");
-			warningPopup.setHeaderText("Delete " + nbImages + " image(s)?");
+			if (nbImages == 1)
+				warningPopup.setHeaderText("Delete \""
+				        + elements.stream().filter(FileSystemElement::isImage).findAny().get().getPath().getFileName()
+				        + "\"?");
+			else
+				warningPopup.setHeaderText("Delete " + nbImages + " image(s)?");
 			warningPopup.setContentText("This action cannot be undone!");
 			warningPopup.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
 			warningPopup.setDefaultButton(ButtonType.NO);
