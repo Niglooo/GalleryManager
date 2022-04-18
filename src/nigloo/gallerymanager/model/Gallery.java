@@ -112,25 +112,26 @@ public final class Gallery
 	 * Return null if not found
 	 * 
 	 * @param path
+	 * @param includeUnsaved if true, also searching among unsaved images
 	 * @return the image
 	 */
-	public Image findImage(Path path)
+	public Image findImage(Path path, boolean includeUnsaved)
 	{
 		synchronized (images)
 		{
 			final Path relPath = toRelativePath(path);
 			
-			return images.stream().filter(image -> image.getPath().equals(relPath)).findAny().orElse(null);
+			return imagesStream(includeUnsaved).filter(image -> image.getPath().equals(relPath)).findAny().orElse(null);
 		}
 	}
 	
-	public Collection<Image> findImagesIn(Path path)
+	public Collection<Image> findImagesIn(Path path, boolean includeUnsaved)
 	{
 		synchronized (images)
 		{
 			final Path absPath = toAbsolutePath(path);
 			
-			return images.stream().filter(image -> image.getAbsolutePath().startsWith(absPath)).toList();
+			return imagesStream(includeUnsaved).filter(image -> image.getAbsolutePath().startsWith(absPath)).toList();
 		}
 	}
 	
@@ -206,23 +207,17 @@ public final class Gallery
 			LOGGER.info("Image deleted from gallery: {}", image.getPath());
 	}
 	
-	public List<Image> getImages()
-	{
-		return Collections.unmodifiableList(images);
-	}
-	
-	public List<Image> getAllImages()
+	public Collection<Image> getImages(boolean includeUnsaved)
 	{
 		synchronized (images)
 		{
-			Collection<Image> unsavedImages = unsavedImages().values();
-			
-			ArrayList<Image> allImages = new ArrayList<>(images.size() + unsavedImages.size());
-			allImages.addAll(images);
-			allImages.addAll(unsavedImages);
-			
-			return Collections.unmodifiableList(allImages);
+			return imagesStream(includeUnsaved).toList();
 		}
+	}
+	
+	private Stream<Image> imagesStream(boolean includeUnsaved)
+	{
+		return includeUnsaved ? Stream.concat(images.stream(), unsavedImages().values().stream()) : images.stream();
 	}
 	
 	public Tag findTag(String tagName)
@@ -359,7 +354,7 @@ public final class Gallery
 		{
 			synchronized (sortOrder)
 			{
-				List<Image> allImages = getAllImages();
+				Collection<Image> allImages = getImages(true);
 				Map<Path, Image> pathToImage = allImages.stream()
 				                                        .collect(Collectors.toMap(i -> i.getAbsolutePath(), i -> i));
 				

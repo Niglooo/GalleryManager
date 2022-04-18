@@ -267,9 +267,9 @@ public class UIController extends Application
 		
 		Predicate<Image> tagFilter = getTagFilter();
 		
-		List<Image> images = gallery.getAllImages();
+		Collection<Image> images = gallery.getImages(true);
 		
-		LOGGER.debug(UPDATE_THUMBNAILS, "gallery.getAllImages() ({}) : {}ms", images.size(), timer.split());
+		LOGGER.debug(UPDATE_THUMBNAILS, "gallery.getImages(true) ({}) : {}ms", images.size(), timer.split());
 		
 		if (!fsSelection.isEmpty())
 		{

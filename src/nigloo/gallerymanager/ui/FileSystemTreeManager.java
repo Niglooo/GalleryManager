@@ -165,7 +165,7 @@ public class FileSystemTreeManager
 				if (item == null)
 					return;
 				
-				Image image = gallery.findImage(path);
+				Image image = gallery.findImage(path, false);
 				if (image != null)
 				{
 					item.setValue(new FileSystemElement(image, Status.DELETED));
@@ -177,7 +177,7 @@ public class FileSystemTreeManager
 					item.setValue(new FileSystemElement(path));
 					
 					// create/update deleted items
-					Collection<Image> deletedImages = gallery.findImagesIn(path);
+					Collection<Image> deletedImages = gallery.findImagesIn(path, false);
 					List<TreeItem<FileSystemElement>> itemProcessed = new ArrayList<>();
 					createUpdateDeleteItems(deletedImages, item, itemProcessed);
 					removeNotProcessed(item, itemProcessed);
@@ -264,7 +264,7 @@ public class FileSystemTreeManager
 			
 			// Add deleted files
 			int nameCountSub = path.getNameCount() + 1;
-			List<Image> deletedImages = gallery.findImagesIn(path).stream().filter(image ->
+			List<Image> deletedImages = gallery.findImagesIn(path, false).stream().filter(image ->
 			{
 				Path p = gallery.toAbsolutePath(image.getPath());
 				return !subPaths.contains(p.getRoot().resolve(p.subpath(0, nameCountSub)));
@@ -594,7 +594,7 @@ public class FileSystemTreeManager
 		
 		if (!Files.exists(element.getPath()))
 		{
-			gallery.deleteImages(gallery.findImagesIn(element.getPath()));
+			gallery.deleteImages(gallery.findImagesIn(element.getPath(), true));
 			refreshThumbnails.set(true);
 			return true;
 		}
