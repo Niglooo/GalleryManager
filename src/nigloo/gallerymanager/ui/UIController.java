@@ -664,6 +664,7 @@ public class UIController extends Application
 		PrintString output = new PrintString();
 		
 		try {
+			System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
 			ScriptEngine engine = new ScriptEngineManager().getEngineByExtension("js");
 			System.out.println("getEngineName: " + engine.getFactory().getEngineName());
 			System.out.println("getEngineVersion: " + engine.getFactory().getEngineVersion());
@@ -676,7 +677,6 @@ public class UIController extends Application
 			
 			engine.getContext().setAttribute("api", new ScriptAPI(output), ScriptContext.ENGINE_SCOPE);
 			
-			System.out.println(script);
 			//afterGalleryLoadScriptOutput.setText("Executing script...");
 			long begin = System.currentTimeMillis();
 			engine.eval(script);
