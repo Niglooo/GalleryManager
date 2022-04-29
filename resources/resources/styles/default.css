@@ -60,12 +60,12 @@
 
 .script-pane-list
 {
-    -fx-padding: 10px;
-    -fx-spacing: 10px;
+    -fx-padding: 0;
 }
 
 .script-pane
 {
+    -fx-padding: 10px;
     -fx-spacing: 5px;
 }
 

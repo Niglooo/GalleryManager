@@ -44,26 +44,11 @@ public final class Gallery
 	@JsonAdapter(SortOrderSerializer.class)
 	private Map<Path, FileFolderOrder> sortOrder = new HashMap<>();
 	private SlideShowParameters slideShowParameter = new SlideShowParameters();
-	private GalleryScripts scripts = new GalleryScripts();
+	private List<Script> scripts = new ArrayList<>();
 	
 	private transient long nextId = 1;
 	transient WeakIdentityHashSet<ImageReference> allImageReferences = new WeakIdentityHashSet<>();
 	transient WeakIdentityHashSet<TagReference> allTagReferences = new WeakIdentityHashSet<>();
-	
-	static public class GalleryScripts
-	{
-		private String afterGalleryLoad;
-
-		public String getAfterGalleryLoad()
-		{
-			return afterGalleryLoad;
-		}
-
-		public void setAfterGalleryLoad(String afterGalleryLoad)
-		{
-			this.afterGalleryLoad = afterGalleryLoad;
-		}
-	}
 	
 	/*
 	 * Need to be called just after deserialization
@@ -340,9 +325,30 @@ public final class Gallery
 		return slideShowParameter;
 	}
 	
-	public GalleryScripts getScripts()
+	public List<Script> getScripts()
 	{
-		return scripts;
+		synchronized (scripts)
+		{
+			return Collections.unmodifiableList(scripts);
+		}
+	}
+	
+	public Script newScript()
+	{
+		synchronized (scripts)
+		{
+			Script script = new Script();
+			scripts.add(script);
+			return script;
+		}
+	}
+	
+	public void deleteScript(Script script)
+	{
+		synchronized (scripts)
+		{
+			scripts.remove(script);
+		}
 	}
 
 	public void move(Path source, Path target)

@@ -22,17 +22,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,13 +39,15 @@ import com.google.gson.GsonBuilder;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.control.Hyperlink;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -65,12 +62,11 @@ import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.model.Script;
+import nigloo.gallerymanager.model.Script.AutoExecution;
 import nigloo.gallerymanager.model.Tag;
-import nigloo.gallerymanager.script.ScriptAPI;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
-import nigloo.tool.PrintString;
 import nigloo.tool.StopWatch;
-import nigloo.tool.Utils;
 import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
@@ -106,6 +102,9 @@ public class UIController extends Application
 	@FXML
 	private VScrollablePane thumbnailsView;
 	private ThumbnailUpdaterThread thumbnailUpdater;
+	
+	@FXML
+	private TabPane scriptEditors;
 	
 	private static Path galleryFile;
 	
@@ -161,20 +160,36 @@ public class UIController extends Application
 		
 		thumbnailsView.setContextMenu(new ThumbnailsContextMenu(thumbnailsView));
 		
+		scriptEditors.setTabClosingPolicy(TabClosingPolicy.ALL_TABS);
+		for (Script script : gallery.getScripts())
+		{
+			scriptEditors.getTabs().add(newScriptEditorTab(script));
+		}
+		Tab addTab = new Tab(" + ");
+		addTab.setClosable(false);
+		addTab.setOnSelectionChanged(e -> {
+			Script script = gallery.newScript();
+			script.setTitle("New script");
+			Tab tab = newScriptEditorTab(script);
+			scriptEditors.getTabs().add(scriptEditors.getTabs().size()-1, tab);
+			scriptEditors.getSelectionModel().select(tab);
+		});
+		scriptEditors.getTabs().add(addTab);
+		
+		
 		thumbnailUpdater = new ThumbnailUpdaterThread(500);
 		thumbnailUpdater.start();
 		
-		afterGalleryLoadScript.textProperty().addListener((obs, oldValue, newValue) -> updateAfterGalleryLoadScriptModified());
-		afterGalleryLoadScript.setText(gallery.getScripts().getAfterGalleryLoad());
-		
-		runAfterGalleryLoadScript();
-		
 		primaryStage.show();
+		
+		runScripts(AutoExecution.ON_APP_START);
 	}
 	
 	@Override
 	public void stop() throws Exception
 	{
+		runScripts(AutoExecution.ON_APP_STOP);
+		
 		thumbnailUpdater.safeStop();
 		saveGallery();
 	}
@@ -604,6 +619,29 @@ public class UIController extends Application
 		fileSystemTreeManager.paste(targetPath);
 	}
 	
+	private Tab newScriptEditorTab(Script script)
+	{
+		ScriptEditor scriptEditor = new ScriptEditor(script);
+		
+		Tab tab = new Tab();
+		tab.setContent(scriptEditor);
+		tab.textProperty().bind(scriptEditor.scriptTitleProperty().concat(Bindings.createStringBinding(() -> scriptEditor.changedProperty().get() ? "*" : "", scriptEditor.changedProperty())));
+		
+		return tab;
+	}
+	
+	private void runScripts(AutoExecution when)
+	{
+		for (Tab tab : scriptEditors.getTabs())
+		{
+			if (tab.getContent() instanceof ScriptEditor scriptEditor
+			        && scriptEditor.getScript().getAutoExecution() == when)
+			{
+				scriptEditor.runScript();
+			}
+		}
+	}
+	
 	public static void loadFXML(Object controller, String filename)
 	{
 		loadFXML(controller, controller, filename);
@@ -623,84 +661,5 @@ public class UIController extends Application
 			throw new Error("Error while loading FXML for " + controller.getClass().getSimpleName()
 			        + " (resources/fxml/" + filename + ")", e);
 		}
-	}
-	
-	
-	
-	// Scripts edition (TODO move out of UIController)
-	
-	@FXML
-	private Label afterGalleryLoadScriptTitle;
-	@FXML
-	private TextArea afterGalleryLoadScript;
-	@FXML
-	private TextArea afterGalleryLoadScriptOutput;
-	
-	@FXML
-	protected void saveAfterGalleryLoadScript()
-	{
-		System.out.println("saveAfterGalleryLoadScript");
-		gallery.getScripts().setAfterGalleryLoad(afterGalleryLoadScript.getText());
-		updateAfterGalleryLoadScriptModified();
-	}
-	
-	@FXML
-	protected void reloadAfterGalleryLoadScript()
-	{
-		System.out.println("cancelAfterGalleryLoadScript");
-		afterGalleryLoadScript.setText(gallery.getScripts().getAfterGalleryLoad());
-		updateAfterGalleryLoadScriptModified();
-	}
-	
-	@FXML
-	protected void runAfterGalleryLoadScript()
-	{
-		System.out.println("runAfterGalleryLoadScript");
-		
-		String script = afterGalleryLoadScript.getText();
-		if (Utils.isBlank(script))
-			return;
-		
-		PrintString output = new PrintString();
-		
-		try {
-			System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
-			ScriptEngine engine = new ScriptEngineManager().getEngineByExtension("js");
-			System.out.println("getEngineName: " + engine.getFactory().getEngineName());
-			System.out.println("getEngineVersion: " + engine.getFactory().getEngineVersion());
-			System.out.println("getLanguageName: " + engine.getFactory().getLanguageName());
-			System.out.println("getLanguageVersion: " + engine.getFactory().getLanguageVersion());
-			
-			engine.getContext().setWriter(output);
-			engine.getContext().setErrorWriter(output);
-			engine.getContext().setAttribute("polyglot.js.allowAllAccess", true, ScriptContext.ENGINE_SCOPE);
-			
-			engine.getContext().setAttribute("api", new ScriptAPI(output), ScriptContext.ENGINE_SCOPE);
-			
-			//afterGalleryLoadScriptOutput.setText("Executing script...");
-			long begin = System.currentTimeMillis();
-			engine.eval(script);
-			long end = System.currentTimeMillis();
-			output.println("Finished in "+(end-begin)+"ms");
-		}
-		catch (Exception e) {
-			e.printStackTrace(output);
-		}
-		
-		afterGalleryLoadScriptOutput.setText(output.toString());
-	}
-	
-	private static final String HAS_CHANGED_MARKER = "*";
-	
-	private void updateAfterGalleryLoadScriptModified()
-	{
-		String scriptTitle = afterGalleryLoadScriptTitle.getText();
-		boolean modified = !Objects.equals(afterGalleryLoadScript.getText(), gallery.getScripts().getAfterGalleryLoad());
-		boolean markerPresent = scriptTitle.endsWith(HAS_CHANGED_MARKER);
-		
-		if (modified && !markerPresent)
-			afterGalleryLoadScriptTitle.setText(scriptTitle+HAS_CHANGED_MARKER);
-		else if (!modified && markerPresent)
-			afterGalleryLoadScriptTitle.setText(scriptTitle.substring(0, scriptTitle.length()-HAS_CHANGED_MARKER.length()));
 	}
 }
