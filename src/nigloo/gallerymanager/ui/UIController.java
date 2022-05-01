@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -57,6 +58,8 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
@@ -106,7 +109,7 @@ public class UIController extends Application
 	@FXML
 	private TabPane scriptEditors;
 	
-	private static Path galleryFile;
+	private static Path galleryFile = null;
 	
 	private Gallery gallery;
 	
@@ -116,18 +119,32 @@ public class UIController extends Application
 	
 	public static void main(String[] args)
 	{
-		if (args.length < 1)
-			throw new RuntimeException("missing gallery file");
+		if (args.length >= 1)
+			galleryFile = Paths.get(args[0]).toAbsolutePath();
 		
-		galleryFile = Paths.get(args[0]).toAbsolutePath();
 		Injector.ENABLE();
-		
 		launch(args);
 	}
 	
 	@Override
 	public void start(Stage primaryStage) throws Exception
 	{
+		if (galleryFile == null)
+		{
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Open");
+			fileChooser.getExtensionFilters().add(new ExtensionFilter("Gallery file", "*.json"));
+			
+			File file = fileChooser.showOpenDialog(primaryStage);
+			if (file == null)
+			{
+				Platform.exit();
+				return;
+			}
+			
+			galleryFile = file.toPath();
+		}
+		
 		THUMBNAIL_LOADING_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
 		                                                                                   .getResourceAsStream("resources/images/loading.gif"));
 		THUMBNAIL_CANNOT_LOAD_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
@@ -188,6 +205,9 @@ public class UIController extends Application
 	@Override
 	public void stop() throws Exception
 	{
+		if (galleryFile == null)
+			return;
+		
 		runScripts(AutoExecution.ON_APP_STOP);
 		
 		thumbnailUpdater.safeStop();
