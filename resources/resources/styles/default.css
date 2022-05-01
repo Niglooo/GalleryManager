@@ -74,6 +74,27 @@
     -fx-spacing: 5px;
 }
 
+.save-icon
+{
+    -fx-icon-code: ci-save;
+}
+
+.reload-icon
+{
+    -fx-icon-code: bi-arrow-counterclockwise;
+}
+
+.delete-icon
+{
+    -fx-icon-code: bi-trash-fill;
+}
+
+.run-icon
+{
+    -fx-icon-code: bi-play-fill;
+}
+
+
 #edit_image_tag_popup_content
 {
     -fx-background-color: WHITE;

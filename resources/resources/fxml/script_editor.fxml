@@ -7,6 +7,7 @@
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <fx:root
   styleClass="script-pane"
@@ -26,19 +27,35 @@
         <Button
           mnemonicParsing="false"
           onAction="#saveScript"
-          text="Save" />
+          text="Save">
+          <graphic>
+            <FontIcon styleClass="save-icon" />
+          </graphic>
+        </Button>
         <Button
           mnemonicParsing="false"
           onAction="#reloadScript"
-          text="Reload" />
+          text="Reload">
+          <graphic>
+            <FontIcon styleClass="reload-icon" />
+          </graphic>
+        </Button>
         <Button
           mnemonicParsing="false"
           onAction="#deleteScript"
-          text="Delete" />
+          text="Delete">
+          <graphic>
+            <FontIcon styleClass="delete-icon" />
+          </graphic>
+        </Button>
         <Button
           mnemonicParsing="false"
           onAction="#runScript"
-          text="Run" />
+          text="Run">
+          <graphic>
+            <FontIcon styleClass="run-icon" />
+          </graphic>
+        </Button>
       </children>
     </HBox>
     <TitledPane
