@@ -52,14 +52,14 @@ public class ThumbnailsContextMenu extends ContextMenu
 		{
 			allImages = thumbnailsView.getTiles()
 			                          .stream()
-			                          .map(GalleryImageView.class::cast)
-			                          .map(GalleryImageView::getGalleryImage)
+			                          .map(ThumbnailView.class::cast)
+			                          .map(ThumbnailView::getGalleryImage)
 			                          .toList();
 			selectedImages = thumbnailsView.getSelectionModel()
 			                               .getSelectedItems()
 			                               .stream()
-			                               .map(GalleryImageView.class::cast)
-			                               .map(GalleryImageView::getGalleryImage)
+			                               .map(ThumbnailView.class::cast)
+			                               .map(ThumbnailView::getGalleryImage)
 			                               .sorted(Comparator.comparingInt(image -> allImages.indexOf(image)))
 			                               .toList();
 			
@@ -75,7 +75,7 @@ public class ThumbnailsContextMenu extends ContextMenu
 	@FXML
 	protected void open()
 	{
-		Image image = ((GalleryImageView) thumbnailsView.getSelectionModel().getSelectedItem()).getGalleryImage();
+		Image image = ((ThumbnailView) thumbnailsView.getSelectionModel().getSelectedItem()).getGalleryImage();
 		try
 		{
 			Desktop.getDesktop().open(image.getAbsolutePath().toFile());

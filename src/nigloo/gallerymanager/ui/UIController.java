@@ -92,8 +92,6 @@ public class UIController extends Application
 	                                                                  .getResource("resources/styles/default.css")
 	                                                                  .toExternalForm();
 	
-	private static javafx.scene.image.Image THUMBNAIL_LOADING_PLACEHOLDER;
-	private static javafx.scene.image.Image THUMBNAIL_CANNOT_LOAD_PLACEHOLDER;
 	
 	@FXML
 	private TreeView<FileSystemElement> fileSystemView;
@@ -144,11 +142,6 @@ public class UIController extends Application
 			
 			galleryFile = file.toPath();
 		}
-		
-		THUMBNAIL_LOADING_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
-		                                                                                   .getResourceAsStream("resources/images/loading.gif"));
-		THUMBNAIL_CANNOT_LOAD_PLACEHOLDER = new javafx.scene.image.Image(GalleryImageView.class.getModule()
-		                                                                                       .getResourceAsStream("resources/images/image_deleted.png"));
 		
 		primaryStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, EventHandler -> Platform.exit());
 		
@@ -328,8 +321,8 @@ public class UIController extends Application
 	{
 		HashSet<Image> thumnails = thumbnailsView.getTiles()
 		                                         .stream()
-		                                         .map(GalleryImageView.class::cast)
-		                                         .map(GalleryImageView::getGalleryImage)
+		                                         .map(ThumbnailView.class::cast)
+		                                         .map(ThumbnailView::getGalleryImage)
 		                                         .collect(Collectors.toCollection(HashSet::new));
 		
 		if (new HashSet<>(images).equals(thumnails))
@@ -381,21 +374,16 @@ public class UIController extends Application
 		LOGGER.debug("Update tagListView : {}ms", timer.split());
 	}
 	
-	private static final Function<Image, javafx.scene.image.Image> LOAD_THUMBNAIL_ASYNC = image -> image.getThumbnail(true);
+	private final Map<Image, SoftReference<ThumbnailView>> thumbnailImageViewCache = new WeakHashMap<>();
 	
-	private final Map<Image, SoftReference<GalleryImageView>> thumbnailImageViewCache = new WeakHashMap<>();
-	
-	private GalleryImageView getImageView(Image image)
+	private ThumbnailView getImageView(Image image)
 	{
-		SoftReference<GalleryImageView> ref = thumbnailImageViewCache.get(image);
-		GalleryImageView imageView = ref == null ? null : ref.get();
+		SoftReference<ThumbnailView> ref = thumbnailImageViewCache.get(image);
+		ThumbnailView imageView = ref == null ? null : ref.get();
 		
 		if (imageView == null)
 		{
-			imageView = new GalleryImageView(image,
-			                                 LOAD_THUMBNAIL_ASYNC,
-			                                 THUMBNAIL_LOADING_PLACEHOLDER,
-			                                 THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
+			imageView = new ThumbnailView(image);
 			
 			imageView.fitWidthProperty().bind(thumbnailsView.tileWidthProperty());
 			imageView.fitHeightProperty().bind(thumbnailsView.tileHeightProperty());
@@ -404,15 +392,15 @@ public class UIController extends Application
 			Tooltip tooltip = new Tooltip(image.getPath().toString());
 			Tooltip.install(imageView, tooltip);
 			
-			GalleryImageView finalImageView = imageView;
+			ThumbnailView finalImageView = imageView;
 			imageView.addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 			{
 				if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2)
 				{
 					ObservableList<Node> tiles = thumbnailsView.getTiles();
 					showSlideShowFromThumbnails(tiles.stream()
-					                                 .map(GalleryImageView.class::cast)
-					                                 .map(GalleryImageView::getGalleryImage)
+					                                 .map(ThumbnailView.class::cast)
+					                                 .map(ThumbnailView::getGalleryImage)
 					                                 .toList(),
 					                            tiles.indexOf(finalImageView));
 				}
@@ -435,7 +423,7 @@ public class UIController extends Application
 			int i = 0;
 			for (Node imageView : thumbnailsView.getTiles())
 			{
-				if (((GalleryImageView) imageView).getGalleryImage() == lastImageSeen)
+				if (((ThumbnailView) imageView).getGalleryImage() == lastImageSeen)
 				{
 					lastImageSeenIdx = i;
 					break;

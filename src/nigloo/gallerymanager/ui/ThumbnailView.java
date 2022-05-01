@@ -1,35 +1,52 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.IOError;
+import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
-import java.util.function.Function;
 
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
 
-public class GalleryImageView extends ImageView implements Displayable
+public class ThumbnailView extends ImageView implements Displayable
 {
+	private static javafx.scene.image.Image THUMBNAIL_LOADING_PLACEHOLDER = null;
+	private static javafx.scene.image.Image THUMBNAIL_CANNOT_LOAD_PLACEHOLDER = null;
+	
+	private static synchronized void lazyLoadPlaceholders()
+	{
+		if (THUMBNAIL_LOADING_PLACEHOLDER == null)
+		{
+			try
+			{
+				THUMBNAIL_LOADING_PLACEHOLDER = new javafx.scene.image.Image(ThumbnailView.class.getModule()
+				                                                                                .getResourceAsStream("resources/images/loading.gif"));
+				
+				THUMBNAIL_CANNOT_LOAD_PLACEHOLDER = new javafx.scene.image.Image(ThumbnailView.class.getModule()
+				                                                                                    .getResourceAsStream("resources/images/image_deleted.png"));
+			}
+			catch (IOException e)
+			{
+				throw new IOError(e);
+			}
+		}
+	}
+	
 	private final Image galleryImage;
-	private final Function<Image, javafx.scene.image.Image> getFXImage;
 	private boolean displayed;
 	
 	private javafx.scene.image.Image fxImage;
-	private javafx.scene.image.Image cannotLoadImage;
 	
-	public GalleryImageView(Image galleryImage,
-	                        Function<Image, javafx.scene.image.Image> getFXImage,
-	                        javafx.scene.image.Image loadingPlaceHolder,
-	                        javafx.scene.image.Image cannotLoadImage)
+	public ThumbnailView(Image galleryImage)
 	{
 		super();
 		this.galleryImage = Objects.requireNonNull(galleryImage, "galleryImage");
-		this.getFXImage = Objects.requireNonNull(getFXImage, "getFXImage");
 		this.displayed = false;
 		this.fxImage = null;
-		setImage(loadingPlaceHolder);
-		this.cannotLoadImage = cannotLoadImage;
+		lazyLoadPlaceholders();
+		setImage(THUMBNAIL_LOADING_PLACEHOLDER);
 	}
 	
 	public Image getGalleryImage()
@@ -45,7 +62,7 @@ public class GalleryImageView extends ImageView implements Displayable
 			this.displayed = displayed;
 			if (displayed)
 			{
-				fxImage = getFXImage.apply(galleryImage);
+				fxImage = galleryImage.getThumbnail(true);
 				if (fxImage.getProgress() == 1)
 					setImage(fxImage);
 				else
@@ -63,10 +80,10 @@ public class GalleryImageView extends ImageView implements Displayable
 	
 	private static class ProgressListener implements ChangeListener<Object>
 	{
-		private final GalleryImageView imageView;
+		private final ThumbnailView imageView;
 		private final javafx.scene.image.Image fxImage;
 		
-		public ProgressListener(GalleryImageView imageView)
+		public ProgressListener(ThumbnailView imageView)
 		{
 			this.imageView = imageView;
 			this.fxImage = imageView.fxImage;
@@ -92,7 +109,7 @@ public class GalleryImageView extends ImageView implements Displayable
 				fxImage.errorProperty().removeListener(this);
 				
 				if (!(newValue instanceof CancellationException))
-					imageView.setImage(imageView.cannotLoadImage);
+					imageView.setImage(THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
 			}
 		}
 	}
@@ -100,15 +117,13 @@ public class GalleryImageView extends ImageView implements Displayable
 	@Override
 	public int hashCode()
 	{
-		return galleryImage.hashCode() ^ getFXImage.hashCode();
+		return galleryImage.hashCode();
 	}
 	
 	@Override
 	public boolean equals(Object obj)
 	{
-		return obj instanceof GalleryImageView other
-		        ? galleryImage.equals(other.galleryImage) && getFXImage.equals(other.getFXImage)
-		        : false;
+		return obj instanceof ThumbnailView other ? galleryImage.equals(other.galleryImage) : false;
 	}
 	
 	@Override
