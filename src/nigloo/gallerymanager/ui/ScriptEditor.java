@@ -1,6 +1,9 @@
 package nigloo.gallerymanager.ui;
 
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -9,26 +12,26 @@ import javax.script.ScriptEngineManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javafx.application.Platform;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.BooleanExpression;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.Parent;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.VBox;
+import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Script;
 import nigloo.gallerymanager.model.Script.AutoExecution;
 import nigloo.gallerymanager.script.ScriptAPI;
-import nigloo.tool.PrintString;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -76,13 +79,13 @@ public class ScriptEditor extends VBox
 			@Override
 			protected boolean computeValue()
 			{
-				return !scriptTitle.getText().equals(script.getTitle()) ||
-				       scriptAutoExecution.getValue() != script.getAutoExecution() ||
-				       !scriptText.getText().equals(script.getText());
+				return !scriptTitle.getText().equals(script.getTitle())
+				        || scriptAutoExecution.getValue() != script.getAutoExecution()
+				        || !scriptText.getText().equals(script.getText());
 			}
 		};
 	}
-
+	
 	public StringProperty scriptTitleProperty()
 	{
 		return scriptTitle.textProperty();
@@ -102,12 +105,12 @@ public class ScriptEditor extends VBox
 	{
 		return changed;
 	}
-
+	
 	public Script getScript()
 	{
 		return script;
 	}
-
+	
 	@FXML
 	public void saveScript()
 	{
@@ -154,12 +157,20 @@ public class ScriptEditor extends VBox
 	@FXML
 	public void runScript()
 	{
+		scriptOutput.setText("");
+		
 		if (Utils.isBlank(scriptText.getText()))
 			return;
 		
-		PrintString output = new PrintString();
-		//TODO run script async
-		try {
+		CompletableFuture.runAsync(this::doRunScript, AsyncPools.SCRIPT_EXECUTION);
+	}
+	
+	private void doRunScript()
+	{
+		PrintWriter output = new PrintWriter(new ScriptOutputWriter());
+		
+		try
+		{
 			System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
 			ScriptEngine engine = new ScriptEngineManager().getEngineByExtension("js");
 			
@@ -174,16 +185,116 @@ public class ScriptEditor extends VBox
 			
 			engine.getContext().setAttribute("api", new ScriptAPI(output), ScriptContext.ENGINE_SCOPE);
 			
-			//afterGalleryLoadScriptOutput.setText("Executing script...");
+			output.println("Executing script...");
+			output.println();
 			long begin = System.currentTimeMillis();
 			engine.eval(scriptText.getText());
 			long end = System.currentTimeMillis();
-			output.println("Finished in "+(end-begin)+"ms");
+			output.println();
+			output.println("Finished in " + (end - begin) + "ms");
 		}
-		catch (Exception e) {
+		catch (Exception e)
+		{
 			e.printStackTrace(output);
 		}
+	}
+	
+	private class ScriptOutputWriter extends Writer
+	{
+		private static final long FLUSH_INTERVAL = 500;
 		
-		scriptOutput.setText(output.toString());
+		private final Thread flusherDaemon;
+		
+		private final StringBuilder buffer = new StringBuilder();
+		private volatile boolean closed = false;
+		private volatile long lastFlush = 0;
+		private volatile boolean needFlush = false;
+		
+		public ScriptOutputWriter()
+		{
+			flusherDaemon = new Thread(this::runAutoFlush, "script-output-flusher-thread");
+			flusherDaemon.setDaemon(true);
+			flusherDaemon.start();
+		}
+		
+		void runAutoFlush()
+		{
+			while (!closed)
+			{
+				long sinceLastFlush = System.currentTimeMillis() - lastFlush;
+				long timeToWait;
+				
+				if (!needFlush)
+					timeToWait = FLUSH_INTERVAL;
+				else if (sinceLastFlush > FLUSH_INTERVAL)
+				{
+					flush();
+					timeToWait = FLUSH_INTERVAL;
+				}
+				else
+					timeToWait = FLUSH_INTERVAL - sinceLastFlush;
+				
+				try
+				{
+					Thread.sleep(timeToWait);
+				}
+				catch (InterruptedException e)
+				{
+					return;
+				}
+			}
+		}
+		
+		@Override
+		public void write(char[] cbuf, int off, int len)
+		{
+			synchronized (buffer)
+			{
+				buffer.append(cbuf, off, len);
+				needFlush = true;
+			}
+		}
+		
+		@Override
+		public void write(int c)
+		{
+			synchronized (buffer)
+			{
+				buffer.append((char) c);
+				needFlush = true;
+			}
+		}
+		
+		@Override
+		public void flush()
+		{
+			String out;
+			synchronized (buffer)
+			{
+				lastFlush = System.currentTimeMillis();
+				needFlush = false;
+				out = buffer.toString();
+			}
+			
+			Platform.runLater(() -> scriptOutput.setText(out));
+		}
+		
+		@Override
+		public void close()
+		{
+			synchronized (buffer)
+			{
+				flush();
+				closed = true;
+				
+				try
+				{
+					flusherDaemon.join();
+				}
+				catch (InterruptedException ignored)
+				{
+				}
+			}
+		}
 	}
 }

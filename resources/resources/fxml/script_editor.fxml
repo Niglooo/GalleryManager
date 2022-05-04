@@ -64,6 +64,7 @@
       <content>
         <TextArea
           fx:id="scriptOutput"
+          editable="false"
           prefHeight="200.0"
           prefWidth="200.0" />
       </content>
