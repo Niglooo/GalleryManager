@@ -13,6 +13,7 @@ module nigloo.gallerymanager
 	requires methanol;
 	requires nigloo.tools;
 	requires org.apache.logging.log4j;
+	requires org.apache.logging.log4j.core;
 	requires org.jsoup;
 	
 	opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;

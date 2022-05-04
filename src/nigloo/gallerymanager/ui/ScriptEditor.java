@@ -169,7 +169,7 @@ public class ScriptEditor extends VBox
 	{
 		PrintWriter output = new PrintWriter(new ScriptOutputWriter());
 		
-		try
+		try (ScriptAPI scriptApi = new ScriptAPI(output))
 		{
 			System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
 			ScriptEngine engine = new ScriptEngineManager().getEngineByExtension("js");
@@ -183,7 +183,7 @@ public class ScriptEditor extends VBox
 			engine.getContext().setErrorWriter(output);
 			engine.getContext().setAttribute("polyglot.js.allowAllAccess", true, ScriptContext.ENGINE_SCOPE);
 			
-			engine.getContext().setAttribute("api", new ScriptAPI(output), ScriptContext.ENGINE_SCOPE);
+			engine.getContext().setAttribute("api", scriptApi, ScriptContext.ENGINE_SCOPE);
 			
 			output.println("Executing script...");
 			output.println();

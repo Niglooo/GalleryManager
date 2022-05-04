@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Configuration xmlns="http://logging.apache.org/log4j/2.0/config">
+<Configuration xmlns:xi="http://www.w3.org/2001/XInclude" packages="nigloo.gallerymanager.script" status="WARN">
   <Properties>
     <Property name="basePath">./logs</Property>
   </Properties>
@@ -17,11 +17,13 @@
       <PatternLayout pattern="[%-5p] %m%n" />
       <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
     </Console>
+    <ScriptOutputAppender name="SCRIPT_OUTPUT" />
   </Appenders>
   <Loggers>
     <Root level="all">
       <AppenderRef ref="STDOUT" />
       <AppenderRef ref="FILE" />
+      <AppenderRef ref="SCRIPT_OUTPUT" />
     </Root>
 <!--     <Logger name="nigloo.gallerymanager" level="debug" />
     <Logger name="nigloo.gallerymanager.autodownloader" level="debug">
