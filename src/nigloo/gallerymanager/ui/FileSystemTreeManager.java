@@ -286,12 +286,8 @@ public class FileSystemTreeManager
 					if (subItem == null)
 					{
 						subItem = new TreeItem<>(subElement);
-						if (subElement.isDirectory())
-						{
-							subItem.getChildren().add(new TreeItem<>());
-							//FIXME always add fake item? should be only if !deep
-							subItem.expandedProperty().addListener(new NewFolderExpandListener(subItem));
-						}
+						if (!deep)
+							enableAutoRefreshOnOpen(subItem);
 						
 						item.getChildren().add(subItem);
 						changed = true;
@@ -363,22 +359,18 @@ public class FileSystemTreeManager
 	                                                Path path,
 	                                                boolean createWithParents)
 	{
-		if (fromItem.getValue() == null)
-			return null;
-		
 		if (path.equals(fromItem.getValue().getPath()))
 			return fromItem;
 		
-		for (TreeItem<FileSystemElement> subItem : fromItem.getChildren())
-		{
-			if (subItem.getValue() != null && path.startsWith(subItem.getValue().getPath()))
-				return getTreeItem(subItem, path, createWithParents);
-		}
+		if (!isEmptyDirectoryWithAutoRefreshOnOpen(fromItem))
+			for (TreeItem<FileSystemElement> subItem : fromItem.getChildren())
+				if (path.startsWith(subItem.getValue().getPath()))
+					return getTreeItem(subItem, path, createWithParents);
 		
 		if (!createWithParents)
 			return null;
 		
-		removeFakeItem(fromItem);
+		disableAutoRefreshOnOpen(fromItem);
 		
 		Path parentPath = fromItem.getValue().getPath();
 		Path newPath = parentPath.getRoot().resolve(path.subpath(0, parentPath.getNameCount() + 1));
@@ -478,17 +470,15 @@ public class FileSystemTreeManager
 	
 	private static void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean hasAllChildren)
 	{
-		if (item == null)
-			return;
-		
 		Status currentStatus = item.getValue().getStatus();
 		
 		if (currentStatus != Status.NOT_LOADED && currentStatus.isNotFullyLoaded() && !hasAllChildren)
 			return;
 		
 		EnumSet<Status> statusFound = EnumSet.noneOf(Status.class);
-		for (TreeItem<FileSystemElement> subItem : item.getChildren())
-			statusFound.add(subItem.getValue().getStatus());
+		if (!isEmptyDirectoryWithAutoRefreshOnOpen(item))
+			for (TreeItem<FileSystemElement> subItem : item.getChildren())
+				statusFound.add(subItem.getValue().getStatus());
 		
 		statusFound.remove(Status.EMPTY); // Ignore empty folders
 		boolean allFullyLoaded = statusFound.stream().allMatch(Status::isFullyLoaded);
@@ -535,19 +525,32 @@ public class FileSystemTreeManager
 		@Override
 		public void changed(ObservableValue<? extends Boolean> obs, Boolean expandedBefore, Boolean expanded)
 		{
+			item.expandedProperty().removeListener(this);
 			if (expanded && item.getValue().getStatus() == Status.NOT_LOADED)
 			{
-				item.expandedProperty().removeListener(this);
-				
-				if (removeFakeItem(item))
-					refresh(List.of(item.getValue().getPath()), true);
+				disableAutoRefreshOnOpen(item);
+				refresh(List.of(item.getValue().getPath()), true);
 			}
 		}
 	}
 	
-	private static boolean removeFakeItem(TreeItem<FileSystemElement> item)
+	private void enableAutoRefreshOnOpen(TreeItem<FileSystemElement> item)
+	{
+		if (item.getValue().isDirectory())
+		{
+			item.getChildren().add(new TreeItem<>());
+			item.expandedProperty().addListener(new NewFolderExpandListener(item));
+		}
+	}
+	
+	private static boolean disableAutoRefreshOnOpen(TreeItem<FileSystemElement> item)
 	{
 		return item.getChildren().removeIf(subItem -> subItem.getValue() == null);
+	}
+	
+	private static boolean isEmptyDirectoryWithAutoRefreshOnOpen(TreeItem<FileSystemElement> item)
+	{
+		return item.getChildren().size() == 1 && item.getChildren().get(0).getValue() == null;
 	}
 	
 	public void synchronizeFileSystem(Collection<Path> paths, boolean deep)
@@ -587,9 +590,6 @@ public class FileSystemTreeManager
 	                              boolean deep,
 	                              StrongReference<Boolean> refreshThumbnails)
 	{
-		if (item == null || item.getValue() == null)
-			return false;
-		
 		FileSystemElement element = item.getValue();
 		
 		if (!Files.exists(element.getPath()))
@@ -615,15 +615,17 @@ public class FileSystemTreeManager
 		{
 			boolean removed = false;
 			
-			Iterator<TreeItem<FileSystemElement>> it = item.getChildren().iterator();
-			while (it.hasNext())
+			if (!isEmptyDirectoryWithAutoRefreshOnOpen(item))
 			{
-				TreeItem<FileSystemElement> subItem = it.next();
-				if (subItem.getValue() != null && (subItem.getValue().isImage() || deep)
-				        && doSynchronize(subItem, deep, refreshThumbnails))
+				Iterator<TreeItem<FileSystemElement>> it = item.getChildren().iterator();
+				while (it.hasNext())
 				{
-					it.remove();
-					removed = true;
+					TreeItem<FileSystemElement> subItem = it.next();
+					if ((subItem.getValue().isImage() || deep) && doSynchronize(subItem, deep, refreshThumbnails))
+					{
+						it.remove();
+						removed = true;
+					}
 				}
 			}
 			
@@ -726,7 +728,7 @@ public class FileSystemTreeManager
 	
 	private static Stream<FileSystemElement> getElements(TreeItem<FileSystemElement> item)
 	{
-		if (item.getValue() == null)
+		if (isEmptyDirectoryWithAutoRefreshOnOpen(item))
 			return Stream.of();
 		
 		return Stream.concat(item.getChildren().stream().flatMap(FileSystemTreeManager::getElements),
@@ -819,10 +821,10 @@ public class FileSystemTreeManager
 	
 	private static Stream<Image> getImages(TreeItem<FileSystemElement> rootItem)
 	{
-		if (rootItem == null || rootItem.getValue() == null)
-			return Stream.empty();
-		else if (rootItem.getValue().isImage())
+		if (rootItem.getValue().isImage())
 			return Stream.of(rootItem.getValue().getImage());
+		else if (isEmptyDirectoryWithAutoRefreshOnOpen(rootItem))
+			return Stream.of();
 		else
 			return rootItem.getChildren().stream().flatMap(FileSystemTreeManager::getImages);
 	}
@@ -896,7 +898,7 @@ public class FileSystemTreeManager
 							gallery.move(source, target);
 							
 							// If oldElement is an image, then gallery.move updated its Image, which we want
-							// to keep because it have the right id) while newElement.getImage was just a
+							// to keep because it have the right id, while newElement.getImage was just a
 							// temporary object
 							if (oldElement.isImage())
 								newElement = oldElement;
@@ -1200,7 +1202,7 @@ public class FileSystemTreeManager
 		if (itemsToAdd.isEmpty())
 			return;
 		
-		removeFakeItem(target);
+		disableAutoRefreshOnOpen(target);
 		
 		for (TreeItem<FileSystemElement> itemToAdd : itemsToAdd)
 		{
