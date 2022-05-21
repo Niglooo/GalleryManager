@@ -70,6 +70,7 @@ import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
 import nigloo.gallerymanager.model.Tag;
+import nigloo.tool.MetronomeTimer;
 import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
@@ -121,6 +122,7 @@ public abstract class Downloader
 	protected String creatorId;
 	protected String imagePathPattern;
 	protected ZonedDateTime mostRecentPostCheckedDate;
+	protected long minDelayBetweenRequests = 0;
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
@@ -169,6 +171,7 @@ public abstract class Downloader
 		                                                .build();
 		// TODO init with max_concurrent_streams from http2
 		private final Semaphore maxConcurrentStreams = new Semaphore(10);
+		private final MetronomeTimer requestLimiter = (minDelayBetweenRequests > 0) ? new MetronomeTimer(minDelayBetweenRequests) : null;
 		private ZonedDateTime currentMostRecentPost = mostRecentPostCheckedDate;
 		
 		private final List<Image> imagesAdded = new ArrayList<>();
@@ -188,7 +191,6 @@ public abstract class Downloader
 		}
 		
 		// TODO handle http errors directly here ? Or in saveInGallery and unZip
-		//TODO add request/sec limiter (0 = no limit)
 		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler)
 		        throws IOException,
 		        InterruptedException
@@ -196,7 +198,8 @@ public abstract class Downloader
 			logRequest(request);
 			HttpResponse<T> response = null;
 			maxConcurrentStreams.acquire();
-			//Thread.sleep(1000);
+			if (requestLimiter != null)
+				requestLimiter.waitNextTick();
 			try
 			{
 				response = httpClient.send(request, MoreBodyHandlers.decoding(responseBodyHandler));
@@ -214,7 +217,8 @@ public abstract class Downloader
 		{
 			logRequest(request);
 			maxConcurrentStreams.acquire();
-			//Thread.sleep(1000);
+			if (requestLimiter != null)
+				requestLimiter.waitNextTick();
 			return httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler))
 			                 .handle((response, error) ->
 			                 {
