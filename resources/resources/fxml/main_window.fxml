@@ -87,6 +87,13 @@
               </Tab>
             </tabs>
           </TabPane>
+          <HBox
+            id="status_bar"
+            VBox.vgrow="NEVER">
+            <children>
+              <Label fx:id="statusBarText" />
+            </children>
+          </HBox>
         </children>
       </VBox>
     </Scene>

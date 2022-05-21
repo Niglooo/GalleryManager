@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.text.ChoiceFormat;
+import java.text.MessageFormat;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -41,11 +43,13 @@ import com.google.gson.GsonBuilder;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -106,6 +110,9 @@ public class UIController extends Application
 	
 	@FXML
 	private TabPane scriptEditors;
+	
+	@FXML
+	private Label statusBarText;
 	
 	private static Path galleryFile = null;
 	
@@ -169,6 +176,8 @@ public class UIController extends Application
 		fileSystemTreeManager.refresh(List.of(root.getValue().getPath()), false);
 		
 		thumbnailsView.setContextMenu(new ThumbnailsContextMenu(thumbnailsView));
+		thumbnailsView.getTiles().addListener((Change<? extends Node> c) -> updateStatusBar());
+		thumbnailsView.getSelectionModel().getSelectedItems().addListener((Change<? extends Node> c) -> updateStatusBar());
 		
 		scriptEditors.setTabClosingPolicy(TabClosingPolicy.ALL_TABS);
 		for (Script script : gallery.getScripts())
@@ -532,6 +541,26 @@ public class UIController extends Application
 			return image -> true;
 		else
 			return image -> image.getImplicitTags().containsAll(nomalizedTags);
+	}
+	
+	private void updateStatusBar()
+	{
+		int nbItems = thumbnailsView.getTiles().size();
+		int nbItemsSelected = thumbnailsView.getSelectionModel().getSelectedItems().size();
+		
+		MessageFormat messageFormat = new MessageFormat("{0}\t{1}");
+		
+		messageFormat.setFormatByArgumentIndex(0,
+		                                       new ChoiceFormat(new double[] { 0, 1, ChoiceFormat.nextDouble(1) },
+		                                                        new String[] { "0 items", "1 item selected",
+		                                                                "{0} items" }));
+		messageFormat.setFormatByArgumentIndex(1,
+		                                       new ChoiceFormat(new double[] { 0, 1, ChoiceFormat.nextDouble(1) },
+		                                                        new String[] { "", "1 item selected",
+		                                                                "{1} items selected" }));
+		
+		String selectedElementsText = messageFormat.format(new Object[] { nbItems, nbItemsSelected });
+		statusBarText.setText(selectedElementsText);
 	}
 	
 	private void openGallery() throws IOException
