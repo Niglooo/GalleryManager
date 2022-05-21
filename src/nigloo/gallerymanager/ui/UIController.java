@@ -154,7 +154,7 @@ public class UIController extends Application
 		
 //		gallery.compactIds();
 		
-		loadFXML(this, primaryStage, "ui.fxml");
+		loadFXML(this, primaryStage, "main_window.fxml");
 		
 		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
 		
