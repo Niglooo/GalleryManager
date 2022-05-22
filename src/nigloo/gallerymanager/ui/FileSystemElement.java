@@ -12,6 +12,7 @@ public class FileSystemElement
 {
 	private static final javafx.scene.image.Image ICON_FOLDER;
 	private static final javafx.scene.image.Image ICON_FOLDER_LOADING;
+	private static final javafx.scene.image.Image ICON_FOLDER_EMPTY;
 	private static final javafx.scene.image.Image ICON_FOLDER_SYNC;
 	private static final javafx.scene.image.Image ICON_FOLDER_UNSYNC;
 	private static final javafx.scene.image.Image ICON_FOLDER_DELETED;
@@ -22,6 +23,7 @@ public class FileSystemElement
 	{
 		ICON_FOLDER = loadIcon("folder.png");
 		ICON_FOLDER_LOADING = loadIcon("folder_loading.png");
+		ICON_FOLDER_EMPTY = loadIcon("folder_empty.png");
 		ICON_FOLDER_SYNC = loadIcon("folder_sync.png");
 		ICON_FOLDER_UNSYNC = loadIcon("folder_unsync.png");
 		ICON_FOLDER_DELETED = loadIcon("folder_deleted.png");
@@ -149,41 +151,27 @@ public class FileSystemElement
 	{
 		if (image != null)
 		{
-			switch (status)
+			return switch (status)
 			{
-				case SYNC:
-					return ICON_IMAGE_SYNC;
-				case UNSYNC:
-					return ICON_IMAGE_UNSYNC;
-				case DELETED:
-					return ICON_IMAGE_DELETED;
-				case NOT_LOADED:
-				case LOADING:
-				case NOT_FULLY_LOADED:
-				case EMPTY:
-					throw new IllegalStateException("{image=" + image + ", status=" + status + "}");
-			}
+				case SYNC -> ICON_IMAGE_SYNC;
+				case UNSYNC -> ICON_IMAGE_UNSYNC;
+				case DELETED -> ICON_IMAGE_DELETED;
+				case NOT_LOADED, LOADING, NOT_FULLY_LOADED, EMPTY -> throw new IllegalStateException("{image=" + image
+				        + ", status=" + status + "}");
+			};
 		}
 		else
 		{
-			switch (status)
+			return switch (status)
 			{
-				case LOADING:
-					return ICON_FOLDER_LOADING;
-				case SYNC:
-					return ICON_FOLDER_SYNC;
-				case UNSYNC:
-					return ICON_FOLDER_UNSYNC;
-				case DELETED:
-					return ICON_FOLDER_DELETED;
-				case NOT_LOADED:
-				case NOT_FULLY_LOADED:
-				case EMPTY:
-					return ICON_FOLDER;
-			}
+				case LOADING -> ICON_FOLDER_LOADING;
+				case EMPTY -> ICON_FOLDER_EMPTY;
+				case SYNC -> ICON_FOLDER_SYNC;
+				case UNSYNC -> ICON_FOLDER_UNSYNC;
+				case DELETED -> ICON_FOLDER_DELETED;
+				case NOT_LOADED, NOT_FULLY_LOADED -> ICON_FOLDER;
+			};
 		}
-		
-		throw new IllegalStateException("status = " + status);
 	}
 	
 	public Status getStatus()
