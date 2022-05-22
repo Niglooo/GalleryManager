@@ -87,13 +87,13 @@ public class FileSystemElement
 			        + ", " + Status.DELETED + ". Got: " + status);
 	}
 	
-	public FileSystemElement(Path path)
+	public FileSystemElement(Path path, Status status)
 	{
 		this.image = null;
 		this.path = Objects.requireNonNull(path, "path");
 		if (!path.isAbsolute())
 			throw new IllegalArgumentException("path must be absolute. Got: " + path);
-		this.status = Status.NOT_LOADED;
+		this.status = status;
 	}
 	
 	@Override

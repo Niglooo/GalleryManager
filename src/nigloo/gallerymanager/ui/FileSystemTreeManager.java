@@ -73,14 +73,12 @@ public class FileSystemTreeManager
 	private Gallery gallery;
 	
 	private final TreeView<FileSystemElement> treeView;
-	private final Path rootPath;
 	
 	public FileSystemTreeManager(TreeView<FileSystemElement> treeView)
 	{
 		Injector.init(this);
 		
 		this.treeView = treeView;
-		this.rootPath = treeView.getRoot().getValue().getPath();
 		
 		treeView.setCellFactory(new FileSystemTreeCellFactory());
 		treeView.setEditable(true);
@@ -138,18 +136,18 @@ public class FileSystemTreeManager
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
 		
-		for (Path path : (deep ? withoutChildren(paths) : paths))
-		{
-			getAsyncAction(path, deep).exceptionally(e ->
-			{
-				Platform.runLater(() -> new ExceptionDialog(e, "Error will refreshing " + path).show());
-				return null;
-			});
-		}
+		CompletableFuture.allOf((deep ? withoutChildren(paths) : paths).stream()
+		                                                               .distinct()
+		                                                               .map(path -> asyncRefresh(path, deep))
+		                                                               .toArray(CompletableFuture[]::new))
+		                 .whenCompleteAsync((v, e) ->
+		                 {
+			                 if (e != null)
+				                 new ExceptionDialog(e, "Error when refreshing").show();
+		                 }, AsyncPools.FX_APPLICATION);
 	}
 	
-	// TODO simplify getAsyncAction(Path path, boolean deep)
-	private CompletableFuture<Void> getAsyncAction(Path path, boolean deep)
+	private CompletableFuture<Void> asyncRefresh(Path path, boolean deep)
 	{
 		assert path.isAbsolute() : "path must be absolute. Got: " + path;
 		
@@ -159,7 +157,7 @@ public class FileSystemTreeManager
 		// ---- case path doesn't exist ----
 		if (!Files.exists(path))
 		{
-			Platform.runLater(() ->
+			return CompletableFuture.runAsync(() ->
 			{
 				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
@@ -174,7 +172,7 @@ public class FileSystemTreeManager
 				}
 				else
 				{
-					item.setValue(new FileSystemElement(path));
+					item.setValue(new FileSystemElement(path, Status.NOT_LOADED));
 					
 					// create/update deleted items
 					Collection<Image> deletedImages = gallery.findImagesIn(path, false);
@@ -186,15 +184,13 @@ public class FileSystemTreeManager
 				}
 				
 				uiController.requestRefreshThumbnails();
-			});
-			
-			return CompletableFuture.completedFuture(null);
+			}, AsyncPools.FX_APPLICATION);
 		}
 		
 		// ---- case path is an image ----
 		if (Image.isImage(path) && Files.isRegularFile(path))
 		{
-			Platform.runLater(() ->
+			return CompletableFuture.runAsync(() ->
 			{
 				TreeItem<FileSystemElement> item = getTreeItem(path, true);
 				Image image = gallery.getImage(path);
@@ -204,15 +200,13 @@ public class FileSystemTreeManager
 				
 				if (item.getParent().getValue().getStatus().isFullyLoaded())
 					updateFolderAndParentStatus(item.getParent(), false);
-			});
-			
-			return CompletableFuture.completedFuture(null);
+			}, AsyncPools.FX_APPLICATION);
 		}
 		
 		// ---- case path something we don't are about ----
 		if (!Files.isDirectory(path))
 		{
-			Platform.runLater(() ->
+			return CompletableFuture.runAsync(() ->
 			{
 				TreeItem<FileSystemElement> item = getTreeItem(path);
 				if (item == null)
@@ -221,128 +215,123 @@ public class FileSystemTreeManager
 				TreeItem<FileSystemElement> parent = item.getParent();
 				parent.getChildren().remove(item);
 				updateFolderAndParentStatus(parent, false);
-			});
-			
-			return CompletableFuture.completedFuture(null);
+			}, AsyncPools.FX_APPLICATION);
 		}
 		
 		// ---- case path is a directory ----
+		
+		List<Path> subPaths = new ArrayList<>();
+		List<FileSystemElement> subElements = new ArrayList<>();
+		List<Path> subDirectories = new ArrayList<>();
+		List<Image> deletedImages = new ArrayList<>();
+		
 		return CompletableFuture.runAsync(() ->
 		{
-			Platform.runLater(() ->
+			// [FX Thread] Set the item status to LOADING
+			TreeItem<FileSystemElement> item = getTreeItem(path);
+			if (item != null)
 			{
-				TreeItem<FileSystemElement> item = getTreeItem(path);
-				if (item != null)
-					item.getValue().setStatus(Status.LOADING);
-			});
-			
-			List<Path> subPaths = new ArrayList<>();
-			List<FileSystemElement> subElements = new ArrayList<>();
-			List<Path> subDirectories = new ArrayList<>();
-			
-			// Add files that are on disk
+				item.getValue().setStatus(Status.LOADING);
+				treeView.refresh();
+			}
+		}, AsyncPools.FX_APPLICATION).thenRunAsync(() ->
+		{
+			// [IO Thread] List files from disk
 			try (Stream<Path> list = Files.list(path))
 			{
 				list.forEach(subPath ->
 				{
-					FileSystemElement subElement = toFileSystemElement(subPath);
-					
-					if (subElement != null)
+					FileSystemElement subElement;
+					if (Files.isDirectory(subPath))
 					{
-						subPaths.add(subPath);
-						subElements.add(subElement);
-						if (subElement.isDirectory())
-							subDirectories.add(subPath);
+						subElement = new FileSystemElement(subPath, deep ? Status.LOADING : Status.NOT_LOADED);
+						subDirectories.add(subPath);
 					}
+					else if (Image.isImage(subPath))
+					{
+						Image image = gallery.getImage(subPath);
+						subElement = new FileSystemElement(image, image.isSaved() ? Status.SYNC : Status.UNSYNC);
+					}
+					else
+						return;
+					
+					subPaths.add(subPath);
+					subElements.add(subElement);
 				});
 			}
-			catch (Exception e)
+			catch (IOException e)
 			{
-				Platform.runLater(() -> new ExceptionDialog(e, "Error when listing " + path).show());
-				return;
+				throw new RuntimeException(e);
 			}
 			
 			// Add deleted files
 			int nameCountSub = path.getNameCount() + 1;
-			List<Image> deletedImages = gallery.findImagesIn(path, false).stream().filter(image ->
+			deletedImages.addAll(gallery.findImagesIn(path, false).stream().filter(image ->
 			{
 				Path p = gallery.toAbsolutePath(image.getPath());
 				return !subPaths.contains(p.getRoot().resolve(p.subpath(0, nameCountSub)));
-			}).toList();
+			}).toList());
 			
-			Platform.runLater(() ->
+		}, AsyncPools.DISK_IO).thenRunAsync(() ->
+		{
+			// [FX Thread] Update items
+			TreeItem<FileSystemElement> item = getTreeItem(path);
+			if (item == null)
+				return;
+			
+			disableAutoRefreshOnOpen(item);
+			List<TreeItem<FileSystemElement>> itemProcessed = new ArrayList<>();
+			boolean changed = false;
+			
+			for (FileSystemElement subElement : subElements)
 			{
-				TreeItem<FileSystemElement> item = getTreeItem(path);
-				if (item == null)
-					return;
+				TreeItem<FileSystemElement> subItem = getTreeItem(item, subElement.getPath(), false);
 				
-				List<TreeItem<FileSystemElement>> itemProcessed = new ArrayList<>();
-				boolean changed = false;
-				
-				for (FileSystemElement subElement : subElements)
+				if (subItem == null)
 				{
-					TreeItem<FileSystemElement> subItem = getTreeItem(item, subElement.getPath(), false);
+					subItem = new TreeItem<>(subElement);
+					if (!deep)
+						enableAutoRefreshOnOpen(subItem);
 					
-					if (subItem == null)
-					{
-						subItem = new TreeItem<>(subElement);
-						if (!deep)
-							enableAutoRefreshOnOpen(subItem);
-						
-						item.getChildren().add(subItem);
-						changed = true;
-					}
-					else
-					{
-						changed |= !subItem.getValue().equals(subElement);
-						subItem.setValue(subElement);
-						if (subElement.isImage())
-							subItem.getChildren().clear();
-					}
-					itemProcessed.add(subItem);
+					item.getChildren().add(subItem);
+					changed = true;
+				}
+				else
+				{
+					changed |= !subItem.getValue().equals(subElement);
+					subItem.setValue(subElement);
+					if (subElement.isImage())
+						subItem.getChildren().clear();
 				}
 				
-				// create/update deleted items
-				changed |= createUpdateDeleteItems(deletedImages, item, itemProcessed);
-				removeNotProcessed(item, itemProcessed);
-				sort(item);
-				
-				updateFolderAndParentStatus(item, true);
-				
-				if (changed)
-					uiController.requestRefreshThumbnails();
-			});
-			
-			if (deep && !subDirectories.isEmpty())
-			{
-				CompletableFuture.allOf(subDirectories.stream()
-				                                      .map(subDirectory -> getAsyncAction(subDirectory, deep))
-				                                      .toArray(CompletableFuture[]::new))
-				                 .thenRun(() -> Platform.runLater(() -> updateFolderAndParentStatus(getTreeItem(path),
-				                                                                                    true)))
-				                 .join();
+				itemProcessed.add(subItem);
 			}
 			
-		}, AsyncPools.DISK_IO);
-	}
-	
-	private FileSystemElement toFileSystemElement(Path path)
-	{
-		if (!path.startsWith(rootPath))
-			return null;
-		
-		if (Files.isDirectory(path))
-			return new FileSystemElement(path);
-		
-		if (Image.isImage(path))
-		{
-			Image image = gallery.getImage(path);
+			// create/update deleted items
+			changed |= createUpdateDeleteItems(deletedImages, item, itemProcessed);
+			removeNotProcessed(item, itemProcessed);
+			sort(item);
 			
-			return image.isSaved() ? new FileSystemElement(image, Status.SYNC)
-			        : new FileSystemElement(image, Status.UNSYNC);
-		}
-		
-		return null;
+			updateFolderAndParentStatus(item, true);
+			
+			if (changed)
+				uiController.requestRefreshThumbnails();
+			
+		}, AsyncPools.FX_APPLICATION).thenComposeAsync((Void v) ->
+		{
+			// [IO Thread] Recursive call on sub directories
+			if (deep && !subDirectories.isEmpty())
+			{
+				return CompletableFuture.allOf(subDirectories.stream()
+				                                             .map(subDirectory -> asyncRefresh(subDirectory, deep))
+				                                             .toArray(CompletableFuture[]::new))
+				                        .thenRunAsync(() -> updateFolderAndParentStatus(getTreeItem(path), true),
+				                                      AsyncPools.FX_APPLICATION);
+			}
+			else
+				return CompletableFuture.completedFuture(null);
+			
+		}, AsyncPools.DISK_IO);
 	}
 	
 	private TreeItem<FileSystemElement> getTreeItem(Path path)
@@ -379,9 +368,7 @@ public class FileSystemTreeManager
 		if (newPath.equals(path))
 			return newItem;
 		
-		FileSystemElement newElement = new FileSystemElement(newPath);
-		newElement.setStatus(Status.NOT_FULLY_LOADED);
-		newItem.setValue(newElement);
+		newItem.setValue(new FileSystemElement(newPath, Status.NOT_FULLY_LOADED));
 		sort(fromItem);
 		updateFolderAndParentStatus(fromItem, false);
 		
@@ -432,8 +419,7 @@ public class FileSystemTreeManager
 				itemProcessed.add(currentItem);
 				
 				Path pathParent = currentElement.getPath().getParent();
-				currentElement = new FileSystemElement(pathParent);
-				currentElement.setStatus(Status.DELETED);
+				currentElement = new FileSystemElement(pathParent, Status.DELETED);
 				currentItem = getTreeItem(item, pathParent, false);
 			}
 			
@@ -468,7 +454,7 @@ public class FileSystemTreeManager
 				sort(subItem);
 	}
 	
-	private static void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean hasAllChildren)
+	private void updateFolderAndParentStatus(TreeItem<FileSystemElement> item, boolean hasAllChildren)
 	{
 		Status currentStatus = item.getValue().getStatus();
 		
@@ -491,7 +477,7 @@ public class FileSystemTreeManager
 		else if (statusFound.size() == 1 && statusFound.contains(Status.DELETED)
 		        && !Files.exists(item.getValue().getPath()))
 			newSatus = Status.DELETED;
-		else if (currentStatus == Status.LOADING && statusFound.contains(Status.LOADING))
+		else if (statusFound.contains(Status.LOADING))
 			newSatus = Status.LOADING;
 		else if ((statusFound.contains(Status.UNSYNC) || statusFound.contains(Status.DELETED)) && allFullyLoaded)
 			newSatus = Status.UNSYNC;
@@ -502,6 +488,7 @@ public class FileSystemTreeManager
 			return;
 		
 		item.getValue().setStatus(newSatus);
+		treeView.refresh();
 		
 		TreeItem<FileSystemElement> parent = item.getParent();
 		if (parent != null)
@@ -952,20 +939,11 @@ public class FileSystemTreeManager
 						return oldElement;
 					
 					Path newPath = oldElement.getPath().resolveSibling(filename);
-					FileSystemElement element;
 					
 					if (oldElement.isDirectory())
-					{
-						element = new FileSystemElement(newPath);
-						element.setStatus(oldElement.getStatus());
-					}
+						return new FileSystemElement(newPath, oldElement.getStatus());
 					else
-					{
-						Image image = gallery.getImage(gallery.toRelativePath(newPath));
-						element = new FileSystemElement(image, oldElement.getStatus());
-					}
-					
-					return element;
+						return new FileSystemElement(gallery.getImage(newPath), oldElement.getStatus());
 				}
 			};
 			cell.setConverter(converter);
@@ -1186,9 +1164,7 @@ public class FileSystemTreeManager
 		
 		if (item.getValue().isDirectory())
 		{
-			FileSystemElement element = new FileSystemElement(newPath);
-			element.setStatus(item.getValue().getStatus());
-			item.setValue(element);
+			item.setValue(new FileSystemElement(newPath, item.getValue().getStatus()));
 			
 			for (TreeItem<FileSystemElement> subItem : item.getChildren())
 				updateMovedItem(source, target, subItem);
@@ -1197,7 +1173,7 @@ public class FileSystemTreeManager
 		// have been called before (moving the image)
 	}
 	
-	private static void merge(TreeItem<FileSystemElement> target, List<TreeItem<FileSystemElement>> itemsToAdd)
+	private void merge(TreeItem<FileSystemElement> target, List<TreeItem<FileSystemElement>> itemsToAdd)
 	{
 		if (itemsToAdd.isEmpty())
 			return;

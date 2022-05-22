@@ -28,7 +28,6 @@ import java.util.Map.Entry;
 import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -73,6 +72,7 @@ import nigloo.gallerymanager.model.Script;
 import nigloo.gallerymanager.model.Script.AutoExecution;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
+import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import nigloo.tool.StopWatch;
 import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
@@ -168,7 +168,7 @@ public class UIController extends Application
 		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior());
 		tagFilterField.setOnAction(e -> requestRefreshThumbnails());
 		
-		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder()));
+		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder(), Status.NOT_LOADED));
 		root.setExpanded(true);
 		fileSystemView.setRoot(root);
 		
