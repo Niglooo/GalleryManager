@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
@@ -140,11 +141,7 @@ public class FileSystemTreeManager
 		                                                               .distinct()
 		                                                               .map(path -> asyncRefresh(path, deep))
 		                                                               .toArray(CompletableFuture[]::new))
-		                 .whenCompleteAsync((v, e) ->
-		                 {
-			                 if (e != null)
-				                 new ExceptionDialog(e, "Error when refreshing").show();
-		                 }, AsyncPools.FX_APPLICATION);
+		                 .whenCompleteAsync(showException("Error when refreshing"), AsyncPools.FX_APPLICATION);
 	}
 	
 	private CompletableFuture<Void> asyncRefresh(Path path, boolean deep)
@@ -545,7 +542,7 @@ public class FileSystemTreeManager
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
 		
-		Platform.runLater(() ->
+		CompletableFuture.runAsync(() ->
 		{
 			StrongReference<Boolean> refreshThumbnails = new StrongReference<>(false);
 			
@@ -562,7 +559,7 @@ public class FileSystemTreeManager
 			
 			if (refreshThumbnails.get())
 				uiController.requestRefreshThumbnails();
-		});
+		}, AsyncPools.FX_APPLICATION);
 	}
 	
 	/**
@@ -633,7 +630,7 @@ public class FileSystemTreeManager
 		
 		final Collection<Path> pathsToDelete = withoutChildren(paths);
 		
-		Platform.runLater(() ->
+		CompletableFuture.supplyAsync(() ->
 		{
 			List<TreeItem<FileSystemElement>> itemsToDelete = pathsToDelete.stream()
 			                                                               .map(this::getTreeItem)
@@ -661,56 +658,54 @@ public class FileSystemTreeManager
 			
 			Optional<ButtonType> button = warningPopup.showAndWait();
 			if (button.isEmpty() || button.get() != ButtonType.YES)
-				return;
+				return List.<FileSystemElement>of();
 			
 			for (TreeItem<FileSystemElement> item : itemsToDelete)
 			{
 				TreeItem<FileSystemElement> parent = item.getParent();
 				parent.getChildren().remove(item);
-				LOGGER.debug("Remove item "+item.getValue()+" from "+parent.getValue());
+				LOGGER.debug("Remove item " + item.getValue() + " from " + parent.getValue());
 				updateFolderAndParentStatus(parent, false);
 			}
 			
 			uiController.requestRefreshThumbnails();
 			
-			CompletableFuture.runAsync(() ->
+			return elements;
+		}, AsyncPools.FX_APPLICATION).thenAcceptAsync(elements ->
+		{
+			gallery.deleteImages(elements.stream()
+			                             .filter(FileSystemElement::isImage)
+			                             .map(FileSystemElement::getImage)
+			                             .toList());
+			for (FileSystemElement element : elements)
 			{
-				gallery.deleteImages(elements.stream()
-				                             .filter(FileSystemElement::isImage)
-				                             .map(FileSystemElement::getImage)
-				                             .toList());
+				gallery.setSortOrder(element.getPath(), null);
+				gallery.setSubDirectoriesSortOrder(element.getPath(), null);
+			}
+			
+			if (deleteOnDisk)
+			{
+				IOException error = null;
 				for (FileSystemElement element : elements)
 				{
-					gallery.setSortOrder(element.getPath(), null);
-					gallery.setSubDirectoriesSortOrder(element.getPath(), null);
-				}
-				
-				if (deleteOnDisk)
-				{
-					IOException error = null;
-					Path errorPath = null;
-					for (FileSystemElement element : elements)
+					try
 					{
-						try
+						if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
 						{
-							if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
-							{
-								Files.delete(element.getPath());
-								LOGGER.debug("Deleting from disk : "+element.getPath());
-							}
-						}
-						catch (IOException e)
-						{
-							error = e;
-							errorPath = element.getPath();
+							Files.delete(element.getPath());
+							LOGGER.debug("Deleting from disk : " + element.getPath());
 						}
 					}
-					
-					if (error != null)
-						new ExceptionDialog(error, "Error when deleting " + errorPath).show();
+					catch (IOException e)
+					{
+						error = e;
+					}
 				}
-			}, AsyncPools.DISK_IO);
-		});
+				
+				if (error != null)
+					throw new RuntimeException(error);
+			}
+		}, AsyncPools.DISK_IO).whenCompleteAsync(showException("Error when deleting files"), AsyncPools.FX_APPLICATION);
 	}
 	
 	private static Stream<FileSystemElement> getElements(TreeItem<FileSystemElement> item)
@@ -745,33 +740,20 @@ public class FileSystemTreeManager
 		StopWatch timer = new StopWatch();
 		timer.start();
 		
-		List<CompletableFuture<Entry<Image, Boolean>>> imagesToUpdate = new ArrayList<>();
-		
-		for (Image image : images)
+		return completableFutureAllOf(images.stream().map(image ->
 		{
 			Path absPath = image.getAbsolutePath();
 			TreeItem<FileSystemElement> item = getTreeItem(absPath, false);
 			
-			if (item == null || !item.getValue().isImage())
-			{
-				imagesToUpdate.add(CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)),
-				                                                 AsyncPools.DISK_IO));
-			}
-		}
-		
-		LOGGER.debug(UPDATE_THUMBNAILS, "Async call Files.exists ({}) : {}ms", imagesToUpdate.size(), timer.split());
-		
-		return CompletableFuture.allOf(imagesToUpdate.toArray(CompletableFuture[]::new)).thenApplyAsync(v ->
+			return item == null || !item.getValue().isImage()
+			        ? CompletableFuture.supplyAsync(() -> Map.entry(image, Files.exists(absPath)), AsyncPools.DISK_IO)
+			        : null;
+		}).filter(Objects::nonNull).toList()).thenApplyAsync(results ->
 		{
+			LOGGER.debug(UPDATE_THUMBNAILS, "Return allOf Files.exists ({}) : {}ms", results.size(), timer.split());
 			
-			LOGGER.debug(UPDATE_THUMBNAILS,
-			             "Return allOf Files.exists ({}) : {}ms",
-			             imagesToUpdate.size(),
-			             timer.split());
-			
-			for (CompletableFuture<Entry<Image, Boolean>> future : imagesToUpdate)
+			for (Entry<Image, Boolean> entry : results)
 			{
-				Entry<Image, Boolean> entry = future.join();
 				Image image = entry.getKey();
 				boolean exists = entry.getValue();
 				
@@ -789,7 +771,7 @@ public class FileSystemTreeManager
 				sort(item.getParent());
 			}
 			
-			LOGGER.debug(UPDATE_THUMBNAILS, "Update treeView ({}) : {}ms", imagesToUpdate.size(), timer.split());
+			LOGGER.debug(UPDATE_THUMBNAILS, "Update treeView ({}) : {}ms", results.size(), timer.split());
 			
 			final HashSet<Image> imagesSet = new HashSet<>(images);
 			
@@ -802,7 +784,6 @@ public class FileSystemTreeManager
 			             timer.split());
 			
 			return sortedImages;
-			
 		}, AsyncPools.FX_APPLICATION);
 	}
 	
@@ -1088,7 +1069,7 @@ public class FileSystemTreeManager
 		                                     .sorted(Comparator.comparingInt(Path::getNameCount).reversed())
 		                                     .toList();
 		
-		Platform.runLater(() ->
+		CompletableFuture.runAsync(() ->
 		{
 			TreeItem<FileSystemElement> targetItem = getTreeItem(target);
 			if (targetItem == null)
@@ -1144,7 +1125,7 @@ public class FileSystemTreeManager
 				for (TreeItem<FileSystemElement> item : movedItems)
 					treeView.getSelectionModel().select(item);
 			}
-		});
+		}, AsyncPools.FX_APPLICATION);
 	}
 	
 	/**
@@ -1218,5 +1199,18 @@ public class FileSystemTreeManager
 		}
 		
 		updateFolderAndParentStatus(target, false);
+	}
+	
+	private static <T> CompletableFuture<List<T>> completableFutureAllOf(Collection<CompletableFuture<T>> cfs)
+	{
+		return CompletableFuture.allOf(cfs.toArray(CompletableFuture[]::new)).thenApply(v -> cfs.stream().map(CompletableFuture<T>::join).toList());
+	}
+	
+	private static <T, E extends Throwable> BiConsumer<T, E> showException(String errorMessage)
+	{
+		return (T value, E error) -> {
+			if (error != null)
+				new ExceptionDialog(error, errorMessage).show();
+		};
 	}
 }
