@@ -549,7 +549,11 @@ public class FileSystemTreeManager
 			for (Path path : (deep ? withoutChildren(paths) : paths))
 			{
 				TreeItem<FileSystemElement> item = getTreeItem(path);
-				if (doSynchronize(item, deep, refreshThumbnails))
+				if (item == null)
+					continue;
+				
+				boolean removeItem = doSynchronize(item, deep, refreshThumbnails);
+				if (removeItem)
 				{
 					TreeItem<FileSystemElement> parent = item.getParent();
 					parent.getChildren().remove(item);
@@ -576,20 +580,20 @@ public class FileSystemTreeManager
 	{
 		FileSystemElement element = item.getValue();
 		
-		if (!Files.exists(element.getPath()))
+		if (element.getStatus() == Status.DELETED)
 		{
 			gallery.deleteImages(gallery.findImagesIn(element.getPath(), true));
 			refreshThumbnails.set(true);
 			return true;
 		}
-		
-		if (element.isImage())
+		else if (element.isImage())
 		{
 			Image image = element.getImage();
 			if (!image.isSaved())
 			{
 				gallery.saveImage(image);
-				item.setValue(new FileSystemElement(image, Status.SYNC));
+				element.setStatus(Status.SYNC);
+				treeView.refresh();
 				updateFolderAndParentStatus(item.getParent(), false);
 			}
 			
