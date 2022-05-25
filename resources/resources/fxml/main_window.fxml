@@ -64,7 +64,8 @@
                           </ScrollPane>
                           <TreeView
                             id="file_system_view"
-                            fx:id="fileSystemView" />
+                            fx:id="fileSystemView"
+                            VBox.vgrow="ALWAYS" />
                         </children>
                       </VBox>
                       <VScrollablePane
