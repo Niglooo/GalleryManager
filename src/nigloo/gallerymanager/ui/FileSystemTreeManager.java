@@ -834,6 +834,7 @@ public class FileSystemTreeManager
 					{
 						setText("");
 						setGraphic(null);
+						setContextMenu(null);
 					}
 					else
 					{
@@ -843,6 +844,7 @@ public class FileSystemTreeManager
 						iv.setFitWidth(16);
 						iv.setPreserveRatio(true);
 						setGraphic(iv);
+						setContextMenu(contextMenu);
 						
 						if (Clipboard.getSystemClipboard().hasFiles()
 						        && Clipboard.getSystemClipboard().getFiles().contains(element.getPath().toFile()))
@@ -897,7 +899,6 @@ public class FileSystemTreeManager
 				}
 			};
 			
-			cell.setContextMenu(contextMenu);
 			cell.setOnContextMenuRequested(e -> contextMenu.setSelectedCell(cell));
 			cell.setOnDragDetected((MouseEvent event) -> dragDetected(event, cell));
 			cell.setOnDragOver((DragEvent event) -> dragOver(event, cell));

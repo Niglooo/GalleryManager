@@ -61,15 +61,6 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	{
 		UIController.loadFXML(this, "file_system_tree_context_menu.fxml");
 		Injector.init(this);
-		
-		addEventHandler(Menu.ON_SHOWING, e ->
-		{
-			updateSortOrderItems();
-			updateChildrenSortOrderItems();
-			pasteItem.setDisable(selection.getSelectedItem().getValue() == null
-			        || !selection.getSelectedItem().getValue().isDirectory()
-			        || !uiController.canPaste(selection.getSelectedItem().getValue().getPath()));
-		});
 	}
 	
 	public void setSelection(MultipleSelectionModel<TreeItem<FileSystemElement>> selection)
@@ -80,17 +71,26 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	public void setSelectedCell(TreeCell<FileSystemElement> selectedCell)
 	{
 		this.selectedCell = selectedCell;
+		if (selectedCell.isEmpty())
+			return;
+		
+		// Update everything here before Menu.ON_SHOWING is handled AFTER OnContextMenuRequested for some reason.
+		updateSortOrderItems();
+		updateChildrenSortOrderItems();
+		pasteItem.setDisable(selectedCell.getItem() == null
+		        || !selectedCell.getItem().isDirectory()
+		        || !uiController.canPaste(selectedCell.getItem().getPath()));
 	}
 	
 	void updateSortOrderItems()
 	{
-		if (selection.getSelectedItem().getValue().isImage())
+		if (selectedCell.getItem().isImage())
 		{
 			inheritedOrderItem.getParentMenu().setDisable(true);
 			return;
 		}
 		
-		Path path = selection.getSelectedItem().getValue().getPath();
+		Path path = selectedCell.getItem().getPath();
 		
 		inheritedOrderItem.getParentMenu().setDisable(false);
 		
@@ -107,13 +107,13 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	
 	void updateChildrenSortOrderItems()
 	{
-		if (selection.getSelectedItem().getValue().isImage())
+		if (selectedCell.getItem().isImage())
 		{
 			childrenInheritedOrderItem.getParentMenu().setDisable(true);
 			return;
 		}
 		
-		Path path = selection.getSelectedItem().getValue().getPath();
+		Path path = selectedCell.getItem().getPath();
 		
 		childrenInheritedOrderItem.getParentMenu().setDisable(false);
 		
@@ -137,7 +137,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void openInFileExplorer() throws IOException
 	{
-		Desktop.getDesktop().open(selection.getSelectedItem().getValue().getPath().toFile());
+		Desktop.getDesktop().open(selectedCell.getItem().getPath().toFile());
 	}
 	
 	@FXML
