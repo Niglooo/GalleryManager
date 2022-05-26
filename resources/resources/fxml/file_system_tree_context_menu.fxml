@@ -200,5 +200,14 @@
       mnemonicParsing="false"
       onAction="#rename"
       text="Rename" />
+    <SeparatorMenuItem />
+    <Menu
+      mnemonicParsing="false"
+      text="New">
+      <MenuItem
+        mnemonicParsing="false"
+        onAction="#newFolder"
+        text="Folder" />
+    </Menu>
   </items>
 </fx:root>

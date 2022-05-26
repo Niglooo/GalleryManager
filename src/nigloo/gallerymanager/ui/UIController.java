@@ -655,6 +655,11 @@ public class UIController extends Application
 		fileSystemTreeManager.paste(targetPath);
 	}
 	
+	public void newDirectoryIn(Path parentDirectory, boolean editInView)
+	{
+		fileSystemTreeManager.newDirectoryIn(parentDirectory, editInView);
+	}
+	
 	private Tab newScriptEditorTab(Script script)
 	{
 		ScriptEditor scriptEditor = new ScriptEditor(script);

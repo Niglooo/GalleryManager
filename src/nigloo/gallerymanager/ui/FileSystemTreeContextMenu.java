@@ -257,6 +257,12 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		treeView.edit(treeView.getSelectionModel().getSelectedItem());
 	}
 	
+	@FXML
+	protected void newFolder()
+	{
+		uiController.newDirectoryIn(selectedElement().getPath(), true);
+	}
+	
 	private void sort(TreeItem<FileSystemElement> item, FileFolderOrder order)
 	{
 		Path path = item.getValue().getPath();

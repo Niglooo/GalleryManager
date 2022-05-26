@@ -1204,6 +1204,54 @@ public class FileSystemTreeManager
 		updateFolderAndParentStatus(target, false);
 	}
 	
+	public void newDirectoryIn(Path parentDirectory, boolean editInView)
+	{
+		assert parentDirectory != null;
+		assert parentDirectory.isAbsolute();
+		assert parentDirectory.startsWith(gallery.getRootFolder());
+		
+		CompletableFuture.supplyAsync(() ->
+		{
+			TreeItem<FileSystemElement> item = getTreeItem(parentDirectory);
+			if (item == null)
+				return null;
+			
+			if (isEmptyDirectoryWithAutoRefreshOnOpen(item))
+				disableAutoRefreshOnOpen(item);
+			
+			String newFolderName = "New folder";
+			for (int i = 2 ; Files.exists(parentDirectory.resolve(newFolderName)) ; i++)
+				newFolderName = "New folder (" + i + ")";
+			
+			Path newFolder = parentDirectory.resolve(newFolderName);
+			try
+			{
+				Files.createDirectory(newFolder);
+			}
+			catch (IOException e)
+			{
+				throw new RuntimeException(e);
+			}
+			
+			FileSystemElement element = new FileSystemElement(newFolder, Status.EMPTY);
+			TreeItem<FileSystemElement> newItem = new TreeItem<>(element);
+			
+			item.getChildren().add(newItem);
+			sort(item);
+			item.setExpanded(true);
+			
+			int newItemIdx = treeView.getRow(newItem);
+			treeView.scrollTo(newItemIdx);
+			treeView.getSelectionModel().clearAndSelect(newItemIdx);
+			
+			return newItem;
+		}, AsyncPools.FX_APPLICATION).thenAcceptAsync(newItem ->
+		{
+			if (editInView)
+				treeView.edit(newItem);
+		}, AsyncPools.FX_APPLICATION).whenComplete(showException("Error while creating new directory"));
+	}
+	
 	private static <T> CompletableFuture<List<T>> completableFutureAllOf(Collection<CompletableFuture<T>> cfs)
 	{
 		return CompletableFuture.allOf(cfs.toArray(CompletableFuture[]::new)).thenApply(v -> cfs.stream().map(CompletableFuture<T>::join).toList());
