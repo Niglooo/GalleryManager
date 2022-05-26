@@ -263,12 +263,11 @@ public class UIController extends Application
 							                 .thenCompose(UIController.this::cancelIfNoChange)
 							                 .thenCompose(fileSystemTreeManager::refreshAndGetInOrder)
 							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
-							                 .handle((v, e) ->
+							                 .whenComplete((v, e) ->
 							                 {
 								                 lastUpdate = System.currentTimeMillis();
 								                 updateRequested = false;
 								                 isUpdating = false;
-								                 return null;
 							                 });
 						}
 						else

@@ -10,13 +10,11 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import nigloo.gallerymanager.model.FileFolderOrder;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.SortBy;
@@ -54,43 +52,32 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	private Toggle folderPositionSelected;
 	private Toggle childrenFolderPositionSelected;
 	
-	private MultipleSelectionModel<TreeItem<FileSystemElement>> selection;
-	private TreeCell<FileSystemElement> selectedCell;
+	private final TreeView<FileSystemElement> treeView;
 	
-	public FileSystemTreeContextMenu()
+	public FileSystemTreeContextMenu(TreeView<FileSystemElement> treeView)
 	{
+		this.treeView = treeView;
 		UIController.loadFXML(this, "file_system_tree_context_menu.fxml");
 		Injector.init(this);
-	}
-	
-	public void setSelection(MultipleSelectionModel<TreeItem<FileSystemElement>> selection)
-	{
-		this.selection = selection;
-	}
-	
-	public void setSelectedCell(TreeCell<FileSystemElement> selectedCell)
-	{
-		this.selectedCell = selectedCell;
-		if (selectedCell.isEmpty())
-			return;
 		
-		// Update everything here before Menu.ON_SHOWING is handled AFTER OnContextMenuRequested for some reason.
-		updateSortOrderItems();
-		updateChildrenSortOrderItems();
-		pasteItem.setDisable(selectedCell.getItem() == null
-		        || !selectedCell.getItem().isDirectory()
-		        || !uiController.canPaste(selectedCell.getItem().getPath()));
+		setOnShowing(e -> {
+			updateSortOrderItems();
+			updateChildrenSortOrderItems();
+			pasteItem.setDisable(selectedElement() == null
+			        || !selectedElement().isDirectory()
+			        || !uiController.canPaste(selectedElement().getPath()));
+		});
 	}
 	
-	void updateSortOrderItems()
+	private void updateSortOrderItems()
 	{
-		if (selectedCell.getItem().isImage())
+		if (selectedElement().isImage())
 		{
 			inheritedOrderItem.getParentMenu().setDisable(true);
 			return;
 		}
 		
-		Path path = selectedCell.getItem().getPath();
+		Path path = selectedElement().getPath();
 		
 		inheritedOrderItem.getParentMenu().setDisable(false);
 		
@@ -105,15 +92,15 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		folderPositionSelected = folderPositionGroup.getSelectedToggle();
 	}
 	
-	void updateChildrenSortOrderItems()
+	private void updateChildrenSortOrderItems()
 	{
-		if (selectedCell.getItem().isImage())
+		if (selectedElement().isImage())
 		{
 			childrenInheritedOrderItem.getParentMenu().setDisable(true);
 			return;
 		}
 		
-		Path path = selectedCell.getItem().getPath();
+		Path path = selectedElement().getPath();
 		
 		childrenInheritedOrderItem.getParentMenu().setDisable(false);
 		
@@ -129,21 +116,27 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		childrenFolderPositionSelected = childrenFolderPositionGroup.getSelectedToggle();
 	}
 	
+	private FileSystemElement selectedElement()
+	{
+		TreeItem<FileSystemElement> selectedItem = treeView.getSelectionModel().getSelectedItem();
+		return selectedItem != null ? selectedItem.getValue() : null;
+	}
+	
 	private List<Path> selectedPaths()
 	{
-		return selection.getSelectedItems().stream().map(TreeItem::getValue).map(FileSystemElement::getPath).toList();
+		return treeView.getSelectionModel().getSelectedItems().stream().map(TreeItem::getValue).map(FileSystemElement::getPath).toList();
 	}
 	
 	@FXML
 	protected void openInFileExplorer() throws IOException
 	{
-		Desktop.getDesktop().open(selectedCell.getItem().getPath().toFile());
+		Desktop.getDesktop().open(selectedElement().getPath().toFile());
 	}
 	
 	@FXML
 	protected void updateSortBy(ActionEvent event)
 	{
-		TreeItem<FileSystemElement> item = selection.getSelectedItem();
+		TreeItem<FileSystemElement> item = treeView.getSelectionModel().getSelectedItem();
 		Path path = item.getValue().getPath();
 		FileFolderOrder order;
 		
@@ -185,7 +178,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void updateChildrenSortBy(ActionEvent event)
 	{
-		TreeItem<FileSystemElement> item = selection.getSelectedItem();
+		TreeItem<FileSystemElement> item = treeView.getSelectionModel().getSelectedItem();
 		Path path = item.getValue().getPath();
 		FileFolderOrder order;
 		
@@ -249,7 +242,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void paste()
 	{
-		uiController.paste(selectedCell.getItem().getPath());
+		uiController.paste(selectedElement().getPath());
 	}
 	
 	@FXML
@@ -261,9 +254,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void rename()
 	{
-		selectedCell.setEditable(true);
-		selectedCell.startEdit();
-		selectedCell.setEditable(false);
+		treeView.edit(treeView.getSelectionModel().getSelectedItem());
 	}
 	
 	private void sort(TreeItem<FileSystemElement> item, FileFolderOrder order)

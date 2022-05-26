@@ -31,6 +31,7 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener.Change;
+import javafx.css.Styleable;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.SelectionMode;
@@ -44,9 +45,9 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
-import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import nigloo.gallerymanager.AsyncPools;
@@ -74,14 +75,16 @@ public class FileSystemTreeManager
 	private Gallery gallery;
 	
 	private final TreeView<FileSystemElement> treeView;
+	private final FileSystemTreeContextMenu contextMenu;
 	
 	public FileSystemTreeManager(TreeView<FileSystemElement> treeView)
 	{
 		Injector.init(this);
 		
 		this.treeView = treeView;
+		this.contextMenu = new FileSystemTreeContextMenu(treeView);
 		
-		treeView.setCellFactory(new FileSystemTreeCellFactory());
+		treeView.setCellFactory(tv -> new FileSystemTreeCell());
 		treeView.setEditable(true);
 		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		treeView.getSelectionModel()
@@ -136,6 +139,7 @@ public class FileSystemTreeManager
 	{
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
+		assert paths.stream().allMatch(p -> p.startsWith(gallery.getRootFolder()));
 		
 		CompletableFuture.allOf((deep ? withoutChildren(paths) : paths).stream()
 		                                                               .distinct()
@@ -541,6 +545,7 @@ public class FileSystemTreeManager
 	{
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
+		assert paths.stream().allMatch(p -> p.startsWith(gallery.getRootFolder()));
 		
 		CompletableFuture.runAsync(() ->
 		{
@@ -631,6 +636,7 @@ public class FileSystemTreeManager
 	{
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
+		assert paths.stream().allMatch(p -> p.startsWith(gallery.getRootFolder()));
 		
 		final Collection<Path> pathsToDelete = withoutChildren(paths);
 		
@@ -801,112 +807,32 @@ public class FileSystemTreeManager
 			return rootItem.getChildren().stream().flatMap(FileSystemTreeManager::getImages);
 	}
 	
-	private class FileSystemTreeCellFactory
-	        implements Callback<TreeView<FileSystemElement>, TreeCell<FileSystemElement>>
+	private class FileSystemTreeCell extends TextFieldTreeCell<FileSystemElement>
 	{
-		private final FileSystemTreeContextMenu contextMenu;
-		private boolean contextMenuListenerSet = false;
-		
-		public FileSystemTreeCellFactory()
+		public FileSystemTreeCell()
 		{
-			this.contextMenu = new FileSystemTreeContextMenu();
-		}
-		
-		@Override
-		public TreeCell<FileSystemElement> call(TreeView<FileSystemElement> treeView)
-		{
-			if (!contextMenuListenerSet)
+			this.setOnDragDetected((MouseEvent event) -> dragDetected(event, this));
+			this.setOnDragOver((DragEvent event) -> dragOver(event, this));
+			this.setOnDragDropped((DragEvent event) -> drop(event, this));
+			this.setOnDragDone((DragEvent event) -> clearDropLocation());
+			this.setEditable(true);
+			// Disable edit on click selected element
+			this.addEventFilter(MouseEvent.MOUSE_PRESSED, e ->
 			{
-				contextMenu.setSelection(treeView.getSelectionModel());
-				contextMenuListenerSet = true;
-			}
-			
-			TextFieldTreeCell<FileSystemElement> cell = new TextFieldTreeCell<FileSystemElement>()
-			{
-				@Override
-				public void updateItem(FileSystemElement element, boolean empty)
+				// If we simple click on the cell while it's selected, we want to consume the
+				// event to prevent it to go into edit mode (defaut behavior, non
+				// overridable...)
+				if (e.getClickCount() == 1 && e.getButton() == MouseButton.PRIMARY && this.isSelected())
 				{
-					super.updateItem(element, empty);
+					// ... except if the target of the event is the arrow to expand/collapse, we
+					// want to keep that behavior
+					if (e.getTarget() instanceof Styleable n && n.getStyleClass().contains("arrow"))
+						return;
 					
-					getStyleClass().remove(CUT_ELEMENT_STYLE_CLASS);
-					
-					if (empty)
-					{
-						setText("");
-						setGraphic(null);
-						setContextMenu(null);
-					}
-					else
-					{
-						setText(element.getPath().getFileName().toString());
-						ImageView iv = new ImageView(element.getIcon());
-						iv.setFitHeight(16);
-						iv.setFitWidth(16);
-						iv.setPreserveRatio(true);
-						setGraphic(iv);
-						setContextMenu(contextMenu);
-						
-						if (Clipboard.getSystemClipboard().hasFiles()
-						        && Clipboard.getSystemClipboard().getFiles().contains(element.getPath().toFile()))
-							getStyleClass().add(CUT_ELEMENT_STYLE_CLASS);
-					}
+					e.consume();
 				}
-				
-				@Override
-				public void commitEdit(FileSystemElement newElement)
-				{
-					FileSystemElement oldElement = getItem();
-					
-					if (newElement == oldElement)
-						cancelEdit();
-					else
-					{
-						try
-						{
-							Path source = oldElement.getPath();
-							Path target = newElement.getPath();
-							
-							if (Files.exists(source))
-								Utils.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-							
-							gallery.move(source, target);
-							
-							// If oldElement is an image, then gallery.move updated its Image, which we want
-							// to keep because it have the right id, while newElement.getImage was just a
-							// temporary object
-							if (oldElement.isImage())
-								newElement = oldElement;
-							
-							super.commitEdit(newElement);
-							
-							TreeItem<FileSystemElement> item = getTreeItem();
-							TreeItem<FileSystemElement> parent = item.getParent();
-							
-							parent.getChildren().remove(item);
-							merge(parent, List.of(item));
-							
-							updateMovedItem(source, target, item);
-							sort(parent);
-							
-							treeView.getSelectionModel().clearSelection();
-							treeView.getSelectionModel().select(item);
-						}
-						catch (Exception e)
-						{
-							cancelEdit();
-						}
-					}
-				}
-			};
-			
-			cell.setOnContextMenuRequested(e -> contextMenu.setSelectedCell(cell));
-			cell.setOnDragDetected((MouseEvent event) -> dragDetected(event, cell));
-			cell.setOnDragOver((DragEvent event) -> dragOver(event, cell));
-			cell.setOnDragDropped((DragEvent event) -> drop(event, cell));
-			cell.setOnDragDone((DragEvent event) -> clearDropLocation());
-			cell.setEditable(false);
-			
-			StringConverter<FileSystemElement> converter = new StringConverter<FileSystemElement>()
+			});
+			this.setConverter(new StringConverter<FileSystemElement>()
 			{
 				@Override
 				public String toString(FileSystemElement element)
@@ -920,7 +846,7 @@ public class FileSystemTreeManager
 				@Override
 				public FileSystemElement fromString(String filename)
 				{
-					FileSystemElement oldElement = cell.getItem();
+					FileSystemElement oldElement = FileSystemTreeCell.this.getItem();
 					if (toString(oldElement).equals(filename))
 						return oldElement;
 					
@@ -931,10 +857,82 @@ public class FileSystemTreeManager
 					else
 						return new FileSystemElement(gallery.getImage(newPath), oldElement.getStatus());
 				}
-			};
-			cell.setConverter(converter);
+			});
+		}
+		
+		@Override
+		public void updateItem(FileSystemElement element, boolean empty)
+		{
+			super.updateItem(element, empty);
 			
-			return cell;
+			getStyleClass().remove(CUT_ELEMENT_STYLE_CLASS);
+			
+			if (empty)
+			{
+				setText("");
+				setGraphic(null);
+				setContextMenu(null);
+			}
+			else
+			{
+				setText(element.getPath().getFileName().toString());
+				ImageView iv = new ImageView(element.getIcon());
+				iv.setFitHeight(16);
+				iv.setFitWidth(16);
+				iv.setPreserveRatio(true);
+				setGraphic(iv);
+				setContextMenu(contextMenu);
+				
+				if (Clipboard.getSystemClipboard().hasFiles()
+				        && Clipboard.getSystemClipboard().getFiles().contains(element.getPath().toFile()))
+					getStyleClass().add(CUT_ELEMENT_STYLE_CLASS);
+			}
+		}
+		
+		@Override
+		public void commitEdit(FileSystemElement newElement)
+		{
+			FileSystemElement oldElement = getItem();
+			
+			if (newElement == oldElement)
+				cancelEdit();
+			else
+			{
+				try
+				{
+					Path source = oldElement.getPath();
+					Path target = newElement.getPath();
+					
+					if (Files.exists(source))
+						Utils.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+					
+					gallery.move(source, target);
+					
+					// If oldElement is an image, then gallery.move updated its Image, which we want
+					// to keep because it have the right id, while newElement.getImage was just a
+					// temporary object
+					if (oldElement.isImage())
+						newElement = oldElement;
+					
+					super.commitEdit(newElement);
+					
+					TreeItem<FileSystemElement> item = getTreeItem();
+					TreeItem<FileSystemElement> parent = item.getParent();
+					
+					parent.getChildren().remove(item);
+					merge(parent, List.of(item));
+					
+					updateMovedItem(source, target, item);
+					sort(parent);
+					
+					treeView.getSelectionModel().clearSelection();
+					treeView.getSelectionModel().select(item);
+				}
+				catch (Exception e)
+				{
+					cancelEdit();
+				}
+			}
 		}
 	}
 	
@@ -1215,7 +1213,10 @@ public class FileSystemTreeManager
 	{
 		return (T value, E error) -> {
 			if (error != null)
+			{
+				LOGGER.error(errorMessage, error);
 				new ExceptionDialog(error, errorMessage).show();
+			}
 		};
 	}
 }
