@@ -33,7 +33,7 @@ public class PixivDownloader extends Downloader
 	{
 		String cookie = session.getSecret("pixiv.cookie");
 		
-		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
+		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
 		
 		HttpRequest request;
 		JsonElement response;
@@ -113,6 +113,8 @@ public class PixivDownloader extends Downloader
 			
 			JsonArray images = JsonHelper.followPath(response, "body", JsonArray.class);
 			
+			Collection<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
+			
 			int imageNumber = 1;
 			for (JsonElement image : images)
 			{
@@ -120,23 +122,24 @@ public class PixivDownloader extends Downloader
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
-				CompletableFuture<?> asyncResponse = downloadImage(session,
-				                                                   url,
-				                                                   headers,
-				                                                   postId,
-				                                                   imageId,
-				                                                   publishedDatetime,
-				                                                   postTitle,
-				                                                   imageNumber,
-				                                                   imageFilename,
-				                                                   tags);
-				
-				imagesDownload.add(asyncResponse);
+				imagesDownloads.add(downloadImage(session,
+				                                  url,
+				                                  headers,
+				                                  postId,
+				                                  imageId,
+				                                  publishedDatetime,
+				                                  postTitle,
+				                                  imageNumber,
+				                                  imageFilename,
+				                                  tags));
 				imageNumber++;
 			}
+			
+			postsDownloads.add(CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new))
+			                                    .thenRun(() -> session.onPostDownloaded(publishedDatetime)));
 		}
 		
-		CompletableFuture.allOf(imagesDownload.toArray(CompletableFuture[]::new)).join();
+		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new)).join();
 		
 		session.saveLastPublishedDatetime();
 	}

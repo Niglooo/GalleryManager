@@ -41,7 +41,7 @@ public class FanboxDownloader extends Downloader
 	{
 		String cookie = session.getSecret("fanbox.cookie");
 		
-		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
+		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
 		
 		HttpRequest request;
 		
@@ -105,9 +105,11 @@ public class FanboxDownloader extends Downloader
 				
 				String postTitle = JsonHelper.followPath(post, "title");
 				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "publishedDatetime"));
-				// FIXME update current most recent date only if download succeed
+				
 				if (session.stopCheckingPost(publishedDatetime))
 					break mainloop;
+				
+				Collection<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
 				
 				if (images.size() > 0)
 				{
@@ -119,16 +121,16 @@ public class FanboxDownloader extends Downloader
 						
 						String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 						
-						downloads.add(downloadImage(session,
-						                            url,
-						                            headers,
-						                            postId,
-						                            imageId,
-						                            publishedDatetime,
-						                            postTitle,
-						                            imageNumber,
-						                            imageFilename,
-						                            null));
+						imagesDownloads.add(downloadImage(session,
+						                                  url,
+						                                  headers,
+						                                  postId,
+						                                  imageId,
+						                                  publishedDatetime,
+						                                  postTitle,
+						                                  imageNumber,
+						                                  imageFilename,
+						                                  null));
 						imageNumber++;
 					}
 				}
@@ -142,23 +144,26 @@ public class FanboxDownloader extends Downloader
 						String fileNameWithoutExtention = JsonHelper.followPath(file, "name");
 						String fileExtention = JsonHelper.followPath(file, "extension");
 						
-						downloads.add(downloadFile(session,
-						                           url,
-						                           headers,
-						                           postId,
-						                           postTitle,
-						                           publishedDatetime,
-						                           fileId,
-						                           fileNameWithoutExtention,
-						                           fileExtention));
+						imagesDownloads.add(downloadFile(session,
+						                                 url,
+						                                 headers,
+						                                 postId,
+						                                 postTitle,
+						                                 publishedDatetime,
+						                                 fileId,
+						                                 fileNameWithoutExtention,
+						                                 fileExtention));
 					}
 				}
+				
+				postsDownloads.add(CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new))
+				                                    .thenRun(() -> session.onPostDownloaded(publishedDatetime)));
 			}
 			
 			currentUrl = JsonHelper.followPath(response, "body.nextUrl");
 		}
 		
-		CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new)).join();
+		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new)).join();
 		
 		session.saveLastPublishedDatetime();
 	}

@@ -238,15 +238,21 @@ public abstract class Downloader
 		{
 			synchronized (Downloader.this)
 			{
-				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(publishedDatetime))
-					currentMostRecentPost = publishedDatetime;
-				
 				return mostRecentPostCheckedDate != null && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
 				        && !checkAllPost;
 			}
 		}
 		
-		protected final void saveLastPublishedDatetime()
+		public void onPostDownloaded(ZonedDateTime publishedDatetime)
+		{
+			synchronized (this)
+			{
+				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(publishedDatetime))
+					currentMostRecentPost = publishedDatetime;
+			}
+		}
+		
+		public void saveLastPublishedDatetime()
 		{
 			synchronized (Downloader.this)
 			{

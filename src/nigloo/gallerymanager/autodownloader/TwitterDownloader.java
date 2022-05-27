@@ -61,7 +61,7 @@ public class TwitterDownloader extends Downloader
 	@Override
 	protected void doDownload(DownloadSession session) throws Exception
 	{
-		final Collection<CompletableFuture<?>> imagesDownload = new ArrayList<>();
+		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
 		
 		String url;
 		HttpRequest request;
@@ -127,6 +127,8 @@ public class TwitterDownloader extends Downloader
 				if (images == null)
 					continue;
 				
+				Collection<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
+				
 				int imageNumber = 1;
 				for (JsonElement image : images)
 				{
@@ -134,22 +136,25 @@ public class TwitterDownloader extends Downloader
 					String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 					String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 					
-					imagesDownload.add(downloadImage(session,
-					                                 url,
-					                                 headers,
-					                                 postId,
-					                                 imageId,
-					                                 publishedDatetime,
-					                                 postId,
-					                                 imageNumber,
-					                                 imageFilename,
-					                                 tags));
+					imagesDownloads.add(downloadImage(session,
+					                                  url,
+					                                  headers,
+					                                  postId,
+					                                  imageId,
+					                                  publishedDatetime,
+					                                  postId,
+					                                  imageNumber,
+					                                  imageFilename,
+					                                  tags));
 					imageNumber++;
 				}
+				
+				postsDownloads.add(CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new))
+				                                    .thenRun(() -> session.onPostDownloaded(publishedDatetime)));
 			}
 		}
 		
-		CompletableFuture.allOf(imagesDownload.toArray(CompletableFuture[]::new)).join();
+		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new)).join();
 		
 		session.saveLastPublishedDatetime();
 	}

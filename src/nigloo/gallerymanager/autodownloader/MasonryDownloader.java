@@ -28,7 +28,7 @@ public class MasonryDownloader extends Downloader
 	{
 		String host = "http://" + creatorId + ".com";
 		
-		final Collection<CompletableFuture<?>> downloads = new ArrayList<>();
+		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
 		
 		HttpRequest request;
 		HttpResponse<?> response;
@@ -87,17 +87,17 @@ public class MasonryDownloader extends Downloader
 				loaded.add(postId);
 				
 				request = HttpRequest.newBuilder().uri(new URI(postUrl)).GET().headers(headers).build();
-				downloads.add(session.sendAsync(request, BodyHandlers.ofString())
-				                     .thenCompose(downloadImages(session,
-				                                                 headers,
-				                                                 postId,
-				                                                 postTitle,
-				                                                 publishedDatetime,
-				                                                 tags)));
+				postsDownloads.add(session.sendAsync(request, BodyHandlers.ofString())
+				                          .thenCompose(downloadImages(session,
+				                                                      headers,
+				                                                      postId,
+				                                                      postTitle,
+				                                                      publishedDatetime,
+				                                                      tags)));
 			}
 		}
 		
-		CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new)).join();
+		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new)).join();
 		
 		session.saveLastPublishedDatetime();
 	}
@@ -111,7 +111,7 @@ public class MasonryDownloader extends Downloader
 	{
 		return response ->
 		{
-			Collection<CompletableFuture<?>> downloads = new ArrayList<>();
+			Collection<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
 			Document parsedResponse = Jsoup.parseBodyFragment(response.body().toString());
 			Elements imagesElements = parsedResponse.select(".av-masonry-container > a");
 			int imageNumber = 1;
@@ -122,21 +122,21 @@ public class MasonryDownloader extends Downloader
 				
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				
-				downloads.add(downloadImage(session,
-				                            url,
-				                            headers,
-				                            postId,
-				                            imageId,
-				                            publishedDatetime,
-				                            postTitle,
-				                            imageNumber,
-				                            imageFilename,
-				                            tags));
+				imagesDownloads.add(downloadImage(session,
+				                                  url,
+				                                  headers,
+				                                  postId,
+				                                  imageId,
+				                                  publishedDatetime,
+				                                  postTitle,
+				                                  imageNumber,
+				                                  imageFilename,
+				                                  tags));
 				
 				imageNumber++;
 			}
 			
-			return CompletableFuture.allOf(downloads.toArray(CompletableFuture[]::new));
+			return CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new)).thenRun(() -> session.onPostDownloaded(publishedDatetime));
 		};
 	}
 	
