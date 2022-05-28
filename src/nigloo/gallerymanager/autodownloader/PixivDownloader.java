@@ -2,9 +2,9 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -13,6 +13,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import nigloo.tool.Utils;
 import nigloo.tool.gson.JsonHelper;
 
 public class PixivDownloader extends Downloader
@@ -28,36 +29,56 @@ public class PixivDownloader extends Downloader
 		super(creatorId);
 	}
 	
+	private static final String HEADERS_KEY = "headers";
+	
 	@Override
-	protected void doDownload(DownloadSession session) throws Exception
+	protected void onStartDownload(DownloadSession session) throws Exception
 	{
-		String cookie = session.getSecret("pixiv.cookie");
+		session.setExtaInfo(HEADERS_KEY, getHeaders(session));
+	}
+	
+	@Override
+	protected Iterator<Post> listPosts(DownloadSession session) throws Exception
+	{
+		return new PixivPostIterator(session);
+	}
+	
+	private class PixivPostIterator extends BasePostIterator
+	{
+		private static final int POST_PAGE_SIZE = 20;
 		
-		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
+		private final List<String> postIds;
+		private final Iterator<String> postIdsIt;
+		private JsonObject posts;
+		private int offset;
 		
-		HttpRequest request;
-		JsonElement response;
-		
-		String[] headers = getHeaders(cookie);
-		
-		request = HttpRequest.newBuilder()
-		                     .uri(new URI("https://www.pixiv.net/ajax/user/" + creatorId + "/profile/all?lang=en"))
-		                     .GET()
-		                     .headers(headers)
-		                     .build();
-		response = session.send(request, JsonHelper.httpBodyHandler()).body();
-		
-		List<String> postIds = JsonHelper.followPath(response, "body.illusts", JsonObject.class)
-		                                 .keySet()
-		                                 .stream()
-		                                 .toList();
-		
-		final int POST_PAGE_SIZE = 20;
-		JsonObject posts = null;
-		int offset = 0;
-		
-		for (String postId : postIds)
+		public PixivPostIterator(DownloadSession session) throws Exception
 		{
+			super(session);
+			HttpRequest request = HttpRequest.newBuilder()
+			                                 .uri(new URI("https://www.pixiv.net/ajax/user/" + creatorId
+			                                         + "/profile/all?lang=en"))
+			                                 .GET()
+			                                 .headers(session.getExtraInfo(HEADERS_KEY))
+			                                 .build();
+			JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
+			
+			this.postIds = JsonHelper.followPath(response, "body.illusts", JsonObject.class).keySet().stream().toList();
+			this.postIdsIt = this.postIds.iterator();
+			this.posts = null;
+			this.offset = 0;
+			
+			computeNextPost();
+		}
+		
+		@Override
+		protected Post findNextPost() throws Exception
+		{
+			if (!postIdsIt.hasNext())
+				return null;
+			
+			String postId = postIdsIt.next();
+			
 			// Load posts by batch of POST_PAGE_SIZE
 			if (posts == null || !posts.has(postId))
 			{
@@ -71,8 +92,8 @@ public class PixivDownloader extends Downloader
 				                                                   .map(id -> "ids%5B%5D=" + id)
 				                                                   .collect(Collectors.joining("&"))
 				        + "&work_category=illust&is_first_page=0&lang=en";
-				request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-				response = session.send(request, JsonHelper.httpBodyHandler()).body();
+				HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(session.getExtraInfo(HEADERS_KEY)).build();
+				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 				
 				posts = JsonHelper.followPath(response, "body.works", JsonObject.class);
 			}
@@ -82,76 +103,65 @@ public class PixivDownloader extends Downloader
 			String postTitle = JsonHelper.followPath(post, "title");
 			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "createDate"));
 			
-			if (session.stopCheckingPost(publishedDatetime))
-				break;
-			
-			request = HttpRequest.newBuilder()
-			                     .uri(new URI("https://www.pixiv.net/ajax/illust/" + postId
-			                             + "?ref=https%3A%2F%2Fwww.pixiv.net%2Fusers%2F" + creatorId
-			                             + "%2Fillustrations&lang=en"))
-			                     .GET()
-			                     .headers(headers)
-			                     .build();
-			response = session.send(request, JsonHelper.httpBodyHandler()).body();
-			JsonArray jTags = JsonHelper.followPath(response, "body.tags.tags", JsonArray.class);
-			Collection<String> tags = new ArrayList<>(jTags.size());
-			for (JsonElement jTag : jTags)
-			{
-				String tag = JsonHelper.followPath(jTag, "translation.en");
-				if (tag == null)
-					tag = JsonHelper.followPath(jTag, "tag");
-				tags.add(tag);
-			}
-			
-			// Load post images
-			request = HttpRequest.newBuilder()
-			                     .uri(new URI("https://www.pixiv.net/ajax/illust/" + postId + "/pages?lang=en"))
-			                     .GET()
-			                     .headers(headers)
-			                     .build();
-			response = session.send(request, JsonHelper.httpBodyHandler()).body();
-			
-			JsonArray images = JsonHelper.followPath(response, "body", JsonArray.class);
-			
-			Collection<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
-			
-			int imageNumber = 1;
-			for (JsonElement image : images)
+			return new Post(postId, postTitle, publishedDatetime, null);
+		}
+	}
+	
+	@Override
+	protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception
+	{
+		// Load post tags
+		HttpRequest tagRequest = HttpRequest.newBuilder()
+		                                    .uri(new URI("https://www.pixiv.net/ajax/illust/" + post.id()
+		                                            + "?ref=https%3A%2F%2Fwww.pixiv.net%2Fusers%2F" + creatorId
+		                                            + "%2Fillustrations&lang=en"))
+		                                    .GET()
+		                                    .headers(session.getExtraInfo(HEADERS_KEY))
+		                                    .build();
+		CompletableFuture<HttpResponse<JsonElement>> tagsCf = session.sendAsync(tagRequest, JsonHelper.httpBodyHandler());
+		
+		// Load post images
+		HttpRequest imagesResquest = HttpRequest.newBuilder()
+		                                        .uri(new URI("https://www.pixiv.net/ajax/illust/" + post.id()
+		                                                + "/pages?lang=en"))
+		                                        .GET()
+		                                        .headers(session.getExtraInfo(HEADERS_KEY))
+		                                        .build();
+		CompletableFuture<HttpResponse<JsonElement>>  imagesCf = session.sendAsync(imagesResquest, JsonHelper.httpBodyHandler());
+		
+		return tagsCf.thenCombine(imagesCf, (tagsResponse, imagesResponse) ->
+		{
+			List<String> tags = JsonHelper.stream(JsonHelper.followPath(tagsResponse.body(),
+			                                                            "body.tags.tags",
+			                                                            JsonArray.class))
+			                              .map(jTag -> Utils.coalesce(JsonHelper.followPath(jTag, "translation.en"),
+			                                                          JsonHelper.followPath(jTag, "tag")))
+			                              .toList();
+			return JsonHelper.stream(JsonHelper.followPath(imagesResponse.body(), "body", JsonArray.class)).map(image ->
 			{
 				String url = JsonHelper.followPath(image, "urls.original");
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
-				imagesDownloads.add(downloadImage(session,
-				                                  url,
-				                                  headers,
-				                                  postId,
-				                                  imageId,
-				                                  publishedDatetime,
-				                                  postTitle,
-				                                  imageNumber,
-				                                  imageFilename,
-				                                  tags));
-				imageNumber++;
-			}
-			
-			postsDownloads.add(CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new))
-			                                    .thenRun(() -> session.onPostDownloaded(publishedDatetime)));
-		}
-		
-		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new)).join();
-		
-		session.saveLastPublishedDatetime();
+				return new PostImage(imageId, imageFilename, url, tags);
+			}).toList();
+		});
+	}
+
+	@Override
+	protected String[] getHeardersForImageDownload(DownloadSession session, PostImage image)
+	{
+		return session.getExtraInfo(HEADERS_KEY);
 	}
 	
-	private String[] getHeaders(String cookie)
+	private String[] getHeaders(DownloadSession session)
 	{
 		// @formatter:off
 		return new String[] {
 			"accept", "application/json, text/plain, */*",
 			"accept-encoding", "gzip, deflate",
 			"accept-language", "fr-FR,fr;q=0.9",
-			"cookie", cookie,
+			"cookie", session.getSecret("pixiv.cookie"),
 			"referer", "https://www.pixiv.net/en/users/"+creatorId+"/illustrations",
 			"sec-ch-ua", "\" Not;A Brand\";v=\"99\", \"Google Chrome\";v=\"91\", \"Chromium\";v=\"91\"",
 			"sec-ch-ua-mobile", "?0",

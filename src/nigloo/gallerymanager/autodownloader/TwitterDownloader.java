@@ -9,8 +9,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.TextStyle;
 import java.time.temporal.ChronoField;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
@@ -22,21 +23,8 @@ import nigloo.tool.gson.JsonHelper;
 
 public class TwitterDownloader extends Downloader
 {
-	private static final DateTimeFormatter DATE_TIME_FORMATTER = twitterDateTimeFormmater();
-	private static final int PAGE_SIZE = 20;
-	
-	@SuppressWarnings("unused")
-	private TwitterDownloader()
-	{
-		super();
-	}
-	
-	public TwitterDownloader(String creatorId)
-	{
-		super(creatorId);
-	}
-	
-	private static DateTimeFormatter twitterDateTimeFormmater()
+	private static final DateTimeFormatter DATE_TIME_FORMATTER = twitterDateTimeFormater();
+	private static DateTimeFormatter twitterDateTimeFormater()
 	{
 		// Exemple: Sat Jul 10 10:57:00 +0000 2021
 		return new DateTimeFormatterBuilder().parseStrict()
@@ -57,42 +45,69 @@ public class TwitterDownloader extends Downloader
 		                                     .appendValue(ChronoField.YEAR, 4)
 		                                     .toFormatter(Locale.US);
 	}
+	private static final int PAGE_SIZE = 20;
+	
+	private static final String HEADERS_KEY = "headers";
+	
+	@SuppressWarnings("unused")
+	private TwitterDownloader()
+	{
+		super();
+	}
+	
+	public TwitterDownloader(String creatorId)
+	{
+		super(creatorId);
+	}
 	
 	@Override
-	protected void doDownload(DownloadSession session) throws Exception
+	protected void onStartDownload(DownloadSession session) throws Exception
 	{
-		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
+		session.setExtaInfo(HEADERS_KEY, getHeaders(session));
+	}
+	
+	@Override
+	protected Iterator<Post> listPosts(DownloadSession session) throws Exception
+	{
+		return new TwitterPostIterator(session);
+	}
+	
+	private class TwitterPostIterator extends BasePostIterator
+	{
+		private final String restId;
 		
-		String url;
-		HttpRequest request;
-		JsonElement response;
+		private String nextPageUrl;
+		private String currentCursor;
+		private Iterator<JsonElement> postsIt;
 		
-		String[] headers = getHeaders(session);
-		
-		url = "https://twitter.com/i/api/graphql/G07SmTUd0Mx7qy3Az_b52w/UserByScreenNameWithoutResults?variables=%7B%22screen_name%22%3A%22"
-		        + creatorId + "%22%2C%22withHighlightedLabel%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Afalse%7D";
-		request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-		response = session.send(request, JsonHelper.httpBodyHandler()).body();
-		
-		String restId = JsonHelper.followPath(response, "data.user.rest_id");
-		
-		String currentUrl = listTweetUrl(restId, null);
-		String previousCursor = null;
-		
-		mainloop:
-		while (currentUrl != null)
+		public TwitterPostIterator(DownloadSession session) throws Exception
 		{
-			request = HttpRequest.newBuilder().uri(new URI(currentUrl)).GET().headers(headers).build();
-			response = session.send(request, JsonHelper.httpBodyHandler()).body();
+			super(session);
 			
-			JsonArray posts = JsonHelper.followPath(response,
-			                                        "data.user.result.timeline.timeline.instructions[0].entries",
-			                                        JsonArray.class);
+			String url = "https://twitter.com/i/api/graphql/G07SmTUd0Mx7qy3Az_b52w/UserByScreenNameWithoutResults?variables=%7B%22screen_name%22%3A%22"
+			        + creatorId
+			        + "%22%2C%22withHighlightedLabel%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Afalse%7D";
+			HttpRequest request = HttpRequest.newBuilder()
+			                                 .uri(new URI(url))
+			                                 .GET()
+			                                 .headers(session.getExtraInfo(HEADERS_KEY))
+			                                 .build();
+			JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 			
-			currentUrl = null;
+			this.restId = JsonHelper.followPath(response, "data.user.rest_id");
+			this.nextPageUrl = listTweetUrl(restId, null);
+			this.currentCursor = null;
+			this.postsIt = Collections.emptyIterator();
 			
-			for (JsonElement item : posts)
+			computeNextPost();
+		}
+		
+		@Override
+		protected Post findNextPost() throws Exception
+		{
+			if (postsIt.hasNext())
 			{
+				JsonElement item = postsIt.next();
 				JsonObject post = JsonHelper.followPath(item,
 				                                        "content.itemContent.tweet_results.result",
 				                                        JsonObject.class);
@@ -102,61 +117,97 @@ public class TwitterDownloader extends Downloader
 					if ("Bottom".equals(JsonHelper.followPath(item, "content.cursorType")))
 					{
 						String cursor = JsonHelper.followPath(item, "content.value");
-						if (cursor.equals(previousCursor))
-							break;
+						if (cursor.equals(currentCursor))
+							return null;
 						
-						currentUrl = listTweetUrl(restId, cursor);
-						previousCursor = cursor;
+						nextPageUrl = listTweetUrl(restId, cursor);
+						currentCursor = cursor;
 					}
-					continue;
+					return findNextPost();
 				}
 				
 				if ("TweetTombstone".equals(JsonHelper.followPath(post, "__typename")))
-					continue;
+					return findNextPost();
 				
 				String postId = JsonHelper.followPath(post, "rest_id");
 				ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(JsonHelper.followPath(post,
 				                                                                                  "legacy.created_at"),
 				                                                            ZonedDateTime::from);
-				Collection<String> tags = null;//TODO #tags
-				
-				if (session.stopCheckingPost(publishedDatetime))
-					break mainloop;
-				
 				JsonArray images = JsonHelper.followPath(post, "legacy.entities.media", JsonArray.class);
-				if (images == null)
-					continue;
 				
-				Collection<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
+				return new Post(postId, postId, publishedDatetime, images);
+			}
+			else if (nextPageUrl != null)
+			{
+				HttpRequest request = HttpRequest.newBuilder()
+				                                 .uri(new URI(nextPageUrl))
+				                                 .GET()
+				                                 .headers(session.getExtraInfo(HEADERS_KEY))
+				                                 .build();
+				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 				
-				int imageNumber = 1;
-				for (JsonElement image : images)
-				{
-					url = JsonHelper.followPath(image, "media_url_https");
-					String imageFilename = url.substring(url.lastIndexOf('/') + 1);
-					String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
-					
-					imagesDownloads.add(downloadImage(session,
-					                                  url,
-					                                  headers,
-					                                  postId,
-					                                  imageId,
-					                                  publishedDatetime,
-					                                  postId,
-					                                  imageNumber,
-					                                  imageFilename,
-					                                  tags));
-					imageNumber++;
-				}
+				postsIt = JsonHelper.followPath(response,
+				                                "data.user.result.timeline.timeline.instructions[0].entries",
+				                                JsonArray.class)
+				                    .iterator();
 				
-				postsDownloads.add(CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new))
-				                                    .thenRun(() -> session.onPostDownloaded(publishedDatetime)));
+				nextPageUrl = null;
+				
+				// Recursive call to properly handle cursors.
+				return findNextPost();
+			}
+			else
+			{
+				return null;
 			}
 		}
 		
-		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new)).join();
+		private String listTweetUrl(String userId, String cursor)
+		{
+			// @formatter:off
+			String variables =
+			"{" +
+				"\"userId\":\"" + userId + "\"," +
+				"\"count\":" + PAGE_SIZE + "," + 
+				(cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
+				"\"withHighlightedLabel\":false," +
+				"\"withTweetQuoteCount\":false," +
+				"\"includePromotedContent\":false," +
+				"\"withTweetResult\":true," +
+				"\"withReactions\":false," +
+				"\"withSuperFollowsTweetFields\":false," +
+				"\"withSuperFollowsUserFields\":false," +
+				"\"withUserResults\":false," +
+				"\"withClientEventToken\":false," +
+				"\"withBirdwatchNotes\":false," +
+				"\"withBirdwatchPivots\":false," +
+				"\"withVoice\":false" +
+			"}";
+			// @formatter:on
+			return "https://twitter.com/i/api/graphql/-ClzyWY3kWmGS8BSPHgv8w/UserMedia?variables="
+			        + URLEncoder.encode(variables, StandardCharsets.UTF_8);
+		}
+	}
+
+	@Override
+	protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post)
+	{
+		JsonArray images = (JsonArray) post.extraInfo();
 		
-		session.saveLastPublishedDatetime();
+		return CompletableFuture.completedFuture(JsonHelper.stream(images).map(image ->
+		{
+			String url = JsonHelper.followPath(image, "media_url_https");
+			String imageFilename = url.substring(url.lastIndexOf('/') + 1);
+			String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
+			
+			return new PostImage(imageId, imageFilename, url, null);
+		}).toList());
+	}
+
+	@Override
+	protected String[] getHeardersForImageDownload(DownloadSession session, PostImage image)
+	{
+		return session.getExtraInfo(HEADERS_KEY);
 	}
 	
 	private String[] getHeaders(DownloadSession session)
@@ -184,31 +235,5 @@ public class TwitterDownloader extends Downloader
 			"x-twitter-client-language", "fr"
 		};
 		// @formatter:on
-	}
-	
-	private String listTweetUrl(String userId, String cursor)
-	{
-		// @formatter:off
-		String variables =
-		"{" +
-			"\"userId\":\"" + userId + "\"," +
-			"\"count\":" + PAGE_SIZE + "," + 
-			(cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
-			"\"withHighlightedLabel\":false," +
-			"\"withTweetQuoteCount\":false," +
-			"\"includePromotedContent\":false," +
-			"\"withTweetResult\":true," +
-			"\"withReactions\":false," +
-			"\"withSuperFollowsTweetFields\":false," +
-			"\"withSuperFollowsUserFields\":false," +
-			"\"withUserResults\":false," +
-			"\"withClientEventToken\":false," +
-			"\"withBirdwatchNotes\":false," +
-			"\"withBirdwatchPivots\":false," +
-			"\"withVoice\":false" +
-		"}";
-		// @formatter:on
-		return "https://twitter.com/i/api/graphql/-ClzyWY3kWmGS8BSPHgv8w/UserMedia?variables="
-		        + URLEncoder.encode(variables, StandardCharsets.UTF_8);
 	}
 }

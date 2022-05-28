@@ -25,10 +25,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.TreeMap;
@@ -71,7 +73,6 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.tool.MetronomeTimer;
-import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -156,12 +157,65 @@ public abstract class Downloader
 		            artist.getName(),
 		            CLASS_TO_TYPE.get(getClass()),
 		            imagePathPattern);
+		
 		DownloadSession session = new DownloadSession(secrets, checkAllPost);
-		doDownload(session);
+		
+		onStartDownload(session);
+		Iterator<Post> postIt = listPosts(session);
+		
+		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
+		while (postIt.hasNext())
+		{
+			Post post = postIt.next();
+			
+			if (session.stopCheckingPost(post.publishedDatetime()))
+				break;
+			
+			postsDownloads.add(CompletableFuture.allOf(listImages(session,
+			                                                      post).thenCompose(images -> downloadImages(session, post, images)),
+			                                           downloadOther(session, post))
+			                                    .thenRun(() -> session.onPostDownloaded(post)));
+		}
+		
+		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new))
+		                 .thenRun(() -> session.onSessionEnd())
+		                 .join();
 	}
 	
-	protected abstract void doDownload(DownloadSession session)
-	        throws Exception;
+	private CompletableFuture<?> downloadImages(DownloadSession session, Post post, List<PostImage> images)
+	{
+		ArrayList<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
+		
+		int imageNumber = 1;
+		for (PostImage image : images)
+		{
+			imagesDownloads.add(downloadImage(session,
+			                                  getHeardersForImageDownload(session, image),
+			                                  post,
+			                                  image,
+			                                  imageNumber));
+			imageNumber++;
+		}
+		
+		return CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new));
+	}
+	
+	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo){}
+	protected record PostImage(String id, String filename, String url, Collection<String> tags) {}
+	//TODO protected record PostFiles(String id, String filename, String url) {}
+	
+	protected void onStartDownload(DownloadSession session) throws Exception {}
+	
+	protected abstract Iterator<Post> listPosts(DownloadSession session) throws Exception;
+	
+	protected abstract CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception;
+	
+	protected CompletableFuture<?> downloadOther(DownloadSession session, Post post) throws Exception
+	{
+		return CompletableFuture.completedFuture(null);
+	}
+	
+	protected abstract String[] getHeardersForImageDownload(DownloadSession session, PostImage image);
 	
 	protected final class DownloadSession
 	{
@@ -175,6 +229,7 @@ public abstract class Downloader
 		private ZonedDateTime currentMostRecentPost = mostRecentPostCheckedDate;
 		
 		private final List<Image> imagesAdded = new ArrayList<>();
+		private final Map<String, Object> extraInfo = Collections.synchronizedMap(new HashMap<>());
 		
 		private final Properties secrets;
 		private final boolean checkAllPost;
@@ -190,7 +245,16 @@ public abstract class Downloader
 			return secrets.getProperty(key);
 		}
 		
-		// TODO handle http errors directly here ? Or in saveInGallery and unZip
+		public void setExtaInfo(String key, Object value)
+		{
+			extraInfo.put(key, value);
+		}
+		
+		public <T> T getExtraInfo(String key)
+		{
+			return Utils.cast(extraInfo.get(key));
+		}
+		
 		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler)
 		        throws IOException,
 		        InterruptedException
@@ -234,7 +298,7 @@ public abstract class Downloader
 			                 .thenCompose(f -> f);
 		}
 		
-		public boolean stopCheckingPost(ZonedDateTime publishedDatetime)
+		private boolean stopCheckingPost(ZonedDateTime publishedDatetime)
 		{
 			synchronized (Downloader.this)
 			{
@@ -243,16 +307,16 @@ public abstract class Downloader
 			}
 		}
 		
-		public void onPostDownloaded(ZonedDateTime publishedDatetime)
+		private void onPostDownloaded(Post post)
 		{
 			synchronized (this)
 			{
-				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(publishedDatetime))
-					currentMostRecentPost = publishedDatetime;
+				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(post.publishedDatetime()))
+					currentMostRecentPost = post.publishedDatetime();
 			}
 		}
 		
-		public void saveLastPublishedDatetime()
+		private void onSessionEnd()
 		{
 			synchronized (Downloader.this)
 			{
@@ -263,18 +327,56 @@ public abstract class Downloader
 		}
 	}
 	
-	protected final CompletableFuture<Image> downloadImage(DownloadSession session,
-	                                                      String url,
-	                                                      String[] headers,
-	                                                      String postId,
-	                                                      String imageId,
-	                                                      ZonedDateTime publishedDatetime,
-	                                                      String postTitle,
-	                                                      int imageNumber,
-	                                                      String imageFilename,
-	                                                      Collection<String> tags)
+	protected static abstract class BasePostIterator implements Iterator<Post>
 	{
-		ImageKey imageKey = new ImageKey(postId, imageId);
+		protected final DownloadSession session;
+		private Post nextPost;
+		
+		public BasePostIterator(DownloadSession session)
+		{
+			this.session = session;
+		}
+
+		protected abstract Post findNextPost() throws Exception;
+		
+		protected final void computeNextPost() throws Exception
+		{
+			nextPost = findNextPost();
+		}
+		
+		@Override
+		public final boolean hasNext()
+		{
+			return nextPost != null;
+		}
+
+		@Override
+		public final Post next()
+		{
+			if (!hasNext())
+				throw new NoSuchElementException();
+			
+			Post post = nextPost;
+			try
+			{
+				computeNextPost();
+			}
+			catch (Exception e)
+			{
+				throw Utils.asRunTimeException(e);
+			}
+			
+			return post;
+		}
+	}
+	
+	protected final CompletableFuture<Image> downloadImage(DownloadSession session,
+	                                                      String[] headers,
+	                                                      Post post,
+	                                                      PostImage postImage,
+	                                                      int imageNumber)
+	{
+		ImageKey imageKey = new ImageKey(post.id(), postImage.id());
 		ImageReference imageReference;
 		Path imageDest;
 		
@@ -290,13 +392,13 @@ public abstract class Downloader
 			}
 			else
 			{
-				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId.trim())
-				                                      .replace("{postId}", postId.trim())
+				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
+				                                      .replace("{postId}", post.id())
 				                                      .replace("{postDate}",
-				                                               DateTimeFormatter.ISO_LOCAL_DATE.format(publishedDatetime))
-				                                      .replace("{postTitle}", postTitle.trim())
+				                                               DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+				                                      .replace("{postTitle}", post.title())
 				                                      .replace("{imageNumber}", String.format("%02d", imageNumber))
-				                                      .replace("{imageFilename}", imageFilename.trim()));
+				                                      .replace("{imageFilename}", postImage.filename()));
 				imageDest = makeSafe(gallery.toAbsolutePath(imageDest));
 				imageReference = null;
 			}
@@ -306,10 +408,10 @@ public abstract class Downloader
 				Image image;
 				imageReference = mapping.get(imageKey);
 				if (imageReference == null)
-					image = saveInGallery(session, postId, imageId, tags, imageDest);
+					image = saveInGallery(session, post.id(), postImage.id(), postImage.tags(), imageDest);
 				else
 					image = imageReference.getImage();
-				saveInGallery(session, postId, imageId, tags, image.getAbsolutePath());//TODO remove
+				saveInGallery(session, post.id(), postImage.id(), postImage.tags(), image.getAbsolutePath());//TODO remove update tags on saved images
 				
 				return CompletableFuture.completedFuture(image);
 			}
@@ -318,9 +420,9 @@ public abstract class Downloader
 		try {
 			Files.createDirectories(imageDest.getParent());
 			
-			HttpRequest request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
+			HttpRequest request = HttpRequest.newBuilder().uri(new URI(postImage.url())).GET().headers(headers).build();
 			return session.sendAsync(request, BodyHandlers.ofFile(imageDest))
-			              .thenApply(saveInGallery(session, postId, imageId, tags));
+			              .thenApply(saveInGallery(session, post.id(), postImage.id(), postImage.tags()));
 		}
 		catch (Exception e) {
 			return CompletableFuture.failedFuture(e);
@@ -416,26 +518,6 @@ public abstract class Downloader
 		};
 	}
 	
-	protected final void updateCurrentMostRecentPost(StrongReference<ZonedDateTime> currentMostRecentPost,
-	                                                 ZonedDateTime publishedDatetime)
-	{
-		if (currentMostRecentPost.get() == null || currentMostRecentPost.get().isBefore(publishedDatetime))
-			currentMostRecentPost.set(publishedDatetime);
-	}
-	
-	protected final boolean dontCheckPost(ZonedDateTime publishedDatetime, boolean checkAllPost)
-	{
-		return mostRecentPostCheckedDate != null && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
-		        && !checkAllPost;
-	}
-	
-	protected final void saveCurrentMostRecentPost(StrongReference<ZonedDateTime> currentMostRecentPost)
-	{
-		if (currentMostRecentPost.get() != null && (mostRecentPostCheckedDate == null
-		        || mostRecentPostCheckedDate.isBefore(currentMostRecentPost.get())))
-			mostRecentPostCheckedDate = currentMostRecentPost.get();
-	}
-	
 	protected static final Path makeSafe(Path path)
 	{
 		Path newPath = path.getRoot();
@@ -464,7 +546,7 @@ public abstract class Downloader
 			gallery.saveImage(image);
 			session.imagesAdded.add(image);
 		}
-		else {//TODO remove
+		else {//TODO remove update tags on saved images
 		image.getTags().forEach(image::removeTag);
 		image.addTag(artist.getTag());
 		addTags(image, tags);
