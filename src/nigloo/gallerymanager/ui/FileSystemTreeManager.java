@@ -822,7 +822,8 @@ public class FileSystemTreeManager
 				// If we simple click on the cell while it's selected, we want to consume the
 				// event to prevent it to go into edit mode (defaut behavior, non
 				// overridable...)
-				if (e.getClickCount() == 1 && e.getButton() == MouseButton.PRIMARY && this.isSelected())
+				if (e.getClickCount() == 1 && e.getButton() == MouseButton.PRIMARY && this.isSelected()
+				        && !e.isControlDown() && !e.isShiftDown())
 				{
 					// ... except if the target of the event is the arrow to expand/collapse, we
 					// want to keep that behavior
