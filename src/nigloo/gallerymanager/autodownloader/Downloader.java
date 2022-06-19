@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
@@ -116,6 +117,11 @@ public abstract class Downloader
 		register("MASONRY", MasonryDownloader.class);
 	}
 	
+	public enum AutoExtractZip
+	{
+		NO, SAME_DIRECTORY, NEW_DIRECTORY
+	}
+	
 	@Inject
 	protected transient Gallery gallery;
 	
@@ -129,7 +135,9 @@ public abstract class Downloader
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
-	//TODO replace by Map<ImageKey, DownloadedItem> where DownloadedItem can be a wrapped Image referere or a ZipFile (containing an internal map pathInZip -> Imagereference  for each image (Image.isImage))
+	// TODO replace by Map<ImageKey, DownloadedItem> where DownloadedItem can be a
+	// wrapped Image referere or a ZipFile (containing an internal map pathInZip ->
+	// Imagereference for each image (Image.isImage))
 	
 	protected Downloader()
 	{
@@ -434,58 +442,34 @@ public abstract class Downloader
 		}
 	}
 	
-	protected final Function<HttpResponse<Path>, HttpResponse<Path>> unZip(boolean isZip, boolean autoExtractZip)
+	protected final Function<HttpResponse<Path>, HttpResponse<Path>> unZip(AutoExtractZip autoExtractZip)
 	{
 		return response ->
 		{
-			if (!isZip || !autoExtractZip)
-				return response;
-			
 			Path filePath = response.body();
-			Path zipFilePath = filePath.resolveSibling(filePath.getFileName() + ".zip");
+			String filename = filePath.getFileName().toString();
 			
-			LOGGER.debug("Unziping: " + zipFilePath);
-			
-			try
-			{
-				int nbAttempt = 0;
-				while (true)
-				{
-					try
-					{
-						Files.move(filePath, zipFilePath);
-						break;
-					}
-					catch (Exception e)
-					{
-						if (nbAttempt++ >= 10)
-							throw e;
-						
-						try
-						{
-							Thread.sleep(200);
-						}
-						catch (InterruptedException e1)
-						{
-							Thread.currentThread().interrupt();
-						}
-					}
-				}
-				Files.createDirectory(filePath);
-			}
-			catch (IOException e)
-			{
-				LOGGER.error("Cannot rename " + filePath + " to " + zipFilePath, e);
+			if (!filename.toLowerCase(Locale.ROOT).endsWith(".zip") || autoExtractZip == null || autoExtractZip == AutoExtractZip.NO)
 				return response;
-			}
+			
+			LOGGER.debug("Unziping: " + filePath);
 			
 			try
 			{
-				ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFilePath));
+				Path targetDirectory = switch (autoExtractZip)
+				{
+					case NO -> throw new IllegalStateException(Objects.toString(autoExtractZip));
+					case SAME_DIRECTORY -> filePath.getParent();
+					case NEW_DIRECTORY -> filePath.resolveSibling(filename.substring(0, filename.length() - ".zip".length()));
+				};
+			
+				Files.createDirectories(targetDirectory);
+				
+				ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));
 				ZipEntry zipEntry = zis.getNextEntry();
 				while (zipEntry != null)
 				{
-					Path entryPath = filePath.resolve(zipEntry.getName());
+					Path entryPath = targetDirectory.resolve(zipEntry.getName());
 					
 					if (zipEntry.isDirectory())
 					{
@@ -511,11 +495,11 @@ public abstract class Downloader
 				zis.closeEntry();
 				zis.close();
 				
-				Files.delete(zipFilePath);
+				Files.delete(filePath);
 			}
 			catch (IOException e)
 			{
-				LOGGER.error("Error when unzipping " + zipFilePath, e);
+				LOGGER.error("Error when unzipping " + filePath, e);
 				return response;
 			}
 			

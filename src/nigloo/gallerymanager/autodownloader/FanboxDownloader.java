@@ -23,7 +23,7 @@ import nigloo.tool.gson.JsonHelper;
 public class FanboxDownloader extends Downloader
 {
 	private boolean downloadFiles = true;
-	private boolean autoExtractZip = true;
+	private AutoExtractZip autoExtractZip = AutoExtractZip.NEW_DIRECTORY;
 	
 	@SuppressWarnings("unused")
 	private FanboxDownloader()
@@ -198,8 +198,6 @@ public class FanboxDownloader extends Downloader
 		try
 		{
 			String fileName = fileNameWithoutExtention + '.' + fileExtention;
-			if ("zip".equals(fileExtention) && autoExtractZip)
-				fileName = fileNameWithoutExtention;
 			
 			fileDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId.trim())
 			                                     .replace("{postId}", post.id())
@@ -217,7 +215,7 @@ public class FanboxDownloader extends Downloader
 			
 			request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
 			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
-			              .thenApply(unZip("zip".equals(fileExtention), autoExtractZip));
+			              .thenApply(unZip(autoExtractZip));
 		}
 		catch (Exception e)
 		{
