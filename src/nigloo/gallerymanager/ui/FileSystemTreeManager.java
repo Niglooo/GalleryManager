@@ -135,20 +135,20 @@ public class FileSystemTreeManager
 		clipboardObserver.play();
 	}
 	
-	public void refresh(Collection<Path> paths, boolean deep)
+	public CompletableFuture<Void> refresh(Collection<Path> paths, boolean deep)
 	{
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
 		assert paths.stream().allMatch(p -> p.startsWith(gallery.getRootFolder()));
 		
-		CompletableFuture.allOf((deep ? withoutChildren(paths) : paths).stream()
+		return CompletableFuture.allOf((deep ? withoutChildren(paths) : paths).stream()
 		                                                               .distinct()
-		                                                               .map(path -> asyncRefresh(path, deep))
+		                                                               .map(path -> refresh(path, deep))
 		                                                               .toArray(CompletableFuture[]::new))
 		                 .whenCompleteAsync(showException("Error when refreshing"), AsyncPools.FX_APPLICATION);
 	}
 	
-	private CompletableFuture<Void> asyncRefresh(Path path, boolean deep)
+	private CompletableFuture<Void> refresh(Path path, boolean deep)
 	{
 		assert path.isAbsolute() : "path must be absolute. Got: " + path;
 		
@@ -324,7 +324,7 @@ public class FileSystemTreeManager
 			if (deep && !subDirectories.isEmpty())
 			{
 				return CompletableFuture.allOf(subDirectories.stream()
-				                                             .map(subDirectory -> asyncRefresh(subDirectory, deep))
+				                                             .map(subDirectory -> refresh(subDirectory, deep))
 				                                             .toArray(CompletableFuture[]::new))
 				                        .thenRunAsync(() -> updateFolderAndParentStatus(getTreeItem(path), true),
 				                                      AsyncPools.FX_APPLICATION);
@@ -541,13 +541,13 @@ public class FileSystemTreeManager
 		return item.getChildren().size() == 1 && item.getChildren().get(0).getValue() == null;
 	}
 	
-	public void synchronizeFileSystem(Collection<Path> paths, boolean deep)
+	public CompletableFuture<Void> synchronize(Collection<Path> paths, boolean deep)
 	{
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
 		assert paths.stream().allMatch(p -> p.startsWith(gallery.getRootFolder()));
 		
-		CompletableFuture.runAsync(() ->
+		return CompletableFuture.runAsync(() ->
 		{
 			StrongReference<Boolean> refreshThumbnails = new StrongReference<>(false);
 			
@@ -632,7 +632,7 @@ public class FileSystemTreeManager
 		}
 	}
 	
-	public void delete(Collection<Path> paths, boolean deleteOnDisk)
+	public CompletableFuture<Void> delete(Collection<Path> paths, boolean deleteOnDisk)
 	{
 		assert paths != null;
 		assert paths.stream().allMatch(Path::isAbsolute);
@@ -640,7 +640,7 @@ public class FileSystemTreeManager
 		
 		final Collection<Path> pathsToDelete = withoutChildren(paths);
 		
-		CompletableFuture.supplyAsync(() ->
+		return CompletableFuture.supplyAsync(() ->
 		{
 			List<TreeItem<FileSystemElement>> itemsToDelete = pathsToDelete.stream()
 			                                                               .map(this::getTreeItem)

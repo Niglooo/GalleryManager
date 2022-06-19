@@ -2,6 +2,9 @@ package nigloo.gallerymanager.script;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.logging.log4j.Level;
 
@@ -33,6 +36,21 @@ public class ScriptAPI implements AutoCloseable
 	public void saveGallery() throws IOException
 	{
 		uiController.saveGallery();
+	}
+	
+	public CompletableFuture<Void> asyncRefreshFileSystem(Collection<Path> paths, boolean deep)
+	{
+		return uiController.refreshFileSystem(paths, deep);
+	}
+	
+	public CompletableFuture<Void> asyncSynchronizeFileSystem(Collection<Path> paths, boolean deep)
+	{
+		return uiController.synchronizeFileSystem(paths, deep);
+	}
+	
+	public CompletableFuture<Void> asyncDelete(Collection<Path> paths, boolean deleteOnDisk)
+	{
+		return uiController.delete(paths, deleteOnDisk);
 	}
 	
 	public void printStackTrace(Throwable t)

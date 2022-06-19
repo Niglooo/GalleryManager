@@ -628,19 +628,19 @@ public class UIController extends Application
 		return gson;
 	}
 	
-	public void refreshFileSystem(Collection<Path> paths, boolean deep)
+	public CompletableFuture<Void> refreshFileSystem(Collection<Path> paths, boolean deep)
 	{
-		fileSystemTreeManager.refresh(paths, deep);
+		return fileSystemTreeManager.refresh(paths, deep);
 	}
 	
-	public void synchronizeFileSystem(Collection<Path> paths, boolean deep)
+	public CompletableFuture<Void> synchronizeFileSystem(Collection<Path> paths, boolean deep)
 	{
-		fileSystemTreeManager.synchronizeFileSystem(paths, deep);
+		return fileSystemTreeManager.synchronize(paths, deep);
 	}
 	
-	public void delete(Collection<Path> paths, boolean deleteOnDisk)
+	public CompletableFuture<Void> delete(Collection<Path> paths, boolean deleteOnDisk)
 	{
-		fileSystemTreeManager.delete(paths, deleteOnDisk);
+		return fileSystemTreeManager.delete(paths, deleteOnDisk);
 	}
 	
 	public void cut(Collection<Path> paths)
