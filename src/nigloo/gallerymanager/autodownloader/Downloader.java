@@ -38,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -122,8 +123,9 @@ public abstract class Downloader
 	
 	protected String creatorId;
 	protected String imagePathPattern;
-	protected ZonedDateTime mostRecentPostCheckedDate;
+	protected ZonedDateTime mostRecentPostCheckedDate = null;
 	protected long minDelayBetweenRequests = 0;
+	protected Pattern titleFilterRegex = null;
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
@@ -170,6 +172,9 @@ public abstract class Downloader
 			
 			if (session.stopCheckingPost(post.publishedDatetime()))
 				break;
+			
+			if (titleFilterRegex != null && !titleFilterRegex.matcher(post.title()).matches())
+				continue;
 			
 			postsDownloads.add(CompletableFuture.allOf(listImages(session,
 			                                                      post).thenCompose(images -> downloadImages(session, post, images)),

@@ -29,6 +29,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -77,6 +78,7 @@ import nigloo.tool.StopWatch;
 import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
+import nigloo.tool.gson.PatternTypeAdapter;
 import nigloo.tool.gson.RecordsTypeAdapterFactory;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Singleton;
@@ -614,6 +616,7 @@ public class UIController extends Application
 		if (gson == null)
 		{
 			gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
+			                        .registerTypeAdapter(Pattern.class, new PatternTypeAdapter())
 			                        .registerTypeAdapter(ZonedDateTime.class, new DateTimeAdapter())
 			                        .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
 			                        .registerTypeAdapterFactory(new RecordsTypeAdapterFactory())
