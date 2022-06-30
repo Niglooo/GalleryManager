@@ -84,6 +84,8 @@ public class ScriptEditor extends VBox
 				        || !scriptText.getText().equals(script.getText());
 			}
 		};
+		
+		scriptOutput.textProperty().addListener((obs, oldValue, newValue) -> scriptOutput.setScrollTop(Double.MAX_VALUE));
 	}
 	
 	public StringProperty scriptTitleProperty()
@@ -274,9 +276,10 @@ public class ScriptEditor extends VBox
 				lastFlush = System.currentTimeMillis();
 				needFlush = false;
 				out = buffer.toString();
+				buffer.setLength(0);
 			}
 			
-			Platform.runLater(() -> scriptOutput.setText(out));
+			Platform.runLater(() -> scriptOutput.appendText(out));
 		}
 		
 		@Override

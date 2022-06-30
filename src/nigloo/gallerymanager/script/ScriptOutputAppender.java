@@ -65,7 +65,7 @@ class ScriptOutputAppender extends AbstractAppender
 				
 				for (RedirectInfo info : redirectInfos)
 				{
-					if (event.getLevel().isMoreSpecificThan(info.level))
+					if (event.getLevel().isMoreSpecificThan(info.level()))
 						info.output().println(message);
 				}
 			}
