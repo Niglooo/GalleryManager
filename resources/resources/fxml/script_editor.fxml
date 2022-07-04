@@ -2,73 +2,82 @@
 
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
 <fx:root
+  dividerPositions="0.5"
+  orientation="VERTICAL"
   styleClass="script-pane"
-  type="VBox"
+  type="SplitPane"
   xmlns="http://javafx.com/javafx/17.0.2"
   xmlns:fx="http://javafx.com/fxml/1">
-  <children>
-    <TextField fx:id="scriptTitle" />
-    <ChoiceBox
-      fx:id="scriptAutoExecution"
-      prefWidth="150.0" />
-    <TextArea
-      fx:id="scriptText"
-      styleClass="script-text-input" />
-    <HBox styleClass="script-button-bar">
+  <items>
+    <VBox styleClass="script-input-pane">
       <children>
-        <Button
-          mnemonicParsing="false"
-          onAction="#saveScript"
-          text="Save">
-          <graphic>
-            <FontIcon styleClass="save-icon" />
-          </graphic>
-        </Button>
-        <Button
-          mnemonicParsing="false"
-          onAction="#reloadScript"
-          text="Reload">
-          <graphic>
-            <FontIcon styleClass="reload-icon" />
-          </graphic>
-        </Button>
-        <Button
-          mnemonicParsing="false"
-          onAction="#deleteScript"
-          text="Delete">
-          <graphic>
-            <FontIcon styleClass="delete-icon" />
-          </graphic>
-        </Button>
-        <Button
-          mnemonicParsing="false"
-          onAction="#runScript"
-          text="Run">
-          <graphic>
-            <FontIcon styleClass="run-icon" />
-          </graphic>
-        </Button>
+        <TextField fx:id="scriptTitle" />
+        <ChoiceBox
+          fx:id="scriptAutoExecution"
+          prefWidth="150.0" />
+        <TextArea
+          fx:id="scriptText"
+          styleClass="script-text-input"
+          VBox.vgrow="ALWAYS" />
+        <HBox styleClass="script-button-bar">
+          <children>
+            <Button
+              mnemonicParsing="false"
+              onAction="#saveScript"
+              text="Save">
+              <graphic>
+                <FontIcon styleClass="save-icon" />
+              </graphic>
+            </Button>
+            <Button
+              mnemonicParsing="false"
+              onAction="#reloadScript"
+              text="Reload">
+              <graphic>
+                <FontIcon styleClass="reload-icon" />
+              </graphic>
+            </Button>
+            <Button
+              mnemonicParsing="false"
+              onAction="#deleteScript"
+              text="Delete">
+              <graphic>
+                <FontIcon styleClass="delete-icon" />
+              </graphic>
+            </Button>
+            <Button
+              mnemonicParsing="false"
+              onAction="#runScript"
+              text="Run">
+              <graphic>
+                <FontIcon styleClass="run-icon" />
+              </graphic>
+            </Button>
+          </children>
+        </HBox>
       </children>
-    </HBox>
-    <TitledPane
-      animated="false"
-      text="Output">
-      <content>
+    </VBox>
+    <VBox
+      prefHeight="200.0"
+      prefWidth="100.0"
+      styleClass="script-output-pane">
+      <children>
         <TextArea
           fx:id="scriptOutput"
           editable="false"
           prefHeight="200.0"
           prefWidth="200.0"
-          styleClass="script-output" />
-      </content>
-    </TitledPane>
-  </children>
+          styleClass="script-output"
+          VBox.vgrow="ALWAYS" />
+      </children>
+    </VBox>
+  </items>
 </fx:root>

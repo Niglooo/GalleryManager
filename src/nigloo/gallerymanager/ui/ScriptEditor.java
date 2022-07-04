@@ -22,11 +22,11 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.VBox;
 import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Script;
@@ -37,7 +37,7 @@ import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.component.dialog.AlertWithIcon;
 
-public class ScriptEditor extends VBox
+public class ScriptEditor extends SplitPane
 {
 	private static final Logger LOGGER = LogManager.getLogger(UIController.class);
 	
@@ -63,29 +63,30 @@ public class ScriptEditor extends VBox
 		UIController.loadFXML(this, "script_editor.fxml");
 		Injector.init(this);
 		
-		scriptAutoExecution.setItems(FXCollections.observableArrayList(AutoExecution.values()));
-		
 		scriptTitle.setText(script.getTitle());
 		scriptAutoExecution.setItems(FXCollections.observableArrayList(AutoExecution.values()));
 		scriptAutoExecution.setValue(script.getAutoExecution());
 		scriptText.setText(script.getText());
 		
-		changed = new BooleanBinding()
-		{
-			{
-				bind(scriptTitle.textProperty(), scriptAutoExecution.valueProperty(), scriptText.textProperty());
-			}
-			
-			@Override
-			protected boolean computeValue()
-			{
-				return !scriptTitle.getText().equals(script.getTitle())
-				        || scriptAutoExecution.getValue() != script.getAutoExecution()
-				        || !scriptText.getText().equals(script.getText());
-			}
-		};
+		changed = new ScriptEditorChangedProperty();
 		
 		scriptOutput.textProperty().addListener((obs, oldValue, newValue) -> scriptOutput.setScrollTop(Double.MAX_VALUE));
+	}
+	
+	private class ScriptEditorChangedProperty extends BooleanBinding
+	{
+		public ScriptEditorChangedProperty()
+		{
+			bind(scriptTitle.textProperty(), scriptAutoExecution.valueProperty(), scriptText.textProperty());
+		}
+		
+		@Override
+		protected boolean computeValue()
+		{
+			return !scriptTitle.getText().equals(script.getTitle())
+			        || scriptAutoExecution.getValue() != script.getAutoExecution()
+			        || !scriptText.getText().equals(script.getText());
+		}
 	}
 	
 	public StringProperty scriptTitleProperty()

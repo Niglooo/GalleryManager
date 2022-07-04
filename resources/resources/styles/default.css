@@ -63,7 +63,7 @@
     -fx-padding: 0;
 }
 
-.script-pane
+.script-input-pane, .script-output-pane
 {
     -fx-padding: 10px;
     -fx-spacing: 5px;
