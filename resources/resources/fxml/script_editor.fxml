@@ -66,7 +66,8 @@
           fx:id="scriptOutput"
           editable="false"
           prefHeight="200.0"
-          prefWidth="200.0" />
+          prefWidth="200.0"
+          styleClass="script-output" />
       </content>
     </TitledPane>
   </children>

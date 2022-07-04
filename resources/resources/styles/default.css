@@ -94,6 +94,15 @@
     -fx-icon-code: bi-play-fill;
 }
 
+.script-text-input, .script-output
+{
+    -fx-font-family: monospace;
+}
+.script-text-input Text, .script-output Text
+{
+    -fx-tab-size: 4;
+}
+
 #status_bar
 {
     -fx-padding: 3px;
