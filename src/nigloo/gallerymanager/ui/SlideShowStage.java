@@ -25,6 +25,8 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
 import javafx.scene.text.Text;
@@ -35,6 +37,7 @@ import javafx.util.Duration;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
+import nigloo.gallerymanager.model.Image.FXImageVideoWrapper;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.FXUtils;
@@ -43,7 +46,9 @@ import nigloo.tool.thread.ThreadStopException;
 
 public class SlideShowStage extends Stage
 {
-	static private Rectangle2D screenSize = Screen.getPrimary().getBounds();
+	private static final int NO_CURRENT_IMAGE_INDEX = -1;
+	
+	private static Rectangle2D screenSize = Screen.getPrimary().getBounds();
 	
 	@Inject
 	private Gallery gallery;
@@ -55,6 +60,7 @@ public class SlideShowStage extends Stage
 	private final CurrentImageProperty currentImageProperty = new CurrentImageProperty();
 	
 	private final ImageView imageView;
+	private final MediaView mediaView;
 	private final VBox infoZone;
 	private final Text infoImagePath;
 	private final Text infoImageSize;
@@ -73,16 +79,19 @@ public class SlideShowStage extends Stage
 		
 		this.imagesOrdered = List.copyOf(images);
 		
+		currentImageIdx = NO_CURRENT_IMAGE_INDEX;
+		int firstImageIdx;
+		
 		if (gallery.getSlideShowParameter().isShuffled())
 		{
 			this.images = new ArrayList<>(imagesOrdered);
 			Collections.shuffle(this.images);
-			currentImageIdx = this.images.indexOf(imagesOrdered.get(startingIndex));
+			firstImageIdx = this.images.indexOf(imagesOrdered.get(startingIndex));
 		}
 		else
 		{
 			this.images = this.imagesOrdered;
-			this.currentImageIdx = startingIndex;
+			firstImageIdx = startingIndex;
 		}
 		
 		imageView = new ImageView();
@@ -91,6 +100,13 @@ public class SlideShowStage extends Stage
 		imageView.setPreserveRatio(true);
 		imageView.setSmooth(true);
 		
+		mediaView = new MediaView();
+		mediaView.setFitWidth(screenSize.getWidth());
+		mediaView.setFitHeight(screenSize.getHeight());
+		mediaView.setPreserveRatio(true);
+		mediaView.setSmooth(true);
+		
+		
 		fullImageUpdatingThread = new ImageLoaderDaemon();
 		
 		//Don't call next() as it also reset autoplay timer resulting in a double call
@@ -98,7 +114,7 @@ public class SlideShowStage extends Stage
 		autoplay.setCycleCount(Timeline.INDEFINITE);
 		setAutoplayDelay(gallery.getSlideShowParameter().getAutoplayDelay());
 		
-		StackPane contentRoot = new StackPane(imageView);
+		StackPane contentRoot = new StackPane(imageView, mediaView);
 		contentRoot.setId("slide_show_content");
 		contentRoot.setCursor(Cursor.NONE);
 		setScene(new Scene(contentRoot));
@@ -171,7 +187,7 @@ public class SlideShowStage extends Stage
 		setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
 		setFullScreen(true);
 		
-		setCurrent(currentImageIdx);
+		setCurrent(firstImageIdx);
 		
 		if (isAutoPlay())
 			autoplay.playFromStart();
@@ -309,25 +325,55 @@ public class SlideShowStage extends Stage
 			index += nbImages;
 		return index % nbImages;
 	}
-	
+	//TODO add video control (play pause rewind, volume)
 	private void setCurrent(int index)
 	{
 		assert index >= 0 && index < images.size();
 		
+		if (currentImageIdx != NO_CURRENT_IMAGE_INDEX)
+		{
+			Image previousImage = images.get(currentImageIdx);
+			if (previousImage.isActuallyVideo())
+			{
+				previousImage.getAsyncFXImageVideo().getAsFxVideo().stop();
+			}
+		}
+		
 		currentImageIdx = index;
 		Image currentImage = images.get(currentImageIdx);
-		javafx.scene.image.Image fxImage = currentImage.getFXImage(true);
 		
-		if (fxImage.getProgress() >= 1)
-			imageView.setImage(fxImage);
+		FXImageVideoWrapper fxImageVideo = currentImage.getAsyncFXImageVideo();
+		
+		if (fxImageVideo.getProgressProperty().get() >= 1)
+		{
+			if (fxImageVideo.isVideo())
+			{
+				imageView.setVisible(false);
+				mediaView.setVisible(true);
+			
+				MediaPlayer video = fxImageVideo.getAsFxVideo();
+				mediaView.setMediaPlayer(video);
+				video.setCycleCount(Integer.MAX_VALUE);
+				video.play();
+			}
+			else
+			{
+				imageView.setVisible(true);
+				mediaView.setVisible(false);
+				imageView.setImage(fxImageVideo.getAsFxImage());
+			}
+		}
 		else
 		{
+			imageView.setVisible(true);
+			mediaView.setVisible(false);
+			
 			javafx.scene.image.Image thumbnail = currentImage.getThumbnail(false);
 			imageView.setImage(thumbnail);
 		}
+		updateInfoImageSize(fxImageVideo);
 		
 		infoImagePath.setText(currentImage.getPath().toString());
-		updateInfoImageSize(fxImage);
 		infoImageTags.getChildren().clear();
 		currentImage.getTags().stream().sorted(Comparator.comparing(Tag::getName)).forEachOrdered(tag ->
 		{
@@ -344,10 +390,26 @@ public class SlideShowStage extends Stage
 		currentImageProperty.fireValueChangedEvent();
 	}
 	
-	private void updateInfoImageSize(javafx.scene.image.Image fxImage)
+	private void updateInfoImageSize(FXImageVideoWrapper fxImageVideo)
 	{
-		if (fxImage.getProgress() >= 1)
-			infoImageSize.setText("%.0fx%.0f".formatted(fxImage.getWidth(), fxImage.getHeight()));
+		if (fxImageVideo.getProgressProperty().get() >= 1)
+		{
+			int width;
+			int height;
+			
+			if (fxImageVideo.isVideo())
+			{
+				width = fxImageVideo.getAsFxVideo().getMedia().getWidth();
+				height = fxImageVideo.getAsFxVideo().getMedia().getHeight();
+			}
+			else
+			{
+				width = (int) fxImageVideo.getAsFxImage().getWidth();
+				height = (int) fxImageVideo.getAsFxImage().getHeight();
+			}
+			
+			infoImageSize.setText("%dx%d".formatted(width, height));
+		}
 		else
 			infoImageSize.setText("???x???");
 	}
@@ -422,7 +484,7 @@ public class SlideShowStage extends Stage
 					{
 						SafeThread.checkThreadState();
 						
-						javafx.scene.image.Image fxImage = image.getFXImage(true);
+						FXImageVideoWrapper fxImageVideo = image.getAsyncFXImageVideo();
 						
 						if (current != currentImageIdx || forceRefresh.compareAndSet(true, false))
 						{
@@ -430,7 +492,7 @@ public class SlideShowStage extends Stage
 							continue mainLoop;
 						}
 						
-						while (fxImage.getProgress() < 1)
+						while (fxImageVideo.getProgressProperty().get() < 1)
 						{
 							SafeThread.checkThreadState();
 							Thread.sleep(100);
@@ -442,10 +504,26 @@ public class SlideShowStage extends Stage
 							}
 						}
 						
-						if (fxImage.getProgress() >= 1 && image.equals(images.get(currentImageIdx)))
+						if (fxImageVideo.getProgressProperty().get() >= 1 && image.equals(images.get(currentImageIdx)))
 						{
-							imageView.setImage(fxImage);
-							updateInfoImageSize(fxImage);
+							if (fxImageVideo.isVideo())
+							{
+								imageView.setVisible(false);
+								mediaView.setVisible(true);
+								
+								MediaPlayer video = fxImageVideo.getAsFxVideo();
+								mediaView.setMediaPlayer(video);
+								video.setCycleCount(Integer.MAX_VALUE);
+								video.play();
+							}
+							else
+							{
+								imageView.setVisible(true);
+								mediaView.setVisible(false);
+								
+								imageView.setImage(fxImageVideo.getAsFxImage());
+							}
+							updateInfoImageSize(fxImageVideo);
 						}
 					}
 					

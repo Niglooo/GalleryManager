@@ -9,6 +9,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.model.Image.VideoThumbnailImage;
 
 public class ThumbnailView extends ImageView implements Displayable
 {
@@ -63,7 +64,8 @@ public class ThumbnailView extends ImageView implements Displayable
 			if (displayed)
 			{
 				fxImage = galleryImage.getThumbnail(true);
-				if (fxImage.getProgress() == 1)
+				double progress = fxImage instanceof VideoThumbnailImage vtImage ? vtImage.loadingProgressProperty().get() : fxImage.getProgress();
+				if (progress == 1)
 					setImage(fxImage);
 				else
 				{
@@ -87,29 +89,60 @@ public class ThumbnailView extends ImageView implements Displayable
 		{
 			this.imageView = imageView;
 			this.fxImage = imageView.fxImage;
-			this.fxImage.progressProperty().addListener(this);
-			this.fxImage.exceptionProperty().addListener(this);
+			if (fxImage instanceof VideoThumbnailImage vtImage)
+			{
+				vtImage.loadingProgressProperty().addListener(this);
+				vtImage.loadingExceptionProperty().addListener(this);
+			}
+			else
+			{
+				this.fxImage.progressProperty().addListener(this);
+				this.fxImage.exceptionProperty().addListener(this);
+			}
 		}
 		
 		@Override
 		public void changed(ObservableValue<? extends Object> observable, Object oldValue, Object newValue)
 		{
-			if (observable == fxImage.progressProperty())
+			if (fxImage instanceof VideoThumbnailImage vtImage)
 			{
-				if (((Number) newValue).doubleValue() == 1)
+				if (observable == vtImage.loadingProgressProperty())
 				{
-					imageView.setImage(fxImage);
-					fxImage.progressProperty().removeListener(this);
-					fxImage.errorProperty().removeListener(this);
+					if (((Number) newValue).doubleValue() == 1)
+					{
+						imageView.setImage(fxImage);
+						vtImage.loadingProgressProperty().removeListener(this);
+						vtImage.loadingExceptionProperty().removeListener(this);
+					}
+				}
+				else if (observable == vtImage.loadingExceptionProperty())
+				{
+					vtImage.loadingProgressProperty().removeListener(this);
+					vtImage.loadingExceptionProperty().removeListener(this);
+					
+					if (!(newValue instanceof CancellationException))
+						imageView.setImage(THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
 				}
 			}
-			else if (observable == fxImage.exceptionProperty())
+			else
 			{
-				fxImage.progressProperty().removeListener(this);
-				fxImage.errorProperty().removeListener(this);
-				
-				if (!(newValue instanceof CancellationException))
-					imageView.setImage(THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
+				if (observable == fxImage.progressProperty())
+				{
+					if (((Number) newValue).doubleValue() == 1)
+					{
+						imageView.setImage(fxImage);
+						fxImage.progressProperty().removeListener(this);
+						fxImage.exceptionProperty().removeListener(this);
+					}
+				}
+				else if (observable == fxImage.exceptionProperty())
+				{
+					fxImage.progressProperty().removeListener(this);
+					fxImage.exceptionProperty().removeListener(this);
+					
+					if (!(newValue instanceof CancellationException))
+						imageView.setImage(THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
+				}
 			}
 		}
 	}

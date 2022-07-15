@@ -8,6 +8,7 @@ module nigloo.gallerymanager
 	requires javafx.controls;
 	requires javafx.fxml;
 	requires javafx.graphics;
+	requires javafx.media;
 	
 	requires com.google.gson;
 	requires methanol;
