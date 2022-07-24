@@ -2,12 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse.BodyHandlers;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -22,9 +17,6 @@ import nigloo.tool.gson.JsonHelper;
 
 public class FanboxDownloader extends Downloader
 {
-	private boolean downloadFiles = true;
-	private AutoExtractZip autoExtractZip = AutoExtractZip.NEW_DIRECTORY;
-	
 	@SuppressWarnings("unused")
 	private FanboxDownloader()
 	{
@@ -151,32 +143,45 @@ public class FanboxDownloader extends Downloader
 	}
 	
 	@Override
-	protected CompletableFuture<?> downloadOther(DownloadSession session, Post post)
+	protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) throws Exception
 	{
 		JsonObject jPost = (JsonObject) post.extraInfo();
-		JsonArray files = downloadFiles ? JsonHelper.followPath(jPost, "body.files", JsonArray.class) : null;
-		if (files == null)
-			files = new JsonArray(0);
-		
-		ArrayList<CompletableFuture<?>> filesDownloads = new ArrayList<>(files.size());
-		
-		for (JsonElement file : files)
+		JsonArray jFiles = JsonHelper.followPath(jPost, "body.files", JsonArray.class);
+		if (jFiles == null)
 		{
-			String fileId = JsonHelper.followPath(file, "id");
-			String url = JsonHelper.followPath(file, "url");
-			String fileNameWithoutExtention = JsonHelper.followPath(file, "name");
-			String fileExtention = JsonHelper.followPath(file, "extension");
-			
-			filesDownloads.add(downloadFile(session,
-			                                url,
-			                                getHeaders(session),
-			                                post,
-			                                fileId,
-			                                fileNameWithoutExtention,
-			                                fileExtention));
+			JsonObject fileMap = JsonHelper.followPath(jPost, "body.fileMap", JsonObject.class);
+			if (fileMap != null)
+			{
+				jFiles = new JsonArray(fileMap.size());
+				JsonArray blocks = JsonHelper.followPath(jPost, "body.blocks", JsonArray.class);
+				for (JsonElement block : blocks)
+				{
+					String type = JsonHelper.followPath(block, "type");
+					if ("file".equals(type))
+					{
+						String fileId = JsonHelper.followPath(block, "fileId");
+						jFiles.add(fileMap.get(fileId));
+					}
+				}
+			}
+			else
+				jFiles = new JsonArray(0);
 		}
 		
-		return CompletableFuture.allOf(filesDownloads.toArray(CompletableFuture[]::new));
+		ArrayList<PostFile> files = new ArrayList<>(jFiles.size());
+		for (JsonElement jfile : jFiles)
+		{
+			String fileId = JsonHelper.followPath(jfile, "id");
+			String url = JsonHelper.followPath(jfile, "url");
+			String fileNameWithoutExtention = JsonHelper.followPath(jfile, "name");
+			String fileExtention = JsonHelper.followPath(jfile, "extension");
+			
+			String filename = fileNameWithoutExtention+'.'+fileExtention;
+			
+			files.add(new PostFile(fileId, filename, url, null));
+		}
+		
+		return CompletableFuture.completedFuture(files);
 	}
 	
 	@Override
@@ -185,42 +190,10 @@ public class FanboxDownloader extends Downloader
 		return getHeaders(session);
 	}
 	
-	private CompletableFuture<?> downloadFile(DownloadSession session,
-	                                          String url,
-	                                          String[] headers,
-	                                          Post post,
-	                                          String fileId,
-	                                          String fileNameWithoutExtention,
-	                                          String fileExtention)
+	@Override
+	protected String[] getHeardersForFileDownload(DownloadSession session, PostFile image)
 	{
-		HttpRequest request = null;
-		Path fileDest = null;
-		try
-		{
-			String fileName = fileNameWithoutExtention + '.' + fileExtention;
-			
-			fileDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId.trim())
-			                                     .replace("{postId}", post.id())
-			                                     .replace("{postDate}",
-			                                              DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-			                                     .replace("{postTitle}", post.title())
-			                                     .replace("{imageNumber} ", "")
-			                                     .replace("{imageFilename}", fileName));
-			fileDest = makeSafe(gallery.toAbsolutePath(fileDest));
-			
-			if (Files.exists(fileDest))
-				return CompletableFuture.completedFuture(null);
-			
-			Files.createDirectories(fileDest.getParent());
-			
-			request = HttpRequest.newBuilder().uri(new URI(url)).GET().headers(headers).build();
-			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
-			              .thenApply(unZip(autoExtractZip));
-		}
-		catch (Exception e)
-		{
-			return CompletableFuture.failedFuture(e);
-		}
+		return getHeaders(session);
 	}
 	
 	private String[] getHeaders(DownloadSession session)

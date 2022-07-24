@@ -55,6 +55,8 @@ public final class Gallery
 	 */
 	public void finishConstruct()
 	{
+		//TODO validate (if downloader.config.dowload = YES assert pathPattern != null)
+		
 		nextId = images.stream().mapToLong(Image::getId).max().orElse(0) + 1;
 		
 		for (Artist artist : artists)

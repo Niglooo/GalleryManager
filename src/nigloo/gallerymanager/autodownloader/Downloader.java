@@ -69,6 +69,9 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import nigloo.gallerymanager.AsyncPools;
+import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractZip;
+import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.DownloadFiles;
+import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration.DownloadImages;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
@@ -117,21 +120,18 @@ public abstract class Downloader
 		register("MASONRY", MasonryDownloader.class);
 	}
 	
-	public enum AutoExtractZip
-	{
-		NO, SAME_DIRECTORY, NEW_DIRECTORY
-	}
-	
 	@Inject
 	protected transient Gallery gallery;
 	
 	protected transient Artist artist;
 	
 	protected String creatorId;
-	protected String imagePathPattern;
 	protected ZonedDateTime mostRecentPostCheckedDate = null;
 	protected long minDelayBetweenRequests = 0;
 	protected Pattern titleFilterRegex = null;
+	
+	protected ImagesConfiguration imageConfiguration;
+	protected FilesConfiguration fileConfiguration;
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
@@ -166,7 +166,11 @@ public abstract class Downloader
 		            creatorId,
 		            artist.getName(),
 		            CLASS_TO_TYPE.get(getClass()),
-		            imagePathPattern);
+		            imageConfiguration != null && imageConfiguration.pathPattern != null
+		                    ? imageConfiguration.pathPattern
+		                    : fileConfiguration != null && fileConfiguration.pathPattern != null
+		                            ? fileConfiguration.pathPattern
+		                            : "[none]");
 		
 		DownloadSession session = new DownloadSession(secrets, checkAllPost);
 		
@@ -184,10 +188,59 @@ public abstract class Downloader
 			if (titleFilterRegex != null && !titleFilterRegex.matcher(post.title()).matches())
 				continue;
 			
-			postsDownloads.add(CompletableFuture.allOf(listImages(session,
-			                                                      post).thenCompose(images -> downloadImages(session, post, images)),
-			                                           downloadOther(session, post))
-			                                    .thenRun(() -> session.onPostDownloaded(post)));
+			DownloadImages downloadImages = imageConfiguration != null && imageConfiguration.download != null ? imageConfiguration.download : DownloadImages.NO;
+			DownloadFiles downloadFiles = fileConfiguration != null && fileConfiguration.download != null ? fileConfiguration.download : DownloadFiles.NO;
+			
+			CompletableFuture<List<PostImage>> listImagesFuture = (downloadImages == DownloadImages.YES ||
+			                                                       downloadImages == DownloadImages.IF_NO_FILES ||
+			                                                       downloadFiles == DownloadFiles.IF_NO_IMAGES)
+			                ? listImages(session, post)
+			                : null;
+			
+			CompletableFuture<List<PostFile>> listFilesFuture = (downloadFiles == DownloadFiles.YES ||
+			                                                     downloadFiles == DownloadFiles.IF_NO_IMAGES ||
+			                                                     downloadImages == DownloadImages.IF_NO_FILES)
+			                ? listFiles(session, post)
+			                : null;
+			
+			CompletableFuture<?> downloadImagesFuture = switch (downloadImages)
+			{
+				case YES -> listImagesFuture.thenCompose(images -> downloadImages(session, post, images));
+				case NO -> null;
+				case IF_NO_FILES -> listFilesFuture.thenCompose(files -> files.isEmpty()
+				        ? listImagesFuture.thenCompose(images -> downloadImages(session, post, images))
+				        : CompletableFuture.completedFuture(null));
+			};
+			
+			CompletableFuture<?> downloadFilesFuture = switch (downloadFiles)
+			{
+				case YES -> listFilesFuture.thenCompose(files -> downloadFiles(session, post, files));
+				case NO -> null;
+				case IF_NO_IMAGES -> listImagesFuture.thenCompose(images -> images.isEmpty()
+				        ? listFilesFuture.thenCompose(files -> downloadFiles(session, post, files))
+				        : CompletableFuture.completedFuture(null));
+			};
+			
+			CompletableFuture<?> postFuture;
+			
+			if (downloadImagesFuture != null && downloadFilesFuture != null)
+			{
+				postFuture = CompletableFuture.allOf(downloadImagesFuture, downloadFilesFuture);
+			}
+			else if (downloadImagesFuture != null)
+			{
+				postFuture = downloadImagesFuture;
+			}
+			else if (downloadFilesFuture != null)
+			{
+				postFuture = downloadFilesFuture;
+			}
+			else
+			{
+				postFuture = CompletableFuture.completedFuture(null);
+			}
+			
+			postsDownloads.add(postFuture.thenRun(() -> session.onPostDownloaded(post)));
 		}
 		
 		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new))
@@ -213,9 +266,120 @@ public abstract class Downloader
 		return CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new));
 	}
 	
+	private CompletableFuture<?> downloadFiles(DownloadSession session, Post post, List<PostFile> files)
+	{
+		ArrayList<CompletableFuture<?>> filesDownloads = new ArrayList<>();
+		
+		int fileNumber = 1;
+		for (PostFile file : files)
+		{
+			filesDownloads.add(downloadFile(session,
+			                                getHeardersForFileDownload(session, file),
+			                                post,
+			                                file,
+			                                fileNumber));
+			fileNumber++;
+		}
+		
+		return CompletableFuture.allOf(filesDownloads.toArray(CompletableFuture[]::new));
+	}
+	
+	public record ImageKey(String postId, String imageId) implements Comparable<ImageKey>
+	{
+		public ImageKey
+		{
+			Objects.requireNonNull(postId, "postId");
+			Objects.requireNonNull(imageId, "imageId");
+		}
+		
+		@Override
+		public int compareTo(ImageKey o)
+		{
+			int res = Utils.NATURAL_ORDER.compare(postId, o.postId);
+			return (res != 0) ? res : Utils.NATURAL_ORDER.compare(imageId, o.imageId);
+		}
+	}
+	
+	//TODO add option to download or not images
+	//same for file
+	//enum donwloadImages: YES, NO, IF_NO_FILES
+	
+	
+	protected static class ImagesConfiguration
+	{
+		public enum DownloadImages
+		{
+			YES,
+			NO,
+			IF_NO_FILES
+		}
+		
+		private DownloadImages download;
+		private String pathPattern;
+		
+		public DownloadImages getDownload()
+		{
+			return download;
+		}
+		
+		public void setDownload(DownloadImages download)
+		{
+			this.download = download;
+		}
+		
+		public String getPathPattern()
+		{
+			return pathPattern;
+		}
+		
+		public void setPathPattern(String pathPattern)
+		{
+			this.pathPattern = pathPattern;
+		}
+	}
+	
+	protected static class FilesConfiguration
+	{
+		public enum DownloadFiles
+		{
+			YES,
+			NO,
+			IF_NO_IMAGES
+		}
+		
+		public enum AutoExtractZip
+		{
+			NO, SAME_DIRECTORY, NEW_DIRECTORY
+		}
+		
+		private DownloadFiles download;
+		private String pathPattern;
+		private AutoExtractZip autoExtractZip;
+		
+		public DownloadFiles getDownload()
+		{
+			return download;
+		}
+		
+		public void setDownload(DownloadFiles download)
+		{
+			this.download = download;
+		}
+		
+		public String getPathPattern()
+		{
+			return pathPattern;
+		}
+		
+		public void setPathPattern(String pathPattern)
+		{
+			this.pathPattern = pathPattern;
+		}
+	}
+	
 	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo){}
 	protected record PostImage(String id, String filename, String url, Collection<String> tags) {}
-	//TODO protected record PostFiles(String id, String filename, String url) {}
+	protected record PostFile(String id, String filename, String url, Collection<String> tags) {}
 	
 	protected void onStartDownload(DownloadSession session) throws Exception {}
 	
@@ -223,12 +387,17 @@ public abstract class Downloader
 	
 	protected abstract CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception;
 	
-	protected CompletableFuture<?> downloadOther(DownloadSession session, Post post) throws Exception
+	protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) throws Exception
 	{
-		return CompletableFuture.completedFuture(null);
+		return CompletableFuture.completedFuture(List.of());
 	}
 	
 	protected abstract String[] getHeardersForImageDownload(DownloadSession session, PostImage image);
+	
+	protected String[] getHeardersForFileDownload(DownloadSession session, PostFile image)
+	{
+		return null;
+	}
 	
 	protected final class DownloadSession
 	{
@@ -384,7 +553,7 @@ public abstract class Downloader
 	}
 	
 	protected final CompletableFuture<Image> downloadImage(DownloadSession session,
-	                                                      String[] headers,
+	                                                      String[] headers,//TODO remove en call getHeardersFor[Image?]Download
 	                                                      Post post,
 	                                                      PostImage postImage,
 	                                                      int imageNumber)
@@ -405,13 +574,14 @@ public abstract class Downloader
 			}
 			else
 			{
-				imageDest = Paths.get(imagePathPattern.replace("{creatorId}", creatorId)
-				                                      .replace("{postId}", post.id())
-				                                      .replace("{postDate}",
-				                                               DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-				                                      .replace("{postTitle}", post.title())
-				                                      .replace("{imageNumber}", String.format("%02d", imageNumber))
-				                                      .replace("{imageFilename}", postImage.filename()));
+				imageDest = Paths.get(imageConfiguration.pathPattern.replace("{creatorId}", creatorId)
+				                                                    .replace("{postId}", post.id())
+				                                                    .replace("{postDate}",
+				                                                             DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+				                                                    .replace("{postTitle}", post.title())
+				                                                    .replace("{imageNumber}",
+				                                                             String.format("%02d", imageNumber))
+				                                                    .replace("{imageFilename}", postImage.filename()));
 				imageDest = makeSafe(gallery.toAbsolutePath(imageDest));
 				imageReference = null;
 			}
@@ -442,69 +612,101 @@ public abstract class Downloader
 		}
 	}
 	
-	protected final Function<HttpResponse<Path>, HttpResponse<Path>> unZip(AutoExtractZip autoExtractZip)
+	protected CompletableFuture<?> downloadFile(DownloadSession session,
+	                                            String[] headers,
+	                                            Post post,
+	                                            PostFile file,
+	                                            int fileNumber)
 	{
-		return response ->
+		HttpRequest request = null;
+		Path fileDest = null;
+		try
 		{
-			Path filePath = response.body();
-			String filename = filePath.getFileName().toString();
+			fileDest = Paths.get(fileConfiguration.pathPattern.replace("{creatorId}", creatorId)
+			                                                  .replace("{postId}", post.id())
+			                                                  .replace("{postDate}",
+			                                                           DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+			                                                  .replace("{postTitle}", post.title())
+			                                                  .replace("{fileNumber} ",
+			                                                           String.format("%02d", fileNumber))
+			                                                  .replace("{filename}", file.filename()));
+			fileDest = makeSafe(gallery.toAbsolutePath(fileDest));
 			
-			if (!filename.toLowerCase(Locale.ROOT).endsWith(".zip") || autoExtractZip == null || autoExtractZip == AutoExtractZip.NO)
-				return response;
+			if (Files.exists(fileDest))
+				return CompletableFuture.completedFuture(null);
 			
-			LOGGER.debug("Unziping: " + filePath);
+			Files.createDirectories(fileDest.getParent());
 			
-			try
+			request = HttpRequest.newBuilder().uri(new URI(file.url())).GET().headers(headers).build();
+			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
+			              .thenAccept(response -> unZip(response.body()));
+		}
+		catch (Exception e)
+		{
+			return CompletableFuture.failedFuture(e);
+		}
+	}
+	
+	protected final void unZip(Path filePath)
+	{
+		String filename = filePath.getFileName().toString();
+		
+		if (!filename.toLowerCase(Locale.ROOT).endsWith(".zip") || fileConfiguration.autoExtractZip == null || fileConfiguration.autoExtractZip == AutoExtractZip.NO)
+			return;
+		
+		LOGGER.debug("Unziping: " + filePath);
+		
+		try
+		{
+			Path targetDirectory = switch (fileConfiguration.autoExtractZip)
 			{
-				Path targetDirectory = switch (autoExtractZip)
-				{
-					case NO -> throw new IllegalStateException(Objects.toString(autoExtractZip));
-					case SAME_DIRECTORY -> filePath.getParent();
-					case NEW_DIRECTORY -> filePath.resolveSibling(filename.substring(0, filename.length() - ".zip".length()));
-				};
+				case NO -> throw new IllegalStateException(Objects.toString(fileConfiguration.autoExtractZip));
+				case SAME_DIRECTORY -> filePath.getParent();
+				case NEW_DIRECTORY -> filePath.resolveSibling(filename.substring(0, filename.length() - ".zip".length()));
+			};
+		
+			Files.createDirectories(targetDirectory);
+			//FIXME check the entry name for charset (exception of not enough "good chars = bad => go to next charset)
+			//, Support utf8 and japanses charset
+			ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));//, Charset.forName("Shift-JIS"));
+			ZipEntry zipEntry = zis.getNextEntry();
 			
-				Files.createDirectories(targetDirectory);
+			
+			
+			while (zipEntry != null)
+			{
+				Path entryPath = targetDirectory.resolve(zipEntry.getName());
 				
-				ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));
-				ZipEntry zipEntry = zis.getNextEntry();
-				while (zipEntry != null)
+				if (zipEntry.isDirectory())
 				{
-					Path entryPath = targetDirectory.resolve(zipEntry.getName());
+					Files.createDirectories(entryPath);
+				}
+				else
+				{
+					Files.createDirectories(entryPath.getParent());
+					Files.copy(zis, entryPath);
 					
-					if (zipEntry.isDirectory())
+					if (Image.isImage(entryPath))
 					{
-						Files.createDirectories(entryPath);
-					}
-					else
-					{
-						Files.createDirectories(entryPath.getParent());
-						Files.copy(zis, entryPath);
-						
-						if (Image.isImage(entryPath))
+						Image image = gallery.getImage(entryPath);
+						if (image.isNotSaved())
 						{
-							Image image = gallery.getImage(entryPath);
-							if (image.isNotSaved())
-							{
-								image.addTag(artist.getTag());
-								gallery.saveImage(image);
-							}
+							image.addTag(artist.getTag());
+							gallery.saveImage(image);
 						}
 					}
-					zipEntry = zis.getNextEntry();
 				}
-				zis.closeEntry();
-				zis.close();
-				
-				Files.delete(filePath);
+				zipEntry = zis.getNextEntry();
 			}
-			catch (IOException e)
-			{
-				LOGGER.error("Error when unzipping " + filePath, e);
-				return response;
-			}
+			zis.closeEntry();
+			zis.close();
 			
-			return response;
-		};
+			Files.delete(filePath);
+		}
+		catch (Exception e)
+		{
+			LOGGER.error("Error when unzipping " + filePath, e);
+		}
 	}
 	
 	protected static final Path makeSafe(Path path)
@@ -692,35 +894,6 @@ public abstract class Downloader
 		{
 			initDelegate();
 			return delegate.contentLength();
-		}
-	}
-	
-	public record ImageKey(String postId, String imageId) implements Comparable<ImageKey>
-	{
-		public ImageKey
-		{
-			Objects.requireNonNull(postId, "postId");
-			Objects.requireNonNull(imageId, "imageId");
-		}
-		
-		@Override
-		public int hashCode()
-		{
-			return postId.hashCode() ^ imageId.hashCode();
-		}
-		
-		@Override
-		public boolean equals(Object obj)
-		{
-			return (obj instanceof ImageKey other) ? postId.equals(other.postId) && imageId.equals(other.imageId)
-			        : false;
-		}
-		
-		@Override
-		public int compareTo(ImageKey o)
-		{
-			int res = Utils.NATURAL_ORDER.compare(postId, o.postId);
-			return (res != 0) ? res : Utils.NATURAL_ORDER.compare(imageId, o.imageId);
 		}
 	}
 	
