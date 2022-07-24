@@ -87,26 +87,25 @@ public abstract class Downloader
 {
 	private static final Logger LOGGER = LogManager.getLogger(Downloader.class);
 	
-	protected static final Marker HTTP_REQUEST = MarkerManager.getMarker("HTTP_REQUEST");
-	protected static final Marker HTTP_REQUEST_URL = MarkerManager.getMarker("HTTP_REQUEST_URL")
-	                                                              .setParents(HTTP_REQUEST);
-	protected static final Marker HTTP_REQUEST_HEADERS = MarkerManager.getMarker("HTTP_REQUEST_HEADERS")
-	                                                                  .setParents(HTTP_REQUEST);
+	private static final Marker HTTP_REQUEST = MarkerManager.getMarker("HTTP_REQUEST");
+	private static final Marker HTTP_REQUEST_URL = MarkerManager.getMarker("HTTP_REQUEST_URL").setParents(HTTP_REQUEST);
+	private static final Marker HTTP_REQUEST_HEADERS = MarkerManager.getMarker("HTTP_REQUEST_HEADERS")
+	                                                                .setParents(HTTP_REQUEST);
 	
-	protected static final Marker HTTP_RESPONSE = MarkerManager.getMarker("HTTP_RESPONSE");
-	protected static final Marker HTTP_RESPONSE_URL = MarkerManager.getMarker("HTTP_RESPONSE_URL")
-	                                                               .setParents(HTTP_RESPONSE);
-	protected static final Marker HTTP_RESPONSE_STATUS = MarkerManager.getMarker("HTTP_RESPONSE_STATUS")
-	                                                                  .setParents(HTTP_RESPONSE);
-	protected static final Marker HTTP_RESPONSE_HEADERS = MarkerManager.getMarker("HTTP_RESPONSE_HEADERS")
-	                                                                   .setParents(HTTP_RESPONSE);
-	protected static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
+	private static final Marker HTTP_RESPONSE = MarkerManager.getMarker("HTTP_RESPONSE");
+	private static final Marker HTTP_RESPONSE_URL = MarkerManager.getMarker("HTTP_RESPONSE_URL")
+	                                                             .setParents(HTTP_RESPONSE);
+	private static final Marker HTTP_RESPONSE_STATUS = MarkerManager.getMarker("HTTP_RESPONSE_STATUS")
 	                                                                .setParents(HTTP_RESPONSE);
+	private static final Marker HTTP_RESPONSE_HEADERS = MarkerManager.getMarker("HTTP_RESPONSE_HEADERS")
+	                                                                 .setParents(HTTP_RESPONSE);
+	private static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
+	                                                              .setParents(HTTP_RESPONSE);
 	
 	private static final Map<String, Class<? extends Downloader>> TYPE_TO_CLASS = new HashMap<>();
 	private static final Map<Class<? extends Downloader>, String> CLASS_TO_TYPE = new HashMap<>();
 	
-	private static void register(String type, Class<? extends Downloader> clazz)
+	public static void register(String type, Class<? extends Downloader> clazz)
 	{
 		TYPE_TO_CLASS.put(type, clazz);
 		CLASS_TO_TYPE.put(clazz, type);
@@ -248,42 +247,6 @@ public abstract class Downloader
 		                 .join();
 	}
 	
-	private CompletableFuture<?> downloadImages(DownloadSession session, Post post, List<PostImage> images)
-	{
-		ArrayList<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
-		
-		int imageNumber = 1;
-		for (PostImage image : images)
-		{
-			imagesDownloads.add(downloadImage(session,
-			                                  getHeardersForImageDownload(session, image),
-			                                  post,
-			                                  image,
-			                                  imageNumber));
-			imageNumber++;
-		}
-		
-		return CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new));
-	}
-	
-	private CompletableFuture<?> downloadFiles(DownloadSession session, Post post, List<PostFile> files)
-	{
-		ArrayList<CompletableFuture<?>> filesDownloads = new ArrayList<>();
-		
-		int fileNumber = 1;
-		for (PostFile file : files)
-		{
-			filesDownloads.add(downloadFile(session,
-			                                getHeardersForFileDownload(session, file),
-			                                post,
-			                                file,
-			                                fileNumber));
-			fileNumber++;
-		}
-		
-		return CompletableFuture.allOf(filesDownloads.toArray(CompletableFuture[]::new));
-	}
-	
 	public record ImageKey(String postId, String imageId) implements Comparable<ImageKey>
 	{
 		public ImageKey
@@ -299,11 +262,6 @@ public abstract class Downloader
 			return (res != 0) ? res : Utils.NATURAL_ORDER.compare(imageId, o.imageId);
 		}
 	}
-	
-	//TODO add option to download or not images
-	//same for file
-	//enum donwloadImages: YES, NO, IF_NO_FILES
-	
 	
 	protected static class ImagesConfiguration
 	{
@@ -387,16 +345,16 @@ public abstract class Downloader
 	
 	protected abstract CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception;
 	
+	protected abstract String[] getHeardersForImageDownload(DownloadSession session, PostImage image);
+	
 	protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) throws Exception
 	{
 		return CompletableFuture.completedFuture(List.of());
 	}
 	
-	protected abstract String[] getHeardersForImageDownload(DownloadSession session, PostImage image);
-	
 	protected String[] getHeardersForFileDownload(DownloadSession session, PostFile image)
 	{
-		return null;
+		throw new UnsupportedOperationException(getClass().getSimpleName()+".getHeardersForFileDownload");
 	}
 	
 	protected final class DownloadSession
@@ -552,11 +510,27 @@ public abstract class Downloader
 		}
 	}
 	
-	protected final CompletableFuture<Image> downloadImage(DownloadSession session,
-	                                                      String[] headers,//TODO remove en call getHeardersFor[Image?]Download
-	                                                      Post post,
-	                                                      PostImage postImage,
-	                                                      int imageNumber)
+	private CompletableFuture<?> downloadImages(DownloadSession session, Post post, List<PostImage> images)
+	{
+		ArrayList<CompletableFuture<?>> imagesDownloads = new ArrayList<>();
+		
+		int imageNumber = 1;
+		for (PostImage image : images)
+		{
+			imagesDownloads.add(downloadImage(session,
+			                                  post,
+			                                  image,
+			                                  imageNumber));
+			imageNumber++;
+		}
+		
+		return CompletableFuture.allOf(imagesDownloads.toArray(CompletableFuture[]::new));
+	}
+
+	private CompletableFuture<Image> downloadImage(DownloadSession session,
+	                                               Post post,
+	                                               PostImage postImage,
+	                                               int imageNumber)
 	{
 		ImageKey imageKey = new ImageKey(post.id(), postImage.id());
 		ImageReference imageReference;
@@ -603,7 +577,7 @@ public abstract class Downloader
 		try {
 			Files.createDirectories(imageDest.getParent());
 			
-			HttpRequest request = HttpRequest.newBuilder().uri(new URI(postImage.url())).GET().headers(headers).build();
+			HttpRequest request = HttpRequest.newBuilder().uri(new URI(postImage.url())).GET().headers(getHeardersForImageDownload(session, postImage)).build();
 			return session.sendAsync(request, BodyHandlers.ofFile(imageDest))
 			              .thenApply(saveInGallery(session, post.id(), postImage.id(), postImage.tags()));
 		}
@@ -612,11 +586,27 @@ public abstract class Downloader
 		}
 	}
 	
-	protected CompletableFuture<?> downloadFile(DownloadSession session,
-	                                            String[] headers,
-	                                            Post post,
-	                                            PostFile file,
-	                                            int fileNumber)
+	private CompletableFuture<?> downloadFiles(DownloadSession session, Post post, List<PostFile> files)
+	{
+		ArrayList<CompletableFuture<?>> filesDownloads = new ArrayList<>();
+		
+		int fileNumber = 1;
+		for (PostFile file : files)
+		{
+			filesDownloads.add(downloadFile(session,
+			                                post,
+			                                file,
+			                                fileNumber));
+			fileNumber++;
+		}
+		
+		return CompletableFuture.allOf(filesDownloads.toArray(CompletableFuture[]::new));
+	}
+
+	private CompletableFuture<?> downloadFile(DownloadSession session,
+	                                          Post post,
+	                                          PostFile file,
+	                                          int fileNumber)
 	{
 		HttpRequest request = null;
 		Path fileDest = null;
@@ -637,7 +627,7 @@ public abstract class Downloader
 			
 			Files.createDirectories(fileDest.getParent());
 			
-			request = HttpRequest.newBuilder().uri(new URI(file.url())).GET().headers(headers).build();
+			request = HttpRequest.newBuilder().uri(new URI(file.url())).GET().headers(getHeardersForFileDownload(session, file)).build();
 			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
 			              .thenAccept(response -> unZip(response.body()));
 		}
@@ -647,7 +637,7 @@ public abstract class Downloader
 		}
 	}
 	
-	protected final void unZip(Path filePath)
+	private void unZip(Path filePath)
 	{
 		String filename = filePath.getFileName().toString();
 		
@@ -709,7 +699,7 @@ public abstract class Downloader
 		}
 	}
 	
-	protected static final Path makeSafe(Path path)
+	private static final Path makeSafe(Path path)
 	{
 		Path newPath = path.getRoot();
 		
@@ -721,7 +711,7 @@ public abstract class Downloader
 		return newPath;
 	}
 	
-	protected static boolean isErrorResponse(HttpResponse<?> response)
+	private static boolean isErrorResponse(HttpResponse<?> response)
 	{
 		return response.statusCode() >= 300;
 	}
