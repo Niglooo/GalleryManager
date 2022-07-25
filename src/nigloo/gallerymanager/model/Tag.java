@@ -18,9 +18,9 @@ import nigloo.tool.injection.annotation.Inject;
 
 public class Tag
 {
-	private static final Set<Character> FORBIDDEN_CHARS = " -".chars()
-	                                                          .mapToObj(c -> (char) c)
-	                                                          .collect(Collectors.toUnmodifiableSet());
+	private static final Set<Character> FORBIDDEN_CHARS = " -!+".chars()
+	                                                            .mapToObj(c -> (char) c)
+	                                                            .collect(Collectors.toUnmodifiableSet());
 	
 	private String name;
 	private HashSet<TagReference> parents;
@@ -141,6 +141,6 @@ public class Tag
 	
 	public static String normalize(String tagName)
 	{
-		return tagName == null ? null : tagName.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+		return tagName == null ? null : tagName.trim().toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_').replace("!", "").replace("+", "");
 	}
 }

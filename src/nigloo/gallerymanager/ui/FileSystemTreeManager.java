@@ -702,7 +702,7 @@ public class FileSystemTreeManager
 					{
 						if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
 						{
-							Files.delete(element.getPath());
+							Files.deleteIfExists(element.getPath());
 							LOGGER.debug("Deleting from disk : " + element.getPath());
 						}
 					}

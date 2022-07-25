@@ -130,6 +130,9 @@ public final class Gallery
 	 */
 	public Image getImage(Path path)
 	{
+		if (!Image.isImage(path))
+			throw new IllegalArgumentException("Not an image: "+path);
+		
 		synchronized (images)
 		{
 			final Path relPath = toRelativePath(path);

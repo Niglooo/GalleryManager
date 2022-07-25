@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -551,15 +552,15 @@ public abstract class Downloader
 			}
 			else
 			{
-				imageDest = Paths.get(imageConfiguration.pathPattern.replace("{creatorId}", creatorId)
-				                                                    .replace("{postId}", post.id())
-				                                                    .replace("{postDate}",
-				                                                             DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-				                                                    .replace("{postTitle}", post.title())
-				                                                    .replace("{imageNumber}",
-				                                                             String.format("%02d", imageNumber))
-				                                                    .replace("{imageFilename}", postImage.filename()));
-				imageDest = makeSafe(gallery.toAbsolutePath(imageDest));
+				imageDest = makeSafe(imageConfiguration.pathPattern.replace("{creatorId}", creatorId)
+				                                                   .replace("{postId}", post.id())
+				                                                   .replace("{postDate}",
+				                                                            DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+				                                                   .replace("{postTitle}", post.title())
+				                                                   .replace("{imageNumber}",
+				                                                            String.format("%02d", imageNumber))
+				                                                   .replace("{imageFilename}", postImage.filename()));
+				imageDest = gallery.toAbsolutePath(imageDest);
 				imageReference = null;
 			}
 			
@@ -615,15 +616,15 @@ public abstract class Downloader
 		Path fileDest = null;
 		try
 		{
-			fileDest = Paths.get(fileConfiguration.pathPattern.replace("{creatorId}", creatorId)
-			                                                  .replace("{postId}", post.id())
-			                                                  .replace("{postDate}",
-			                                                           DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-			                                                  .replace("{postTitle}", post.title())
-			                                                  .replace("{fileNumber} ",
-			                                                           String.format("%02d", fileNumber))
-			                                                  .replace("{filename}", file.filename()));
-			fileDest = makeSafe(gallery.toAbsolutePath(fileDest));
+			fileDest = makeSafe(fileConfiguration.pathPattern.replace("{creatorId}", creatorId)
+			                                                 .replace("{postId}", post.id())
+			                                                 .replace("{postDate}",
+			                                                          DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+			                                                 .replace("{postTitle}", post.title())
+			                                                 .replace("{fileNumber} ",
+			                                                          String.format("%02d", fileNumber))
+			                                                 .replace("{filename}", file.filename()));
+			fileDest = gallery.toAbsolutePath(fileDest);
 			
 			if (Files.exists(fileDest))
 				return CompletableFuture.completedFuture(null);
@@ -691,7 +692,7 @@ public abstract class Downloader
 			
 			while (zipEntry != null)
 			{
-				Path entryPath = targetDirectory.resolve(zipEntry.getName());
+				Path entryPath = targetDirectory.resolve(makeSafe(zipEntry.getName()));
 				
 				if (zipEntry.isDirectory())
 				{
@@ -700,7 +701,7 @@ public abstract class Downloader
 				else
 				{
 					Files.createDirectories(entryPath.getParent());
-					Files.copy(zis, entryPath);
+					Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
 					
 					if (Image.isImage(entryPath))
 					{
@@ -714,7 +715,6 @@ public abstract class Downloader
 				}
 				zipEntry = zis.getNextEntry();
 			}
-			zis.closeEntry();
 			zis.close();
 			
 			Files.delete(filePath);
@@ -725,16 +725,39 @@ public abstract class Downloader
 		}
 	}
 	
-	private static final Path makeSafe(Path path)
+	private static final Path makeSafe(String path)
 	{
-		Path newPath = path.getRoot();
+		int len = path.length();
+		StringBuilder safePath = new StringBuilder(len);
 		
-		for (int i = 0 ; i < path.getNameCount() ; i++)
+		int begin = 0;
+		while(true)
 		{
-			newPath = newPath.resolve(path.getName(i).toString().trim());
+			// Skip leading spaces
+			while (begin < len && path.charAt(begin) == ' ')
+				begin++;
+			
+			int endName = begin;
+			char c;
+			while (endName < len && (c = path.charAt(endName)) != '/' && c != '\\')
+				endName++;
+			
+			int end = endName;
+			while (end > 0 && path.charAt(end - 1) == ' ')
+				end--;
+			
+			if (begin <= end)
+				safePath.append(path, begin, end);
+			if (endName < len)
+			{
+				safePath.append(path.charAt(endName));
+				begin = endName + 1;
+			}
+			else
+				break;
 		}
 		
-		return newPath;
+		return Paths.get(safePath.toString());
 	}
 	
 	private static boolean isErrorResponse(HttpResponse<?> response)
