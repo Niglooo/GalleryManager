@@ -1,6 +1,7 @@
 package nigloo.gallerymanager.autodownloader;
 
 import java.io.IOException;
+import java.lang.Character.UnicodeBlock;
 import java.lang.reflect.Type;
 import java.net.HttpCookie;
 import java.net.URI;
@@ -14,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +36,7 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Subscriber;
@@ -656,12 +659,35 @@ public abstract class Downloader
 			};
 		
 			Files.createDirectories(targetDirectory);
-			//FIXME check the entry name for charset (exception of not enough "good chars = bad => go to next charset)
-			//, Support utf8 and japanses charset
-			ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));//, Charset.forName("Shift-JIS"));
-			ZipEntry zipEntry = zis.getNextEntry();
 			
-			
+			ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));
+			ZipEntry zipEntry;
+			try {
+				zipEntry= zis.getNextEntry();
+			} catch (Exception e1) {
+				Utils.closeQuietly(zis);
+				zis = new ZipInputStream(Files.newInputStream(filePath), Charset.forName("Shift-JIS"));//TODO check if this is the most common japanese encoding
+				try {
+					zipEntry= zis.getNextEntry();
+					
+					String name = zipEntry.getName();
+					if (name.lastIndexOf('.') >= 0)
+						name = name.substring(0, name.lastIndexOf('.'));
+					
+					Set<UnicodeBlock> JAPANESE_UNICODE_BLOCKS = Set.of(UnicodeBlock.HIRAGANA, UnicodeBlock.KATAKANA, UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS);
+					
+					Map<Boolean, Long> counts = name.chars()
+					                                .mapToObj(Integer::valueOf)
+					                                .collect(Collectors.groupingBy(cp -> JAPANESE_UNICODE_BLOCKS.contains(UnicodeBlock.of(cp.intValue())), Collectors.counting()));
+					// Less japanese character than non japanese character
+					if (counts.getOrDefault(true, 0L) < counts.getOrDefault(false, 0L))
+					{
+						throw new IllegalArgumentException("Not japanese: " + zipEntry.getName());
+					}
+				} catch (Exception e2) {
+					throw new IllegalArgumentException("Not suitable charset found to decode filenames in "+filePath, e2);
+				}
+			}
 			
 			while (zipEntry != null)
 			{
