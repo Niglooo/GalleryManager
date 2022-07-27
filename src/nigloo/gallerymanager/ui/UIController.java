@@ -74,6 +74,7 @@ import nigloo.gallerymanager.model.Script.AutoExecution;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.gallerymanager.ui.util.VScrollablePane;
 import nigloo.tool.StopWatch;
 import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;

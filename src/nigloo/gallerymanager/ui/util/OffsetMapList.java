@@ -1,4 +1,4 @@
-package nigloo.gallerymanager.ui;
+package nigloo.gallerymanager.ui.util;
 
 import java.util.List;
 
@@ -8,11 +8,11 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.TransformationList;
 import nigloo.tool.Utils;
 
-abstract class OffsetMapList<E, F> extends TransformationList<E, F>
+public abstract class OffsetMapList<E, F> extends TransformationList<E, F>
 {
 	protected final int offset;
 	
-	OffsetMapList(ObservableList<? extends F> source, int offset)
+	protected OffsetMapList(ObservableList<? extends F> source, int offset)
 	{
 		super(source);
 		if (offset < 0)

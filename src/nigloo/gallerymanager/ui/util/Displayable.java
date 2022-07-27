@@ -1,4 +1,4 @@
-package nigloo.gallerymanager.ui;
+package nigloo.gallerymanager.ui.util;
 
 public interface Displayable
 {

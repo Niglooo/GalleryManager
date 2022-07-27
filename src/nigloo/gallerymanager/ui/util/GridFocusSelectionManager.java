@@ -1,4 +1,4 @@
-package nigloo.gallerymanager.ui;
+package nigloo.gallerymanager.ui.util;
 
 import java.util.ArrayList;
 import java.util.Collections;

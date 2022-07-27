@@ -13,6 +13,7 @@ import javafx.scene.control.MenuItem;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.dialog.EditImageTagsDialog;
+import nigloo.gallerymanager.ui.util.VScrollablePane;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.component.dialog.ExceptionDialog;

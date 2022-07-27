@@ -10,6 +10,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Image.VideoThumbnailImage;
+import nigloo.gallerymanager.ui.util.Displayable;
 
 public class ThumbnailView extends ImageView implements Displayable
 {

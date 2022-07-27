@@ -22,6 +22,7 @@ module nigloo.gallerymanager
 	opens nigloo.gallerymanager.autodownloader;
 	opens nigloo.gallerymanager.ui to javafx.graphics, javafx.fxml, nigloo.tools;
 	opens nigloo.gallerymanager.ui.dialog to javafx.graphics, javafx.fxml, nigloo.tools;
+	opens nigloo.gallerymanager.ui.util to javafx.graphics, javafx.fxml, nigloo.tools;
 	
 	opens resources.styles; // Oh shit, here we go again
 }

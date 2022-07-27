@@ -14,7 +14,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.stage.Stage?>
 <?import nigloo.gallerymanager.ui.AutoCompleteTextField?>
-<?import nigloo.gallerymanager.ui.VScrollablePane?>
+<?import nigloo.gallerymanager.ui.util.VScrollablePane?>
 
 <fx:root
   height="800.0"
