@@ -204,7 +204,7 @@ public class FileSystemTreeManager
 			}, AsyncPools.FX_APPLICATION);
 		}
 		
-		// ---- case path something we don't are about ----
+		// ---- case path something we don't care about ----
 		if (!Files.isDirectory(path))
 		{
 			return CompletableFuture.runAsync(() ->
@@ -700,7 +700,7 @@ public class FileSystemTreeManager
 				{
 					try
 					{
-						if (element.isImage() || Files.list(element.getPath()).findAny().isEmpty())
+						if (element.isImage() || (Files.exists(element.getPath()) && Files.list(element.getPath()).findAny().isEmpty()))
 						{
 							Files.deleteIfExists(element.getPath());
 							LOGGER.debug("Deleting from disk : " + element.getPath());
