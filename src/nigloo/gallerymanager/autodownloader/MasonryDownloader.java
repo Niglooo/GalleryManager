@@ -134,8 +134,9 @@ public class MasonryDownloader extends Downloader
 		                                   {
 			                                   String imageId = imageElement.attr("data-av-masonry-item");
 			                                   String url = imageElement.attr("href");
-			                                   String imageFilename = url.substring(url.lastIndexOf('/') + 1);
-			                                   return new PostImage(imageId, imageFilename, url, extraInfo.tags());
+			                                   String filename = imageElement.selectFirst("img").attr("title");
+			                                   String extension = url.substring(url.lastIndexOf('.'));
+			                                   return new PostImage(imageId, filename + extension, url, extraInfo.tags());
 		                                   })
 		                                   .toList());
 	}
