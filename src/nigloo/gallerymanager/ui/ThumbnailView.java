@@ -9,8 +9,10 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
-import nigloo.gallerymanager.model.Image.VideoThumbnailImage;
 import nigloo.gallerymanager.ui.util.Displayable;
+import nigloo.gallerymanager.ui.util.ImageCache;
+import nigloo.tool.injection.Injector;
+import nigloo.tool.injection.annotation.Inject;
 
 public class ThumbnailView extends ImageView implements Displayable
 {
@@ -36,6 +38,9 @@ public class ThumbnailView extends ImageView implements Displayable
 		}
 	}
 	
+	@Inject
+	private ImageCache imageCache;
+	
 	private final Image galleryImage;
 	private boolean displayed;
 	
@@ -49,6 +54,7 @@ public class ThumbnailView extends ImageView implements Displayable
 		this.fxImage = null;
 		lazyLoadPlaceholders();
 		setImage(THUMBNAIL_LOADING_PLACEHOLDER);
+		Injector.init(this);
 	}
 	
 	public Image getGalleryImage()
@@ -64,7 +70,7 @@ public class ThumbnailView extends ImageView implements Displayable
 			this.displayed = displayed;
 			if (displayed)
 			{
-				fxImage = galleryImage.getThumbnail(true);
+				fxImage = imageCache.getThumbnail(galleryImage, true);
 				double progress = fxImage instanceof VideoThumbnailImage vtImage ? vtImage.loadingProgressProperty().get() : fxImage.getProgress();
 				if (progress == 1)
 					setImage(fxImage);
@@ -75,7 +81,7 @@ public class ThumbnailView extends ImageView implements Displayable
 			}
 			else if (fxImage != null)
 			{
-				fxImage.cancel();
+				imageCache.cancelLoadingThumbnail(galleryImage);
 				fxImage = null;
 			}
 		}

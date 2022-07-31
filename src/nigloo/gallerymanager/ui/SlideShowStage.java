@@ -37,7 +37,7 @@ import javafx.util.Duration;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
-import nigloo.gallerymanager.model.Image.FXImageVideoWrapper;
+import nigloo.gallerymanager.ui.util.ImageCache;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.FXUtils;
@@ -52,6 +52,8 @@ public class SlideShowStage extends Stage
 	
 	@Inject
 	private Gallery gallery;
+	@Inject
+	private ImageCache imageCache;
 	
 	private List<Image> imagesOrdered = null;
 	private List<Image> images = null;
@@ -335,14 +337,14 @@ public class SlideShowStage extends Stage
 			Image previousImage = images.get(currentImageIdx);
 			if (previousImage.isActuallyVideo())
 			{
-				previousImage.getAsyncFXImageVideo().getAsFxVideo().stop();
+				imageCache.getAsyncFXImageVideo(previousImage).getAsFxVideo().stop();
 			}
 		}
 		
 		currentImageIdx = index;
 		Image currentImage = images.get(currentImageIdx);
 		
-		FXImageVideoWrapper fxImageVideo = currentImage.getAsyncFXImageVideo();
+		FXImageVideoWrapper fxImageVideo = imageCache.getAsyncFXImageVideo(currentImage);
 		
 		if (fxImageVideo.getProgressProperty().get() >= 1)
 		{
@@ -368,7 +370,7 @@ public class SlideShowStage extends Stage
 			imageView.setVisible(true);
 			mediaView.setVisible(false);
 			
-			javafx.scene.image.Image thumbnail = currentImage.getThumbnail(false);
+			javafx.scene.image.Image thumbnail = imageCache.getThumbnail(currentImage, false);
 			imageView.setImage(thumbnail);
 		}
 		updateInfoImageSize(fxImageVideo);
@@ -477,14 +479,14 @@ public class SlideShowStage extends Stage
 					for (Image image : previousImagesToLoad)
 					{
 						if (!imagesToLoad.contains(image))
-							image.cancelLoadingFXImage();
+							imageCache.cancelLoadingFXImageVideo(image);
 					}
 					
 					for (Image image : imagesToLoad)
 					{
 						SafeThread.checkThreadState();
 						
-						FXImageVideoWrapper fxImageVideo = image.getAsyncFXImageVideo();
+						FXImageVideoWrapper fxImageVideo = imageCache.getAsyncFXImageVideo(image);
 						
 						if (current != currentImageIdx || forceRefresh.compareAndSet(true, false))
 						{
@@ -540,7 +542,7 @@ public class SlideShowStage extends Stage
 			finally
 			{
 				for (Image image : previousImagesToLoad)
-					image.cancelLoadingFXImage();
+					imageCache.cancelLoadingFXImageVideo(image);
 			}
 		}
 	}
