@@ -1084,17 +1084,19 @@ public abstract class Downloader
 	
 	public final void stopHandling(Collection<Image> images)
 	{
-		Map<Image, ImageKey> imageToKey = mapping.entrySet()
-		                                         .stream()
-		                                         .filter(e -> e.getValue() != null)
-		                                         .collect(Collectors.toMap(e -> e.getValue().getImage(),
-		                                                                   e -> e.getKey()));
+		Map<Image, List<ImageKey>> imageToKey = mapping.entrySet()
+		                                               .stream()
+		                                               .filter(e -> e.getValue() != null)
+		                                               .collect(Collectors.groupingBy(e -> e.getValue().getImage(),
+		                                                                              Collectors.mapping(e -> e.getKey(),
+		                                                                                                 Collectors.toList())));
 		
 		for (Image image : images)
 		{
-			ImageKey key = imageToKey.get(image);
-			if (key != null)
-				mapping.put(key, null);
+			List<ImageKey> keys = imageToKey.get(image);
+			if (keys != null)
+				for (ImageKey key : keys)
+					mapping.put(key, null);
 		}
 	}
 }
