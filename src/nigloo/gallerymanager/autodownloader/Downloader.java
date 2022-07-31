@@ -36,6 +36,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -243,7 +245,13 @@ public abstract class Downloader
 				postFuture = CompletableFuture.completedFuture(null);
 			}
 			
-			postsDownloads.add(postFuture.thenRun(() -> session.onPostDownloaded(post)));
+			postsDownloads.add(Utils.observe(postFuture, (r, error) -> session.onPostDownloaded(post, error))
+			                        .exceptionally(error ->
+			                        {
+				                        LOGGER.error("Error downloading post " + post + " for " + creatorId + " ("
+				                                + artist.getName() + ") from " + CLASS_TO_TYPE.get(getClass()), error);
+				                        return null;
+			                        }));
 		}
 		
 		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new))
@@ -370,7 +378,10 @@ public abstract class Downloader
 		// TODO init with max_concurrent_streams from http2
 		private final Semaphore maxConcurrentStreams = new Semaphore(10);
 		private final MetronomeTimer requestLimiter = (minDelayBetweenRequests > 0) ? new MetronomeTimer(minDelayBetweenRequests) : null;
-		private ZonedDateTime currentMostRecentPost = mostRecentPostCheckedDate;
+		private final List<PostDownloadResult> postHandledSuccess = new ArrayList<>();
+		private boolean lastPostToCheckReached = false;
+		
+		private record PostDownloadResult(ZonedDateTime postPublishedDatetime, boolean success) {}
 		
 		private final List<Image> imagesAdded = new ArrayList<>();
 		private final Map<String, Object> extraInfo = Collections.synchronizedMap(new HashMap<>());
@@ -427,36 +438,30 @@ public abstract class Downloader
 			maxConcurrentStreams.acquire();
 			if (requestLimiter != null)
 				requestLimiter.waitNextTick();
-			return httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler))
-			                 .handle((response, error) ->
-			                 {
-				                 maxConcurrentStreams.release();
-				                 if (error != null)
-					                 return CompletableFuture.<HttpResponse<T>>failedFuture(error);
-				                 else
-				                 {
-					                 logResponse(response);
-					                 return CompletableFuture.completedFuture(response);
-				                 }
-			                 })
-			                 .thenCompose(f -> f);
+			return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
+			                     (response, error) ->
+			                     {
+				                     maxConcurrentStreams.release();
+				                     if (error == null)
+					                     logResponse(response);
+			                     });
 		}
 		
 		private boolean stopCheckingPost(ZonedDateTime publishedDatetime)
 		{
 			synchronized (Downloader.this)
 			{
-				return mostRecentPostCheckedDate != null && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
-				        && !checkAllPost;
+				lastPostToCheckReached = mostRecentPostCheckedDate != null
+				        && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0 && !checkAllPost;
+				return lastPostToCheckReached;
 			}
 		}
 		
-		private void onPostDownloaded(Post post)
+		private void onPostDownloaded(Post post, Throwable error)
 		{
 			synchronized (this)
 			{
-				if (currentMostRecentPost == null || currentMostRecentPost.isBefore(post.publishedDatetime()))
-					currentMostRecentPost = post.publishedDatetime();
+				postHandledSuccess.add(new PostDownloadResult(post.publishedDatetime(), error == null));
 			}
 		}
 		
@@ -464,9 +469,20 @@ public abstract class Downloader
 		{
 			synchronized (Downloader.this)
 			{
-				if (currentMostRecentPost != null && (mostRecentPostCheckedDate == null
-				        || mostRecentPostCheckedDate.isBefore(currentMostRecentPost)))
-					mostRecentPostCheckedDate = currentMostRecentPost;
+				if (!lastPostToCheckReached)
+					return;
+				
+				Optional<ZonedDateTime> firstBadPostDate = postHandledSuccess.stream()
+				                                                             .filter(r -> !r.success())
+				                                                             .map(r -> r.postPublishedDatetime())
+				                                                             .min(Comparator.naturalOrder());
+				mostRecentPostCheckedDate = postHandledSuccess.stream()
+				                                              .filter(r -> r.success())
+				                                              .map(r -> r.postPublishedDatetime())
+				                                              .filter(date -> firstBadPostDate.map(date::isBefore)
+				                                                                              .orElse(true))
+				                                              .max(Comparator.naturalOrder())
+				                                              .orElse(mostRecentPostCheckedDate);
 			}
 		}
 	}
