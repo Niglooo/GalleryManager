@@ -572,13 +572,17 @@ public class UIController extends Application
 		{
 			gallery = gson().fromJson(reader, Gallery.class);
 		}
-		gallery.setRootFolder(galleryFile.getParent());
-		gallery.finishConstruct();
+		gallery.postConstruct(galleryFile.getParent());
 	}
 	
 	@FXML
 	public void saveGallery() throws IOException
 	{
+		if (!gallery.isValide()) {
+			LOGGER.error("Cannot save gallery because it's invalid", gallery.getValidationError());
+			return;
+		}
+		
 		LOGGER.info("Saving gallery {}", galleryFile);
 		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
 		                                   .format(Instant.now().atZone(ZoneId.systemDefault()));

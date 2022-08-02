@@ -27,6 +27,10 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 
 import nigloo.gallerymanager.autodownloader.Downloader;
+import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration;
+import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.DownloadFiles;
+import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration.DownloadImages;
+import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration;
 import nigloo.tool.Utils;
 import nigloo.tool.collection.WeakIdentityHashSet;
 
@@ -36,45 +40,102 @@ public final class Gallery
 	private static final Path PATH_WILDCARD = Paths.get("{wildcard}");
 	
 	private transient Path rootFolder;
-	
-	private List<Artist> artists = new ArrayList<>();
-	private List<Image> images = new ArrayList<>();
-	private List<Tag> tags = new ArrayList<>();
-	private FileFolderOrder defaultSortOrder = new FileFolderOrder(SortBy.NAME, 0, true);
+	// Explicitly specify ArrayList/HashMap to ensure they're not read-only
+	private ArrayList<Artist> artists;
+	private ArrayList<Image> images;
+	private ArrayList<Tag> tags;
+	private FileFolderOrder defaultSortOrder;
 	@JsonAdapter(SortOrderSerializer.class)
-	private Map<Path, FileFolderOrder> sortOrder = new HashMap<>();
-	private SlideShowParameters slideShowParameter = new SlideShowParameters();
-	private List<Script> scripts = new ArrayList<>();
+	private HashMap<Path, FileFolderOrder> sortOrder;
+	private SlideShowParameters slideShowParameter;
+	private ArrayList<Script> scripts;
 	
+	private transient Exception validationError = new RuntimeException("Not validated");
 	private transient long nextId = 1;
 	transient WeakIdentityHashSet<ImageReference> allImageReferences = new WeakIdentityHashSet<>();
 	transient WeakIdentityHashSet<TagReference> allTagReferences = new WeakIdentityHashSet<>();
 	
 	/*
-	 * Need to be called just after deserialization
+	 * MUST be called just after deserialization
 	 */
-	public void finishConstruct()
+	public void postConstruct(Path rootFolder)
 	{
-		//TODO validate (if downloader.config.dowload = YES assert pathPattern != null)
-		
-		nextId = images.stream().mapToLong(Image::getId).max().orElse(0) + 1;
-		
-		for (Artist artist : artists)
-			for (Downloader autoDownloader : artist.getAutodownloaders())
-				autoDownloader.setArtist(artist);
+		try {
+			
+			this.rootFolder = rootFolder;
+			// Default values
+			if (artists == null)
+				artists = new ArrayList<>();
+			if (images == null)
+				images = new ArrayList<>();
+			if (tags == null)
+				tags = new ArrayList<>();
+			if (defaultSortOrder == null)
+				defaultSortOrder = new FileFolderOrder(SortBy.NAME, 0, true);
+			if (sortOrder == null)
+				sortOrder = new HashMap<>();
+			if (slideShowParameter == null)
+				slideShowParameter = new SlideShowParameters();
+			if (scripts == null)
+				scripts = new ArrayList<>();
+			
+			// Validation
+			if (rootFolder == null)
+				throw new NullPointerException("rootFolder cannot be null");
+			if (!rootFolder.isAbsolute())
+				throw new NullPointerException("rootFolder must be absolute");
+			
+			if (!Double.isFinite(slideShowParameter.getAutoplayDelay()))
+					throw new NullPointerException("slideShowParameter.autoplayDelay must be finite");
+			if (slideShowParameter.getAutoplayDelay() <= 0)
+				throw new NullPointerException("slideShowParameter.autoplayDelay must be strictly positive");
+			
+			for (Artist artist : artists)
+			{
+				for (Downloader autoDownloader : artist.getAutodownloaders())
+				{
+					autoDownloader.setArtist(artist);
+					
+					ImagesConfiguration imageConfiguration = autoDownloader.getImageConfiguration();
+					if (imageConfiguration != null && imageConfiguration.getDownload() != null && imageConfiguration.getDownload() != DownloadImages.NO && 
+							Utils.isBlank(imageConfiguration.getPathPattern()))
+					{
+						throw new IllegalStateException("Missing imageConfiguration.pathPattern for "+autoDownloader);
+					}
+					
+					FilesConfiguration fileConfiguration = autoDownloader.getFileConfiguration();
+					if (fileConfiguration != null && fileConfiguration.getDownload() != null && fileConfiguration.getDownload() != DownloadFiles.NO && 
+							Utils.isBlank(fileConfiguration.getPathPattern()))
+					{
+						throw new IllegalStateException("Missing fileConfiguration.pathPattern for "+autoDownloader);
+					}
+				}
+			}
+			
+			nextId = images.stream().mapToLong(Image::getId).max().orElse(0) + 1;
+			
+			validationError = null;
+		}
+		catch (Exception e) {
+			validationError = e;
+			LOGGER.error("Error during gallery post construct", e);
+			throw Utils.asRunTimeException(e);
+		}
+	}
+	
+	public boolean isValide()
+	{
+		return validationError == null;
+	}
+	
+	public Exception getValidationError()
+	{
+		return validationError;
 	}
 	
 	public Path getRootFolder()
 	{
 		return rootFolder;
-	}
-	
-	public void setRootFolder(Path rootFolder)
-	{
-		if (this.rootFolder != null)
-			throw new IllegalStateException("rootFolder already set (" + rootFolder + ")");
-		
-		this.rootFolder = rootFolder;
 	}
 	
 	public Path toRelativePath(Path path)

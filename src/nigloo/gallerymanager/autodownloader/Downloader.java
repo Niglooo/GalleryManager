@@ -155,22 +155,17 @@ public abstract class Downloader
 		this.creatorId = creatorId;
 	}
 	
-	public final Artist getArtist()
+	@Override
+	public String toString()
 	{
-		return artist;
-	}
-	
-	public final void setArtist(Artist artist)
-	{
-		this.artist = artist;
+		return creatorId + " (" + (artist == null ? "no_artist" : artist.getName()) + ") from "
+		        + CLASS_TO_TYPE.get(getClass());
 	}
 	
 	public final void download(Properties secrets, boolean checkAllPost) throws Exception
 	{
-		LOGGER.info("Download for {} ({}) from {} with pattern {}",
-		            creatorId,
-		            artist.getName(),
-		            CLASS_TO_TYPE.get(getClass()),
+		LOGGER.info("Download for {} with pattern {}",
+		            this,
 		            imageConfiguration != null && imageConfiguration.pathPattern != null
 		                    ? imageConfiguration.pathPattern
 		                    : fileConfiguration != null && fileConfiguration.pathPattern != null
@@ -275,7 +270,7 @@ public abstract class Downloader
 		}
 	}
 	
-	protected static class ImagesConfiguration
+	public static class ImagesConfiguration
 	{
 		public enum DownloadImages
 		{
@@ -308,7 +303,7 @@ public abstract class Downloader
 		}
 	}
 	
-	protected static class FilesConfiguration
+	public static class FilesConfiguration
 	{
 		public enum DownloadFiles
 		{
@@ -344,6 +339,16 @@ public abstract class Downloader
 		public void setPathPattern(String pathPattern)
 		{
 			this.pathPattern = pathPattern;
+		}
+
+		public AutoExtractZip getAutoExtractZip()
+		{
+			return autoExtractZip;
+		}
+
+		public void setAutoExtractZip(AutoExtractZip autoExtractZip)
+		{
+			this.autoExtractZip = autoExtractZip;
 		}
 	}
 	
@@ -1114,5 +1119,35 @@ public abstract class Downloader
 				for (ImageKey key : keys)
 					mapping.put(key, null);
 		}
+	}
+	
+	public final Artist getArtist()
+	{
+		return artist;
+	}
+	
+	public final void setArtist(Artist artist)
+	{
+		this.artist = artist;
+	}
+	
+	public final ImagesConfiguration getImageConfiguration()
+	{
+		return imageConfiguration;
+	}
+
+	public final void setImageConfiguration(ImagesConfiguration imageConfiguration)
+	{
+		this.imageConfiguration = imageConfiguration;
+	}
+
+	public final FilesConfiguration getFileConfiguration()
+	{
+		return fileConfiguration;
+	}
+
+	public final void setFileConfiguration(FilesConfiguration fileConfiguration)
+	{
+		this.fileConfiguration = fileConfiguration;
 	}
 }
