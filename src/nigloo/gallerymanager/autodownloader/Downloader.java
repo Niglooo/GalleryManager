@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -37,7 +38,6 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -162,7 +162,7 @@ public abstract class Downloader
 		        + CLASS_TO_TYPE.get(getClass());
 	}
 	
-	public final void download(Properties secrets, boolean checkAllPost) throws Exception
+	public final void download(Properties secrets, DownloadOption... options) throws Exception
 	{
 		LOGGER.info("Download for {} with pattern {}",
 		            this,
@@ -172,7 +172,7 @@ public abstract class Downloader
 		                            ? fileConfiguration.pathPattern
 		                            : "[none]");
 		
-		DownloadSession session = new DownloadSession(secrets, checkAllPost);
+		DownloadSession session = new DownloadSession(secrets, options);
 		
 		onStartDownload(session);
 		Iterator<Post> postIt = listPosts(session);
@@ -392,12 +392,19 @@ public abstract class Downloader
 		private final Map<String, Object> extraInfo = Collections.synchronizedMap(new HashMap<>());
 		
 		private final Properties secrets;
-		private final boolean checkAllPost;
+		private final EnumSet<DownloadOption> options;
 		
-		public DownloadSession(Properties secrets, boolean checkAllPost)
+		public DownloadSession(Properties secrets, DownloadOption[] options)
 		{
 			this.secrets = secrets;
-			this.checkAllPost = checkAllPost;
+			this.options = EnumSet.noneOf(DownloadOption.class);
+			if (options != null)
+				this.options.addAll(List.of(options));
+		}
+		
+		public boolean has(DownloadOption option)
+		{
+			return options.contains(option);
 		}
 		
 		public String getSecret(String key)
@@ -457,7 +464,8 @@ public abstract class Downloader
 			synchronized (Downloader.this)
 			{
 				lastPostToCheckReached = mostRecentPostCheckedDate != null
-				        && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0 && !checkAllPost;
+				        && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
+				        && !options.contains(DownloadOption.CHECK_ALL_POST);
 				return lastPostToCheckReached;
 			}
 		}
@@ -592,8 +600,13 @@ public abstract class Downloader
 				if (imageReference == null)
 					image = saveInGallery(session, post.id(), postImage.id(), postImage.tags(), imageDest);
 				else
+				{
 					image = imageReference.getImage();
-				saveInGallery(session, post.id(), postImage.id(), postImage.tags(), image.getAbsolutePath());//TODO remove update tags on saved images
+					if (session.has(DownloadOption.UPDATE_IMAGES_ALREADY_DOWNLOADED))
+					{
+						saveInGallery(session, post.id(), postImage.id(), postImage.tags(), image.getAbsolutePath());
+					}
+				}
 				
 				return CompletableFuture.completedFuture(image);
 			}
@@ -654,7 +667,7 @@ public abstract class Downloader
 			
 			request = HttpRequest.newBuilder().uri(new URI(file.url())).GET().headers(getHeardersForFileDownload(session, file)).build();
 			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
-			              .thenAccept(response -> unZip(response.body()));
+			              .thenAccept(response -> unZip(session, post, file, response.body()));
 		}
 		catch (Exception e)
 		{
@@ -662,7 +675,7 @@ public abstract class Downloader
 		}
 	}
 	
-	private void unZip(Path filePath)
+	private void unZip(DownloadSession session, Post post, PostFile file, Path filePath)
 	{
 		String filename = filePath.getFileName().toString();
 		
@@ -726,12 +739,7 @@ public abstract class Downloader
 					
 					if (Image.isImage(entryPath))
 					{
-						Image image = gallery.getImage(entryPath);
-						if (image.isNotSaved())
-						{
-							image.addTag(artist.getTag());
-							gallery.saveImage(image);
-						}
+						saveInGallery(session, post.id, file.id, zipEntry.getName(), file.tags, entryPath);
 					}
 				}
 				zipEntry = zis.getNextEntry();
@@ -797,16 +805,38 @@ public abstract class Downloader
 			gallery.saveImage(image);
 			session.imagesAdded.add(image);
 		}
-		else {//TODO remove update tags on saved images
-		image.getTags().forEach(image::removeTag);
-		image.addTag(artist.getTag());
-		addTags(image, tags);
+		else if (session.has(DownloadOption.UPDATE_IMAGES_ALREADY_DOWNLOADED))
+		{
+			image.getTags().forEach(image::removeTag);
+			image.addTag(artist.getTag());
+			addTags(image, tags);
 		}
 		
 		ImageReference ref = new ImageReference(image);
 		
 		ImageKey imagekey = new ImageKey(postId, imageId);
 		mapping.put(imagekey, ref);
+		
+		return image;
+	}
+	
+	private Image saveInGallery(DownloadSession session, String postId, String fileId, String pathInZip, Collection<String> tags, Path path)
+	{
+		Image image = gallery.getImage(path);
+		if (image.isNotSaved())
+		{
+			image.addTag(artist.getTag());
+			addTags(image, tags);
+			
+			gallery.saveImage(image);
+			session.imagesAdded.add(image);
+		}
+		else if (session.has(DownloadOption.UPDATE_IMAGES_ALREADY_DOWNLOADED))
+		{
+			image.getTags().forEach(image::removeTag);
+			image.addTag(artist.getTag());
+			addTags(image, tags);
+		}
 		
 		return image;
 	}
