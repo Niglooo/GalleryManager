@@ -74,6 +74,7 @@ import nigloo.gallerymanager.model.Script.AutoExecution;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
 import nigloo.gallerymanager.ui.util.VScrollablePane;
 import nigloo.tool.StopWatch;
 import nigloo.tool.gson.DateTimeAdapter;
@@ -82,6 +83,7 @@ import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.gson.PatternTypeAdapter;
 import nigloo.tool.gson.RecordsTypeAdapterFactory;
 import nigloo.tool.injection.Injector;
+import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
 import nigloo.tool.javafx.FXUtils;
@@ -115,11 +117,18 @@ public class UIController extends Application
 	private TabPane scriptEditors;
 	
 	@FXML
+	private Pane statusBar;
+	@FXML
 	private Label statusBarText;
+	@FXML
+	private Node statusBarDownloadIndicator;
 	
 	private static Path galleryFile = null;
 	
 	private Gallery gallery;
+	
+	@Inject
+	private DownloadsProgressViewDialog downloadsProgressDialog;
 	
 	public UIController()
 	{
@@ -160,6 +169,8 @@ public class UIController extends Application
 		singletonCtx.setSingletonInstance(UIController.class, this);
 		singletonCtx.setSingletonInstance(Gallery.class, new Gallery());
 		
+		Injector.init(this);
+		
 		openGallery();
 		
 //		gallery.compactIds();
@@ -198,6 +209,8 @@ public class UIController extends Application
 		});
 		scriptEditors.getTabs().add(addTab);
 		
+		downloadsProgressDialog.downloadActiveProperty().addListener((obs, oldValue, newValue) -> updateStatusBar());
+		updateStatusBar();
 		
 		thumbnailUpdater = new ThumbnailUpdaterThread(500);
 		thumbnailUpdater.start();
@@ -563,6 +576,15 @@ public class UIController extends Application
 		
 		String selectedElementsText = messageFormat.format(new Object[] { nbItems, nbItemsSelected });
 		statusBarText.setText(selectedElementsText);
+		
+		
+		
+		Map<Boolean, String> downloadIndicatorStyleClasses = Map.of(true, "download-active-icon", false, "download-inactive-icon");
+		
+		statusBarDownloadIndicator.getStyleClass().removeAll(downloadIndicatorStyleClasses.values());
+		statusBarDownloadIndicator.getStyleClass()
+		                          .add(downloadIndicatorStyleClasses.get(downloadsProgressDialog.downloadActiveProperty()
+		                                                                                        .get()));
 	}
 	
 	private void openGallery() throws IOException
@@ -666,6 +688,16 @@ public class UIController extends Application
 	public void newDirectoryIn(Path parentDirectory, boolean editInView)
 	{
 		fileSystemTreeManager.newDirectoryIn(parentDirectory, editInView);
+	}
+	
+	@FXML
+	public void showDownloadsProgress(MouseEvent event)
+	{
+		if (event.getButton() == MouseButton.PRIMARY)
+		{
+			downloadsProgressDialog.show();
+			downloadsProgressDialog.toFront();
+		}
 	}
 	
 	private Tab newScriptEditorTab(Script script)

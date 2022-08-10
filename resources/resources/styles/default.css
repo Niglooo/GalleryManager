@@ -94,6 +94,65 @@
     -fx-icon-code: bi-play-fill;
 }
 
+.download-progress-dialog-content .button-bar
+{
+    -fx-padding: 3px;
+    -fx-spacing: 3px;
+}
+
+.clear-icon
+{
+    -fx-icon-code: ci-error;
+}
+
+
+.session-icon
+{
+    -fx-icon-code: bi-cloud-download;
+}
+
+.post-icon
+{
+    -fx-icon-code: bi-folder;
+}
+
+.image-icon
+{
+    -fx-icon-code: bi-file-earmark-image;
+}
+
+.zip-icon
+{
+    -fx-icon-code: bi-file-earmark-zip;
+}
+
+.other-file-icon
+{
+    -fx-icon-code: bi-file-earmark;
+}
+
+.download-in-progress-icon
+{
+    -fx-icon-code: bi-arrow-repeat;
+}
+
+.download-complete-icon
+{
+    -fx-icon-code: bi-check;
+    -fx-icon-color: GREEN;
+}
+
+.download-error-icon
+{
+    -fx-icon-code: bi-x;
+    -fx-icon-color: RED;
+}
+
+.download-status-cell .ikonli-font-icon
+{
+    -fx-icon-size: 15;
+}
+
 .script-text-input, .script-output
 {
     -fx-font-family: monospace;
@@ -108,6 +167,18 @@
     -fx-padding: 3px;
     -fx-border-width: 1px;
     -fx-border-color: lightgrey;
+    -fx-alignment: center-left;
+}
+
+.download-active-icon
+{
+    -fx-icon-code: bi-cloud-download;
+    -fx-icon-size: 12;
+}
+.download-inactive-icon
+{
+    -fx-icon-code: bi-cloud-slash;
+    -fx-icon-size: 12;
 }
 
 

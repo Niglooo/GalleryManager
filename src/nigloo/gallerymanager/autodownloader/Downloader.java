@@ -8,12 +8,14 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.ResponseInfo;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -38,12 +40,14 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -83,8 +87,11 @@ import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.ImageReference;
 import nigloo.gallerymanager.model.Tag;
+import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
 import nigloo.tool.MetronomeTimer;
 import nigloo.tool.Utils;
+import nigloo.tool.http.DownloadListener;
+import nigloo.tool.http.MonitorBodyHandler;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
@@ -127,6 +134,8 @@ public abstract class Downloader
 	
 	@Inject
 	protected transient Gallery gallery;
+	@Inject
+	private transient DownloadsProgressViewDialog downloadsProgressView;
 	
 	protected transient Artist artist;
 	
@@ -137,7 +146,7 @@ public abstract class Downloader
 	
 	protected ImagesConfiguration imageConfiguration;
 	protected FilesConfiguration fileConfiguration;
-	
+	//FIXME make mapping thread-safe
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Map<ImageKey, ImageReference> mapping = new LinkedHashMap<>();
 	// TODO replace by Map<ImageKey, DownloadedItem> where DownloadedItem can be a
@@ -162,7 +171,7 @@ public abstract class Downloader
 		        + CLASS_TO_TYPE.get(getClass());
 	}
 	
-	public final void download(Properties secrets, DownloadOption... options) throws Exception
+	public final CompletableFuture<?> download(Properties secrets, DownloadOption... options)
 	{
 		LOGGER.info("Download for {} with pattern {}",
 		            this,
@@ -172,86 +181,107 @@ public abstract class Downloader
 		                            ? fileConfiguration.pathPattern
 		                            : "[none]");
 		
+		DownloadImages downloadImages = imageConfiguration != null && imageConfiguration.download != null ? imageConfiguration.download : DownloadImages.NO;
+		DownloadFiles downloadFiles = fileConfiguration != null && fileConfiguration.download != null ? fileConfiguration.download : DownloadFiles.NO;
+		
 		DownloadSession session = new DownloadSession(secrets, options);
+		downloadsProgressView.newSession(session.id, this.toString());
 		
-		onStartDownload(session);
-		Iterator<Post> postIt = listPosts(session);
-		
-		final Collection<CompletableFuture<?>> postsDownloads = new ArrayList<>();
-		while (postIt.hasNext())
+		try
 		{
-			Post post = postIt.next();
+			onStartDownload(session);
+			Iterator<Post> postIt = listPosts(session);
+			//TODO download posts from oldest to newest
+			final List<Post> postsToDownload = new ArrayList<>();
+			final Collection<CompletableFuture<?>> postsFutures = new ArrayList<>();
 			
-			if (session.stopCheckingPost(post.publishedDatetime()))
-				break;
-			
-			if (titleFilterRegex != null && !titleFilterRegex.matcher(post.title()).matches())
-				continue;
-			
-			DownloadImages downloadImages = imageConfiguration != null && imageConfiguration.download != null ? imageConfiguration.download : DownloadImages.NO;
-			DownloadFiles downloadFiles = fileConfiguration != null && fileConfiguration.download != null ? fileConfiguration.download : DownloadFiles.NO;
-			
-			CompletableFuture<List<PostImage>> listImagesFuture = (downloadImages == DownloadImages.YES ||
-			                                                       downloadImages == DownloadImages.IF_NO_FILES ||
-			                                                       downloadFiles == DownloadFiles.IF_NO_IMAGES)
-			                ? listImages(session, post)
-			                : null;
-			
-			CompletableFuture<List<PostFile>> listFilesFuture = (downloadFiles == DownloadFiles.YES ||
-			                                                     downloadFiles == DownloadFiles.IF_NO_IMAGES ||
-			                                                     downloadImages == DownloadImages.IF_NO_FILES)
-			                ? listFiles(session, post)
-			                : null;
-			
-			CompletableFuture<?> downloadImagesFuture = switch (downloadImages)
+			while (postIt.hasNext())
 			{
-				case YES -> listImagesFuture.thenCompose(images -> downloadImages(session, post, images));
-				case NO -> null;
-				case IF_NO_FILES -> listFilesFuture.thenCompose(files -> files.isEmpty()
-				        ? listImagesFuture.thenCompose(images -> downloadImages(session, post, images))
-				        : CompletableFuture.completedFuture(null));
-			};
-			
-			CompletableFuture<?> downloadFilesFuture = switch (downloadFiles)
-			{
-				case YES -> listFilesFuture.thenCompose(files -> downloadFiles(session, post, files));
-				case NO -> null;
-				case IF_NO_IMAGES -> listImagesFuture.thenCompose(images -> images.isEmpty()
-				        ? listFilesFuture.thenCompose(files -> downloadFiles(session, post, files))
-				        : CompletableFuture.completedFuture(null));
-			};
-			
-			CompletableFuture<?> postFuture;
-			
-			if (downloadImagesFuture != null && downloadFilesFuture != null)
-			{
-				postFuture = CompletableFuture.allOf(downloadImagesFuture, downloadFilesFuture);
-			}
-			else if (downloadImagesFuture != null)
-			{
-				postFuture = downloadImagesFuture;
-			}
-			else if (downloadFilesFuture != null)
-			{
-				postFuture = downloadFilesFuture;
-			}
-			else
-			{
-				postFuture = CompletableFuture.completedFuture(null);
+				Post post = postIt.next();
+				if (session.stopCheckingPost(post.publishedDatetime()))
+					break;
+				
+				if (titleFilterRegex != null && !titleFilterRegex.matcher(post.title()).matches())
+					continue;
+				
+				postsToDownload.add(post);
 			}
 			
-			postsDownloads.add(Utils.observe(postFuture, (r, error) -> session.onPostDownloaded(post, error))
-			                        .exceptionally(error ->
-			                        {
-				                        LOGGER.error("Error downloading post " + post + " for " + creatorId + " ("
-				                                + artist.getName() + ") from " + CLASS_TO_TYPE.get(getClass()), error);
-				                        return null;
-			                        }));
+			for (Post post : postsToDownload)
+			{
+				downloadsProgressView.newPost(session.id, post.id(), post.title(), post.publishedDatetime());
+				
+				CompletableFuture<List<PostImage>> listImagesFuture = (downloadImages == DownloadImages.YES ||
+				                                                       downloadImages == DownloadImages.IF_NO_FILES ||
+				                                                       downloadFiles == DownloadFiles.IF_NO_IMAGES)
+				                ? listImages(session, post)
+				                : null;
+				
+				CompletableFuture<List<PostFile>> listFilesFuture = (downloadFiles == DownloadFiles.YES ||
+				                                                     downloadFiles == DownloadFiles.IF_NO_IMAGES ||
+				                                                     downloadImages == DownloadImages.IF_NO_FILES)
+				                ? listFiles(session, post)
+				                : null;
+				
+				CompletableFuture<?> downloadImagesFuture = switch (downloadImages)
+				{
+					case YES -> listImagesFuture.thenCompose(images -> downloadImages(session, post, images));
+					case NO -> null;
+					case IF_NO_FILES -> listFilesFuture.thenCompose(files -> files.isEmpty()
+					        ? listImagesFuture.thenCompose(images -> downloadImages(session, post, images))
+					        : CompletableFuture.completedFuture(null));
+				};
+				
+				CompletableFuture<?> downloadFilesFuture = switch (downloadFiles)
+				{
+					case YES -> listFilesFuture.thenCompose(files -> downloadFiles(session, post, files));
+					case NO -> null;
+					case IF_NO_IMAGES -> listImagesFuture.thenCompose(images -> images.isEmpty()
+					        ? listFilesFuture.thenCompose(files -> downloadFiles(session, post, files))
+					        : CompletableFuture.completedFuture(null));
+				};
+				
+				CompletableFuture<?> postFuture;
+				
+				if (downloadImagesFuture != null && downloadFilesFuture != null)
+				{
+					postFuture = CompletableFuture.allOf(downloadImagesFuture, downloadFilesFuture);
+				}
+				else if (downloadImagesFuture != null)
+				{
+					postFuture = downloadImagesFuture;
+				}
+				else if (downloadFilesFuture != null)
+				{
+					postFuture = downloadFilesFuture;
+				}
+				else
+				{
+					postFuture = CompletableFuture.completedFuture(null);
+				}
+				
+				postsFutures.add(Utils.observe(postFuture, (r, error) ->
+				{
+					if (error != null)
+						LOGGER.error("Error downloading post " + post + " for " + creatorId + " (" + artist.getName()
+						        + ") from " + CLASS_TO_TYPE.get(getClass()), error);
+					
+					session.onPostDownloaded(post, error);
+				}));
+			}
+			
+			return Utils.observe(CompletableFuture.allOf(postsFutures.toArray(CompletableFuture[]::new)),
+			                     (r, error) ->
+			                     {
+				                     session.onSessionEnd();
+				                     downloadsProgressView.endSession(session.id, error);
+			                     });
 		}
-		
-		CompletableFuture.allOf(postsDownloads.toArray(CompletableFuture[]::new))
-		                 .thenRun(() -> session.onSessionEnd())
-		                 .join();
+		catch (Exception e)
+		{
+			downloadsProgressView.endSession(session.id, e);
+			return CompletableFuture.failedFuture(e);
+		}
 	}
 	
 	public record ImageKey(String postId, String imageId) implements Comparable<ImageKey>
@@ -374,8 +404,48 @@ public abstract class Downloader
 		throw new UnsupportedOperationException(getClass().getSimpleName()+".getHeardersForFileDownload");
 	}
 	
+	public static class HttpException extends RuntimeException
+	{
+		private final URI requestUri;
+		private final int statusCode;
+		private final HttpHeaders headers;
+		private final Object body;
+		
+		private String prettyBody = null;
+		
+		private HttpException(HttpResponse<?> response)
+		{
+			super("Error "+response.statusCode()+" from "+response.request().uri());
+			requestUri = response.request().uri();
+			statusCode = response.statusCode();
+			headers = response.headers();
+			body = response.body();
+		}
+		
+		public String getPrettyBody()
+		{
+			if (prettyBody == null)
+			{
+				prettyBody = prettyToString(body);
+			}
+			
+			return prettyBody;
+		}
+		
+		// @formatter:off
+		public URI getRequestUri() {return requestUri;}
+		public int getStatusCode() {return statusCode;}
+		public HttpHeaders getHeaders() {return headers;}
+		public Object getBody() {return body;}
+		// @formatter:on
+	}
+	
 	protected final class DownloadSession
 	{
+		private static final AtomicLong NEXT_ID = new AtomicLong(1L);
+		
+		private final long id = NEXT_ID.getAndIncrement();
+		
 		private final HttpClient httpClient = HttpClient.newBuilder()
 		                                                .followRedirects(Redirect.NORMAL)
 		                                                .executor(AsyncPools.HTTP_REQUEST)
@@ -426,11 +496,20 @@ public abstract class Downloader
 		        throws IOException,
 		        InterruptedException
 		{
+			return send(request, responseBodyHandler, null);
+		}
+		
+		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler, DownloadListener listener)
+		        throws IOException,
+		        InterruptedException
+		{
 			logRequest(request);
 			HttpResponse<T> response = null;
 			maxConcurrentStreams.acquire();
 			if (requestLimiter != null)
 				requestLimiter.waitNextTick();
+			if (listener != null)
+				responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
 			try
 			{
 				response = httpClient.send(request, MoreBodyHandlers.decoding(responseBodyHandler));
@@ -440,23 +519,38 @@ public abstract class Downloader
 				maxConcurrentStreams.release();
 			}
 			logResponse(response);
+			
+			if (isErrorResponse(response))
+				throw new HttpException(response);
+			
 			return response;
 		}
 		
 		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler)
 		        throws InterruptedException
 		{
+			return sendAsync(request, responseBodyHandler, null);
+		}
+		
+		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler, DownloadListener listener)
+		        throws InterruptedException
+		{
 			logRequest(request);
 			maxConcurrentStreams.acquire();
 			if (requestLimiter != null)
 				requestLimiter.waitNextTick();
+			if (listener != null)
+				responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
 			return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
 			                     (response, error) ->
 			                     {
 				                     maxConcurrentStreams.release();
 				                     if (error == null)
 					                     logResponse(response);
-			                     });
+			                     })
+			            .thenCompose(response -> isErrorResponse(response)
+			                    ? CompletableFuture.failedFuture(new HttpException(response))
+			                    : CompletableFuture.completedFuture(response));
 		}
 		
 		private boolean stopCheckingPost(ZonedDateTime publishedDatetime)
@@ -476,6 +570,8 @@ public abstract class Downloader
 			{
 				postHandledSuccess.add(new PostDownloadResult(post.publishedDatetime(), error == null));
 			}
+			
+			downloadsProgressView.endPost(id, post.id(), error);
 		}
 		
 		private void onSessionEnd()
@@ -567,7 +663,7 @@ public abstract class Downloader
 	{
 		ImageKey imageKey = new ImageKey(post.id(), postImage.id());
 		ImageReference imageReference;
-		Path imageDest;
+		final Path imageDest;
 		
 		synchronized (this)
 		{
@@ -581,15 +677,15 @@ public abstract class Downloader
 			}
 			else
 			{
-				imageDest = makeSafe(imageConfiguration.pathPattern.replace("{creatorId}", creatorId)
-				                                                   .replace("{postId}", post.id())
-				                                                   .replace("{postDate}",
-				                                                            DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-				                                                   .replace("{postTitle}", post.title())
-				                                                   .replace("{imageNumber}",
-				                                                            String.format("%02d", imageNumber))
-				                                                   .replace("{imageFilename}", postImage.filename()));
-				imageDest = gallery.toAbsolutePath(imageDest);
+				// @formatter:off
+				imageDest = gallery.toAbsolutePath(makeSafe(
+					imageConfiguration.pathPattern.replace("{creatorId}", creatorId)
+					                              .replace("{postId}", post.id())
+					                              .replace("{postDate}", DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+					                              .replace("{postTitle}",  post.title())
+					                              .replace("{imageNumber}", String.format("%02d", imageNumber))
+					                              .replace("{imageFilename}", postImage.filename())));
+				// @formatter:on
 				imageReference = null;
 			}
 			
@@ -608,6 +704,9 @@ public abstract class Downloader
 					}
 				}
 				
+				downloadsProgressView.newImage(session.id, post.id(), postImage.id(), imageDest);
+				downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), null);
+				
 				return CompletableFuture.completedFuture(image);
 			}
 		}
@@ -616,7 +715,32 @@ public abstract class Downloader
 			Files.createDirectories(imageDest.getParent());
 			
 			HttpRequest request = HttpRequest.newBuilder().uri(new URI(postImage.url())).GET().headers(getHeardersForImageDownload(session, postImage)).build();
-			return session.sendAsync(request, BodyHandlers.ofFile(imageDest))
+			return session.sendAsync(request, new MonitorBodyHandler<>(BodyHandlers.ofFile(imageDest), new DownloadListener()
+			{
+				@Override
+				public void onStartDownload(ResponseInfo responseInfo)
+				{
+					downloadsProgressView.newImage(session.id, post.id(), postImage.id(), imageDest);
+				}
+				
+				@Override
+				public void onProgress(long nbNewBytes, long nbBytesDownloaded, OptionalLong nbBytesTotal)
+				{
+					downloadsProgressView.updateDownloadProgress(session.id, post.id(), postImage.id(), nbBytesDownloaded, nbBytesTotal);
+				}
+				
+				@Override
+				public void onComplete()
+				{
+					downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), null);
+				}
+				
+				@Override
+				public void onError(Throwable error)
+				{
+					downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), error);
+				}
+			}))
 			              .thenApply(saveInGallery(session, post.id(), postImage.id(), postImage.tags()));
 		}
 		catch (Exception e) {
@@ -646,27 +770,57 @@ public abstract class Downloader
 	                                          PostFile file,
 	                                          int fileNumber)
 	{
-		HttpRequest request = null;
-		Path fileDest = null;
 		try
 		{
-			fileDest = makeSafe(fileConfiguration.pathPattern.replace("{creatorId}", creatorId)
-			                                                 .replace("{postId}", post.id())
-			                                                 .replace("{postDate}",
-			                                                          DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-			                                                 .replace("{postTitle}", post.title())
-			                                                 .replace("{fileNumber} ",
-			                                                          String.format("%02d", fileNumber))
-			                                                 .replace("{filename}", file.filename()));
-			fileDest = gallery.toAbsolutePath(fileDest);
-			
+			// @formatter:off
+			final Path fileDest = gallery.toAbsolutePath(makeSafe(
+				fileConfiguration.pathPattern.replace("{creatorId}", creatorId)
+			                                 .replace("{postId}", post.id())
+			                                 .replace("{postDate}", DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
+			                                 .replace("{postTitle}", post.title())
+			                                 .replace("{fileNumber} ", String.format("%02d", fileNumber))
+			                                 .replace("{filename}", file.filename())));
+			// @formatter:on
 			if (Files.exists(fileDest))
 				return CompletableFuture.completedFuture(null);
 			
 			Files.createDirectories(fileDest.getParent());
 			
-			request = HttpRequest.newBuilder().uri(new URI(file.url())).GET().headers(getHeardersForFileDownload(session, file)).build();
-			return session.sendAsync(request, BodyHandlers.ofFile(fileDest))
+			boolean isZip = isZip(file.filename());
+			
+			HttpRequest request = HttpRequest.newBuilder()
+			                                 .uri(new URI(file.url()))
+			                                 .GET()
+			                                 .headers(getHeardersForFileDownload(session, file))
+			                                 .build();
+			return session.sendAsync(request, BodyHandlers.ofFile(fileDest), new DownloadListener()
+			{
+				public void onStartDownload(java.net.http.HttpResponse.ResponseInfo responseInfo)
+				{
+					if (isZip)
+						downloadsProgressView.newZip(session.id, post.id(), file.id(), fileDest);
+					else
+						downloadsProgressView.newOtherFile(session.id, post.id(), file.id(), fileDest);
+				}
+				
+				@Override
+				public void onProgress(long nbNewBytes, long nbBytesDownloaded, OptionalLong nbBytesTotal)
+				{
+					downloadsProgressView.updateDownloadProgress(session.id, post.id(), file.id(), nbBytesDownloaded, nbBytesTotal);
+				}
+				
+				@Override
+				public void onComplete()
+				{
+					downloadsProgressView.endDownload(session.id, post.id(), file.id(), null);
+				}
+				
+				@Override
+				public void onError(Throwable error)
+				{
+					downloadsProgressView.endDownload(session.id, post.id(), file.id(), error);
+				}
+			})
 			              .thenAccept(response -> unZip(session, post, file, response.body()));
 		}
 		catch (Exception e)
@@ -679,7 +833,7 @@ public abstract class Downloader
 	{
 		String filename = filePath.getFileName().toString();
 		
-		if (!filename.toLowerCase(Locale.ROOT).endsWith(".zip") || fileConfiguration.autoExtractZip == null || fileConfiguration.autoExtractZip == AutoExtractZip.NO)
+		if (!isZip(filename) || fileConfiguration.autoExtractZip == null || fileConfiguration.autoExtractZip == AutoExtractZip.NO)
 			return;
 		
 		LOGGER.debug("Unziping: " + filePath);
@@ -701,8 +855,8 @@ public abstract class Downloader
 				zipEntry= zis.getNextEntry();
 			} catch (Exception e1) {
 				Utils.closeQuietly(zis);
-				zis = new ZipInputStream(Files.newInputStream(filePath), Charset.forName("Shift-JIS"));//TODO check if this is the most common japanese encoding
 				try {
+					zis = new ZipInputStream(Files.newInputStream(filePath), Charset.forName("Shift-JIS"));
 					zipEntry= zis.getNextEntry();
 					
 					String name = zipEntry.getName();
@@ -754,6 +908,11 @@ public abstract class Downloader
 		}
 	}
 	
+	private static final boolean isZip(String filename)
+	{
+		return filename.toLowerCase(Locale.ROOT).endsWith(".zip");
+	}
+	
 	private static final Path makeSafe(String path)
 	{
 		int len = path.length();
@@ -791,7 +950,7 @@ public abstract class Downloader
 	
 	private static boolean isErrorResponse(HttpResponse<?> response)
 	{
-		return response.statusCode() >= 300;
+		return response.statusCode() >= 400;
 	}
 	
 	private synchronized Image saveInGallery(DownloadSession session, String postId, String imageId, Collection<String> tags, Path path)

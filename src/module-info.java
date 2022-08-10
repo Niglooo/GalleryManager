@@ -16,6 +16,7 @@ module nigloo.gallerymanager
 	requires org.apache.logging.log4j;
 	requires org.apache.logging.log4j.core;
 	requires org.jsoup;
+	requires org.kordamp.ikonli.javafx;
 	
 	opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.script;
