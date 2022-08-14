@@ -191,7 +191,7 @@ public abstract class Downloader
 		{
 			onStartDownload(session);
 			Iterator<Post> postIt = listPosts(session);
-			//TODO download posts from oldest to newest
+			
 			final List<Post> postsToDownload = new ArrayList<>();
 			final Collection<CompletableFuture<?>> postsFutures = new ArrayList<>();
 			
@@ -206,6 +206,8 @@ public abstract class Downloader
 				
 				postsToDownload.add(post);
 			}
+			// Download from oldest to newest post so we can save our progress in case of a failure
+			postsToDownload.sort(Comparator.comparing(Post::publishedDatetime));
 			
 			for (Post post : postsToDownload)
 			{
