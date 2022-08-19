@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -202,6 +203,7 @@ public abstract class Downloader
 					continue;
 				
 				postsToDownload.add(post);
+				session.postDownloadResult.put(post, DownloadSession.PostDownloadResult.NOT_CHECKED);
 			}
 			// Download from oldest to newest post so we can save our progress in case of a failure
 			postsToDownload.sort(Comparator.comparing(Post::publishedDatetime));
@@ -565,10 +567,13 @@ public abstract class Downloader
 		// TODO init with max_concurrent_streams from http2
 		private final Semaphore maxConcurrentStreams = new Semaphore(10);
 		private final MetronomeTimer requestLimiter = (minDelayBetweenRequests > 0) ? new MetronomeTimer(minDelayBetweenRequests) : null;
-		private final List<PostDownloadResult> postHandledSuccess = new ArrayList<>();
-		private boolean lastPostToCheckReached = false;
+		private final Map<Post, PostDownloadResult> postDownloadResult = Collections.synchronizedMap(new IdentityHashMap<>());
 		
-		private record PostDownloadResult(ZonedDateTime postPublishedDatetime, boolean success) {}
+		private enum PostDownloadResult {
+			NOT_CHECKED,
+			SUCCESS,
+			ERROR
+		}
 		
 		private final List<Image> imagesAdded = new ArrayList<>();
 		private final Map<String, Object> extraInfo = Collections.synchronizedMap(new HashMap<>());
@@ -669,20 +674,15 @@ public abstract class Downloader
 		{
 			synchronized (Downloader.this)
 			{
-				lastPostToCheckReached = mostRecentPostCheckedDate != null
+				return mostRecentPostCheckedDate != null
 				        && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
 				        && !options.contains(DownloadOption.CHECK_ALL_POST);
-				return lastPostToCheckReached;
 			}
 		}
 		
 		private void onPostDownloaded(Post post, Throwable error)
 		{
-			synchronized (this)
-			{
-				postHandledSuccess.add(new PostDownloadResult(post.publishedDatetime(), error == null));
-			}
-			
+			postDownloadResult.put(post, error != null ? PostDownloadResult.ERROR : PostDownloadResult.SUCCESS);
 			downloadsProgressView.endPost(id, post.id(), error);
 		}
 		
@@ -690,16 +690,18 @@ public abstract class Downloader
 		{
 			synchronized (Downloader.this)
 			{
-				if (!lastPostToCheckReached)
-					return;
-				
-				Optional<ZonedDateTime> firstBadPostDate = postHandledSuccess.stream()
-				                                                             .filter(r -> !r.success())
-				                                                             .map(r -> r.postPublishedDatetime())
+				Optional<ZonedDateTime> firstBadPostDate = postDownloadResult.entrySet()
+				                                                             .stream()
+				                                                             .filter(e -> e.getValue() != PostDownloadResult.SUCCESS)
+				                                                             .map(Entry::getKey)
+				                                                             .map(Post::publishedDatetime)
 				                                                             .min(Comparator.naturalOrder());
-				mostRecentPostCheckedDate = postHandledSuccess.stream()
-				                                              .filter(r -> r.success())
-				                                              .map(r -> r.postPublishedDatetime())
+				
+				mostRecentPostCheckedDate = postDownloadResult.entrySet()
+				                                              .stream()
+				                                              .filter(e -> e.getValue() == PostDownloadResult.SUCCESS)
+				                                              .map(Entry::getKey)
+				                                              .map(Post::publishedDatetime)
 				                                              .filter(date -> firstBadPostDate.map(date::isBefore)
 				                                                                              .orElse(true))
 				                                              .max(Comparator.naturalOrder())
