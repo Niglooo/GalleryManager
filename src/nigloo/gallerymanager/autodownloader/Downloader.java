@@ -792,13 +792,12 @@ public abstract class Downloader
 			else
 			{
 				// @formatter:off
-				imageDest = gallery.toAbsolutePath(makeSafe(
-					imageConfiguration.pathPattern.replace("{creatorId}", creatorId)
-					                              .replace("{postId}", post.id())
-					                              .replace("{postDate}", DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-					                              .replace("{postTitle}",  post.title())
-					                              .replace("{imageNumber}", String.format("%02d", imageNumber))
-					                              .replace("{imageFilename}", postImage.filename())));
+				imageDest = gallery.toAbsolutePath(
+					new PathPatternResolver(imageConfiguration.pathPattern)
+						.withCreatorId(creatorId)
+						.withPost(post)
+						.withImage(postImage, imageNumber)
+						.resolvePath());
 				// @formatter:on
 				imageReference = null;
 			}
@@ -887,13 +886,12 @@ public abstract class Downloader
 		try
 		{
 			// @formatter:off
-			final Path fileDest = gallery.toAbsolutePath(makeSafe(
-				fileConfiguration.pathPattern.replace("{creatorId}", creatorId)
-			                                 .replace("{postId}", post.id())
-			                                 .replace("{postDate}", DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime()))
-			                                 .replace("{postTitle}", post.title())
-			                                 .replace("{fileNumber} ", String.format("%02d", fileNumber))
-			                                 .replace("{filename}", file.filename())));
+			final Path fileDest = gallery.toAbsolutePath(
+				new PathPatternResolver(imageConfiguration.pathPattern)
+					.withCreatorId(creatorId)
+					.withPost(post)
+					.withFile(file, fileNumber)
+					.resolvePath());
 			// @formatter:on
 			if (Files.exists(fileDest))
 				return CompletableFuture.completedFuture(null);
@@ -1035,6 +1033,10 @@ public abstract class Downloader
 		}
 	}
 	
+	private static final Set<Integer> FORBIDDEN_CHARS = "\\/:*?\"<>|".codePoints()
+	                                                                 .mapToObj(cp -> (int) cp)
+	                                                                 .collect(Collectors.toUnmodifiableSet());
+	
 	private static final Path makeSafe(String path)
 	{
 		int len = path.length();
@@ -1043,31 +1045,109 @@ public abstract class Downloader
 		int begin = 0;
 		while(true)
 		{
-			// Skip leading spaces
-			while (begin < len && path.charAt(begin) == ' ')
+			// Skip leading spaces and forbidden characters
+			int cp;
+			while (begin < len && (Character.isWhitespace(cp = path.codePointAt(begin)) || FORBIDDEN_CHARS.contains(cp)))
 				begin++;
 			
+			// Find the end of the current "name" (file/folder name)
 			int endName = begin;
-			char c;
-			while (endName < len && (c = path.charAt(endName)) != '/' && c != '\\')
+			while (endName < len && (cp = path.codePointAt(endName)) != '/' && cp != '\\')
 				endName++;
 			
+			// Skip trailing spaces and forbidden characters
 			int end = endName;
-			while (end > 0 && path.charAt(end - 1) == ' ')
+			while (end > 0 && (Character.isWhitespace(cp = path.codePointAt(end - 1)) || FORBIDDEN_CHARS.contains(cp)))
 				end--;
 			
+			// Append name
 			if (begin <= end)
-				safePath.append(path, begin, end);
+			{
+				// No need to call strip/trim because the first and last characters are guaranteed to be valid.
+				safePath.append(removeForbiddenCharacters(path.substring(begin, end)));
+			}
+			
+			// Append separator
 			if (endName < len)
 			{
 				safePath.append(path.charAt(endName));
 				begin = endName + 1;
 			}
-			else
+			else // No separator = last name
 				break;
 		}
 		
 		return Paths.get(safePath.toString());
+	}
+	
+	private static String removeForbiddenCharacters(String string)
+	{
+		StringBuilder sb = new StringBuilder(string.length());
+		string.codePoints().filter(cp -> !FORBIDDEN_CHARS.contains(cp)).forEachOrdered(sb::appendCodePoint);
+		return sb.toString();
+	}
+	
+	private static class PathPatternResolver
+	{
+		private final String pattern;
+		private final Map<String, String> variables = new HashMap<>();
+		
+		public PathPatternResolver(String pattern)
+		{
+			this.pattern = pattern;
+		}
+
+		private PathPatternResolver withValue(String var, String value)
+		{
+			variables.put(Objects.requireNonNull(var, "var connot be null"),
+			              Objects.requireNonNull(value, "value connot be null"));
+			return this;
+		}
+		
+		public Path resolvePath()
+		{
+			String path = pattern;
+			
+			for (Entry<String, String> entry : variables.entrySet())
+			{
+				// remove forbidden character BEFORE replacing in the path so / and \ don't mess up everything
+				path = path.replace('{'+entry.getKey()+'}', removeForbiddenCharacters(entry.getValue()));
+			}
+			
+			// Still call make to remove leading and trailing spaces in file/folder names
+			return makeSafe(path);
+		}
+		
+		public PathPatternResolver withCreatorId(String creatorId)
+		{
+			return withValue("creatorId", creatorId);
+		}
+		
+		public PathPatternResolver withPost(Post post)
+		{
+			// @formatter:off
+			return withValue("postId", post.id)
+			      .withValue("postDate", DateTimeFormatter.ISO_LOCAL_DATE.format(post.publishedDatetime))
+			      .withValue("postTitle", post.title);
+			// @formatter:on
+		}
+		
+		public PathPatternResolver withImage(PostImage image, int imageNumber)
+		{
+			// @formatter:off
+			return withValue("imageFilename", image.filename)
+			      .withValue("imageNumber", String.format("%02d", imageNumber));
+			// @formatter:on
+		}
+		
+		public PathPatternResolver withFile(PostFile file, int fileNumber)
+		{
+			// @formatter:off
+			return withValue("fileId", file.id)
+			      .withValue("filename", file.filename)
+			      .withValue("fileNumber", String.format("%02d", fileNumber));
+			// @formatter:on
+		}
 	}
 	
 	private static boolean isErrorResponse(HttpResponse<?> response)
