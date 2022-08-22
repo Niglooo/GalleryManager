@@ -887,7 +887,7 @@ public abstract class Downloader
 		{
 			// @formatter:off
 			final Path fileDest = gallery.toAbsolutePath(
-				new PathPatternResolver(imageConfiguration.pathPattern)
+				new PathPatternResolver(fileConfiguration.pathPattern)
 					.withCreatorId(creatorId)
 					.withPost(post)
 					.withFile(file, fileNumber)
