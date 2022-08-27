@@ -128,6 +128,8 @@ public class FanboxDownloader extends Downloader
 				jImages = new JsonArray(0);
 		}
 		
+		List<String> tags = JsonHelper.stream(JsonHelper.followPath(jPost, "tags", JsonArray.class)).map(JsonElement::getAsString).toList();
+		
 		List<PostImage> images = new ArrayList<>(jImages.size());
 		for (JsonElement jImage : jImages)
 		{
@@ -136,7 +138,7 @@ public class FanboxDownloader extends Downloader
 			
 			String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 			
-			images.add(new PostImage(imageId, imageFilename, url, null));
+			images.add(new PostImage(imageId, imageFilename, url, tags));
 		}
 		
 		return CompletableFuture.completedFuture(images);
@@ -168,6 +170,8 @@ public class FanboxDownloader extends Downloader
 				jFiles = new JsonArray(0);
 		}
 		
+		List<String> tags = JsonHelper.stream(JsonHelper.followPath(jPost, "tags", JsonArray.class)).map(JsonElement::getAsString).toList();
+		
 		ArrayList<PostFile> files = new ArrayList<>(jFiles.size());
 		for (JsonElement jfile : jFiles)
 		{
@@ -178,7 +182,7 @@ public class FanboxDownloader extends Downloader
 			
 			String filename = fileNameWithoutExtention+'.'+fileExtention;
 			
-			files.add(new PostFile(fileId, filename, url, null));
+			files.add(new PostFile(fileId, filename, url, tags));
 		}
 		
 		return CompletableFuture.completedFuture(files);
