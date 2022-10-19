@@ -41,6 +41,7 @@ import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -63,7 +64,7 @@ public class DownloadsProgressViewDialog extends Stage
 	private final Map<String, TreeItem<ItemInfo>> idToTreeItem;
 	private final Set<Long> activeSessions = new HashSet<>();
 	private final ReadOnlyBooleanWrapper downloadActive = new ReadOnlyBooleanWrapper(false);
-	
+	//TODO DownloadsProgressViewDialog with FXML
 	@SuppressWarnings("unchecked")
 	public DownloadsProgressViewDialog()
 	{
@@ -139,6 +140,7 @@ public class DownloadsProgressViewDialog extends Stage
 		VBox content = new VBox();
 		content.getStyleClass().add("download-progress-dialog-content");
 		content.getChildren().addAll(buttonBar, tableTree);
+		VBox.setVgrow(tableTree, Priority.ALWAYS);
 		
 		setScene(new Scene(content));
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);

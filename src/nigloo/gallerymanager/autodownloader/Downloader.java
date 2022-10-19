@@ -1034,6 +1034,11 @@ public abstract class Downloader
 					if (Image.isImage(entryPath))
 					{
 						saveInGallery(session, post.id, file.id, zipEntry.getName(), file.tags, entryPath);
+						downloadsProgressView.newImageInZip(session.id, post.id, file.id, zipEntry.getName(), entryPath);
+					}
+					else
+					{
+						downloadsProgressView.newFileInZip(session.id, post.id, file.id, zipEntry.getName(), entryPath);
 					}
 				}
 				zipEntry = zis.getNextEntry();
