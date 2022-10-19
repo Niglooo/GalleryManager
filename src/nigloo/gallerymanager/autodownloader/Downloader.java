@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -674,9 +675,24 @@ public abstract class Downloader
 		{
 			synchronized (Downloader.this)
 			{
-				return mostRecentPostCheckedDate != null
-				        && publishedDatetime.compareTo(mostRecentPostCheckedDate) <= 0
-				        && !options.contains(DownloadOption.CHECK_ALL_POST);
+				if (mostRecentPostCheckedDate == null || options.contains(DownloadOption.CHECK_ALL_POST))
+					return false;
+				
+				int comp = publishedDatetime.compareTo(mostRecentPostCheckedDate);
+				
+				// publishedDatetime before mostRecentPostCheckedDate
+				if (comp < 0)
+					return true;
+				
+				// publishedDatetime == mostRecentPostCheckedDate
+				if (comp == 0) {
+					// Stop check only if not MIDNIGHT (no hour or minutes)
+					// Otherwise it means the precision is only up to the day and we might miss a post.
+					return publishedDatetime.toLocalTime().isAfter(LocalTime.MIDNIGHT);
+				}
+				
+				// publishedDatetime after mostRecentPostCheckedDate
+				return false;
 			}
 		}
 		
