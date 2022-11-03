@@ -3,6 +3,7 @@ package nigloo.gallerymanager.script;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,17 +41,17 @@ public class ScriptAPI implements AutoCloseable
 	
 	public CompletableFuture<Void> asyncRefreshFileSystem(Collection<Path> paths, boolean deep)
 	{
-		return uiController.refreshFileSystem(paths, deep);
+		return uiController.refreshFileSystem(toAbsolute(paths), deep);
 	}
 	
 	public CompletableFuture<Void> asyncSynchronizeFileSystem(Collection<Path> paths, boolean deep)
 	{
-		return uiController.synchronizeFileSystem(paths, deep);
+		return uiController.synchronizeFileSystem(toAbsolute(paths), deep);
 	}
 	
 	public CompletableFuture<Void> asyncDelete(Collection<Path> paths, boolean deleteOnDisk)
 	{
-		return uiController.delete(paths, deleteOnDisk);
+		return uiController.delete(toAbsolute(paths), deleteOnDisk);
 	}
 	
 	public void printStackTrace(Throwable t)
@@ -68,5 +69,17 @@ public class ScriptAPI implements AutoCloseable
 	public void close()
 	{
 		ScriptOutputAppender.stopRedirectingTo(output);
+	}
+	
+	private Collection<Path> toAbsolute(Collection<Path> paths)
+	{
+		if (paths == null)
+			return null;
+		
+		ArrayList<Path> absPaths = new ArrayList<>(paths.size());
+		for (Path path : paths)
+			absPaths.add(gallery.toAbsolutePath(path));
+		
+		return absPaths;
 	}
 }
