@@ -140,6 +140,7 @@ public abstract class Downloader
 		register("PIXIV", PixivDownloader.class);
 		register("TWITTER", TwitterDownloader.class);
 		register("MASONRY", MasonryDownloader.class);
+		register("PATREON", PatreonDownloader.class);
 	}
 	
 	@Inject
