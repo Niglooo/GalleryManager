@@ -106,7 +106,7 @@ public class MasonryDownloader extends Downloader
 				                                           .atTime(0, 0, 0)
 				                                           .atZone(ZoneOffset.UTC);
 				loaded.add(postId);
-				return new Post(postId, postTitle, publishedDatetime, new MasonryPostExtraInfo(postUrl, tags));
+				return Post.create(postId, postTitle, publishedDatetime, new MasonryPostExtraInfo(postUrl, tags));
 			}).iterator();
 			
 			if (postsIt.hasNext())
@@ -136,7 +136,7 @@ public class MasonryDownloader extends Downloader
 			                                   String url = imageElement.attr("href");
 			                                   String filename = imageElement.selectFirst("img").attr("title");
 			                                   String extension = url.substring(url.lastIndexOf('.'));
-			                                   return new PostImage(imageId, filename + extension, url, extraInfo.tags());
+			                                   return PostImage.create(imageId, filename + extension, url, extraInfo.tags());
 		                                   })
 		                                   .toList());
 	}

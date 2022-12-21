@@ -135,7 +135,7 @@ public class TwitterDownloader extends Downloader
 				                                                            ZonedDateTime::from);
 				JsonArray images = JsonHelper.followPath(post, "legacy.entities.media", JsonArray.class);
 				
-				return new Post(postId, postId, publishedDatetime, images);
+				return Post.create(postId, postId, publishedDatetime, images);
 			}
 			else if (nextPageUrl != null)
 			{
@@ -200,7 +200,7 @@ public class TwitterDownloader extends Downloader
 			String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 			String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 			
-			return new PostImage(imageId, imageFilename, url, null);
+			return PostImage.create(imageId, imageFilename, url, null);
 		}).toList());
 	}
 

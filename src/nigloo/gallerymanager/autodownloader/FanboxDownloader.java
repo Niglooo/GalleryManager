@@ -75,7 +75,7 @@ public class FanboxDownloader extends Downloader
 				String postTitle = JsonHelper.followPath(post, "title");
 				ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "publishedDatetime"));
 				
-				return new Post(postId, postTitle, publishedDatetime, post);
+				return Post.create(postId, postTitle, publishedDatetime, post);
 			}
 			else if (nextPageUrl != null)
 			{
@@ -138,7 +138,7 @@ public class FanboxDownloader extends Downloader
 			
 			String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 			
-			images.add(new PostImage(imageId, imageFilename, url, tags));
+			images.add(PostImage.create(imageId, imageFilename, url, tags));
 		}
 		
 		return CompletableFuture.completedFuture(images);
@@ -182,7 +182,7 @@ public class FanboxDownloader extends Downloader
 			
 			String filename = fileNameWithoutExtention+'.'+fileExtention;
 			
-			files.add(new PostFile(fileId, filename, url, tags));
+			files.add(PostFile.create(fileId, filename, url, tags));
 		}
 		
 		return CompletableFuture.completedFuture(files);

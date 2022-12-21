@@ -103,7 +103,7 @@ public class PixivDownloader extends Downloader
 			String postTitle = JsonHelper.followPath(post, "title");
 			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "createDate"));
 			
-			return new Post(postId, postTitle, publishedDatetime, null);
+			return Post.create(postId, postTitle, publishedDatetime, null);
 		}
 	}
 	
@@ -143,7 +143,7 @@ public class PixivDownloader extends Downloader
 				String imageFilename = url.substring(url.lastIndexOf('/') + 1);
 				String imageId = imageFilename.substring(0, imageFilename.lastIndexOf('.'));
 				
-				return new PostImage(imageId, imageFilename, url, tags);
+				return PostImage.create(imageId, imageFilename, url, tags);
 			}).toList();
 		});
 	}

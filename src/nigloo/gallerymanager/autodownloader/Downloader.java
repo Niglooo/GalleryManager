@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.lang.Character.UnicodeBlock;
 import java.lang.reflect.Type;
 import java.net.HttpCookie;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
@@ -497,9 +499,55 @@ public abstract class Downloader
 		}
 	}
 	
-	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo){}
-	protected record PostImage(String id, String filename, String url, Collection<String> tags) {}
-	protected record PostFile(String id, String filename, String url, Collection<String> tags) {}
+	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
+		public static Post create(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
+			if (Utils.isBlank(id))
+				throw new IllegalArgumentException("id cannot be empty");
+			if (Utils.isBlank(title))
+				title = "";
+			if (publishedDatetime == null)
+				throw new IllegalArgumentException("publishedDatetime cannot be null");
+			
+			return new Post(id, title, publishedDatetime, extraInfo);
+		}
+	}
+	protected record PostImage(String id, String filename, String url, Collection<String> tags) {
+		public static PostImage create(String id, String filename, String url, Collection<String> tags) {
+			String newFilename = validate(id, filename, url, tags);
+			return new PostImage(id, newFilename, url, tags);
+		}
+	}
+	protected record PostFile(String id, String filename, String url, Collection<String> tags) {
+		public static PostFile create(String id, String filename, String url, Collection<String> tags) {
+			String newFilename = validate(id, filename, url, tags);
+			return new PostFile(id, newFilename, url, tags);
+		}
+	}
+	
+	static private String validate(String id, String filename, String url, Collection<String> tags) {
+		if (Utils.isBlank(id))
+			throw new IllegalArgumentException("Id cannot be empty");
+		
+		URL parsedURL;
+		try {
+			parsedURL = new URL(url);
+		}
+		catch (MalformedURLException e) {
+			throw new IllegalArgumentException("Bad URL \"" + url + "\"", e);
+		}
+		
+		boolean badFilename = Utils.isBlank(filename);
+		try {
+			new URL(filename);
+			badFilename = true;
+		} catch (MalformedURLException ignored){}
+		// If the filename is bad, extract one for the URL
+		if (badFilename) {
+			filename = Paths.get(parsedURL.getPath()).getFileName().toString();
+		}
+		
+		return filename;
+	}
 	
 	protected void onStartDownload(DownloadSession session) throws Exception {}
 	
