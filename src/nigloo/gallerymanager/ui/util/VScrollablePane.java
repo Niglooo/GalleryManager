@@ -124,7 +124,7 @@ public class VScrollablePane extends Region
 		};
 		
 		focusSelectionManager = new GridFocusSelectionManager<>(tiles);
-		
+		//FIXME thumbnail view steals focus from file system view
 		applyFocusListener = (obs, oldValue, newValue) ->
 		{
 			if (newValue == null)

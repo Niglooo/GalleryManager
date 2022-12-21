@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectPropertyBase;
 import javafx.geometry.Insets;
@@ -212,7 +213,7 @@ public class SlideShowStage extends Stage
 	{
 		return currentImageProperty.get();
 	}
-	
+	//TODO add "nextPost" (go to next sibling folder
 	public void next()
 	{
 		autoplay.jumpTo(Duration.ZERO);
@@ -328,9 +329,11 @@ public class SlideShowStage extends Stage
 		return index % nbImages;
 	}
 	//TODO add video control (play pause rewind, volume)
+	//TODO add possibility to (un)zoom
 	private void setCurrent(int index)
 	{
 		assert index >= 0 && index < images.size();
+		assert Platform.isFxApplicationThread();
 		
 		if (currentImageIdx != NO_CURRENT_IMAGE_INDEX)
 		{
@@ -354,7 +357,7 @@ public class SlideShowStage extends Stage
 				mediaView.setVisible(true);
 			
 				MediaPlayer video = fxImageVideo.getAsFxVideo();
-				mediaView.setMediaPlayer(video);
+				mediaView.setMediaPlayer(video);//FIXME concurrent modification excaption here in Application Tghread (https://bugs.openjdk.org/browse/JDK-8146918)
 				video.setCycleCount(Integer.MAX_VALUE);
 				video.play();
 			}

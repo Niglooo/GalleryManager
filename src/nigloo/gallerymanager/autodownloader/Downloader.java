@@ -930,7 +930,7 @@ public abstract class Downloader
 						saveImageInGallery(session, post, postImage, imageDest);
 					}
 				}
-				
+				//TODO Different visual (color) for file already downloaded
 				downloadsProgressView.newImage(session.id, post.id(), postImage.id(), imageDest);
 				downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), null);
 				
@@ -1041,7 +1041,7 @@ public abstract class Downloader
 					{
 						saveFileAsImageInGallery(session, post, file, fileDest);
 					}
-					
+					//TODO Different visual (color) for file already downloaded
 					downloadsProgressView.newImage(session.id, post.id(), file.id(), fileDest);
 					downloadsProgressView.endDownload(session.id, post.id(), file.id(), null);
 				}
@@ -1229,9 +1229,9 @@ public abstract class Downloader
 			while (endName < len && (cp = path.codePointAt(endName)) != '/' && cp != '\\')
 				endName++;
 			
-			// Skip trailing spaces and forbidden characters
+			// Skip trailing spaces, forbidden characters and dots (windows silently remove them otherwise)
 			int end = endName;
-			while (end > 0 && (Character.isWhitespace(cp = path.codePointAt(end - 1)) || FORBIDDEN_CHARS.contains(cp)))
+			while (end > 0 && (Character.isWhitespace(cp = path.codePointAt(end - 1)) || FORBIDDEN_CHARS.contains(cp) || cp == '.'))
 				end--;
 			
 			// Append name

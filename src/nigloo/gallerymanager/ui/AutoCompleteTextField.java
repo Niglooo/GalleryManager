@@ -14,7 +14,6 @@ import javafx.event.EventHandler;
 import javafx.geometry.Side;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.CustomMenuItem;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.text.Text;
@@ -121,14 +120,14 @@ public class AutoCompleteTextField extends TextField
 	{
 		// List of "suggestions"
 		List<CustomMenuItem> menuItems = new LinkedList<>();
-		
+		int i = 0;
 		for (String result : searchResult)
 		{
-			// label with graphic (text flow) to highlight found subtext in suggestions
-			Label entryLabel = new Label();
-			entryLabel.setGraphic(buildTextFlow(result, searchText)); // Somehow this change the prefHeight...
-			entryLabel.setPrefHeight(10);
-			CustomMenuItem item = new CustomMenuItem(entryLabel, true);
+			if (++i > 10)//TODO scroll max items as property
+				break;
+			// TextFlow to highlight found subtext in suggestions
+			TextFlow entryTextFlow = buildTextFlow(result, searchText); // Somehow this change the prefHeight...
+			CustomMenuItem item = new CustomMenuItem(entryTextFlow, true);
 			menuItems.add(item);
 			
 			// if any suggestion is select set it into text and close popup

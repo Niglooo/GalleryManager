@@ -19,6 +19,7 @@ public class FileSystemElement
 	private static final javafx.scene.image.Image ICON_IMAGE_SYNC;
 	private static final javafx.scene.image.Image ICON_IMAGE_UNSYNC;
 	private static final javafx.scene.image.Image ICON_IMAGE_DELETED;
+	//TODO use FontIcon
 	static
 	{
 		ICON_FOLDER = loadIcon("folder.png");

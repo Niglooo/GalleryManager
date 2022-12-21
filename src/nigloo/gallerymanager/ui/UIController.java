@@ -123,7 +123,7 @@ public class UIController extends Application
 	@FXML
 	private Node statusBarDownloadIndicator;
 	
-	private static Path galleryFile = null;
+	private Path galleryFile;
 	
 	private Gallery gallery;
 	
@@ -136,9 +136,6 @@ public class UIController extends Application
 	
 	public static void main(String[] args)
 	{
-		if (args.length >= 1)
-			galleryFile = Paths.get(args[0]).toAbsolutePath();
-		
 		Injector.ENABLE();
 		launch(args);
 	}
@@ -146,7 +143,12 @@ public class UIController extends Application
 	@Override
 	public void start(Stage primaryStage) throws Exception
 	{
-		if (galleryFile == null)
+		List<String> args = getParameters().getRaw();
+		if (args.size() >= 1)
+		{
+			galleryFile = Paths.get(args.get(0)).toAbsolutePath();
+		}
+		else
 		{
 			FileChooser fileChooser = new FileChooser();
 			fileChooser.setTitle("Open");
@@ -359,8 +361,7 @@ public class UIController extends Application
 	{
 		assert Platform.isFxApplicationThread();
 		
-		StopWatch timer = new StopWatch();
-		timer.start();
+		StopWatch timer = new StopWatch().start();
 		
 		thumbnailsView.getTiles().setAll(sortedImages.stream().map(UIController.this::getImageView).toList());
 		

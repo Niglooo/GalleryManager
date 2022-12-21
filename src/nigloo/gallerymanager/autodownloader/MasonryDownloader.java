@@ -126,6 +126,7 @@ public class MasonryDownloader extends Downloader
 		                                 .GET()
 		                                 .headers(session.getExtraInfo(HEADERS_KEY))
 		                                 .build();
+		//TODO handle "work"
 		return session.sendAsync(request, BodyHandlers.ofString())
 		              .thenApply(r -> Jsoup.parseBodyFragment(r.body())
 		                                   .select(".av-masonry-container > a")

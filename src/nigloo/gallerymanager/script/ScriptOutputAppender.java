@@ -26,6 +26,7 @@ class ScriptOutputAppender extends AbstractAppender
 {
 	private static ScriptOutputAppender INSTANCE = null;
 	
+	//TODO add text color
 	private record RedirectInfo(PrintWriter output, Level level)
 	{
 	}

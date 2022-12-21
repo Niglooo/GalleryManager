@@ -334,7 +334,7 @@ public class DownloadsProgressViewDialog extends Stage
 	                                   String fileId,
 	                                   long nbBytesDownloaded,
 	                                   OptionalLong nbBytesTotal)
-	{
+	{//TODO Batch those update and apply only the last one for a given file
 		Platform.runLater(() ->
 		{
 			String id = id(sessionId, postId, fileId);
@@ -510,7 +510,7 @@ public class DownloadsProgressViewDialog extends Stage
 	{
 		public PostInfo(String postId, String title, ZonedDateTime date)
 		{
-			super(ItemType.POST, postId, title, date);
+			super(ItemType.POST, postId, title.isBlank() ? "[No Title]" : title, date);
 			progress.setValue(null);
 		}
 	}
