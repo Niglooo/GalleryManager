@@ -395,7 +395,7 @@ public abstract class Downloader
 			}
 		}
 		
-		public void stopHandling(Collection<Image> images)
+		public void markDeleted(Collection<Image> images)
 		{
 			Set<Long> imageIds = images.stream().map(Image::getId).collect(Collectors.toSet());
 			
@@ -1692,9 +1692,9 @@ public abstract class Downloader
 		return mapping.isHandling(image);
 	}
 	
-	public final void stopHandling(Collection<Image> images)
+	public final void markDeleted(Collection<Image> images)
 	{
-		mapping.stopHandling(images);
+		mapping.markDeleted(images);
 	}
 	
 	public final Artist getArtist()

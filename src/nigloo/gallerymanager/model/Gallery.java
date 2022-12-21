@@ -245,7 +245,7 @@ public final class Gallery
 		{
 			for (Artist artist : artists)
 				for (Downloader autoDownloader : artist.getAutodownloaders())
-					autoDownloader.stopHandling(images);
+					autoDownloader.markDeleted(images);
 			
 			// This last or we break every ImageReference
 			for (Image image : images)
