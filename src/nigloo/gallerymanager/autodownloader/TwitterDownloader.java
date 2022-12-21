@@ -74,7 +74,7 @@ public class TwitterDownloader extends Downloader
 	
 	private class TwitterPostIterator extends BasePostIterator
 	{
-		private final String restId;
+		private final String userId;
 		
 		private String nextPageUrl;
 		private String currentCursor;
@@ -94,9 +94,9 @@ public class TwitterDownloader extends Downloader
 			                                 .build();
 			JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 			
-			this.restId = JsonHelper.followPath(response, "data.user.rest_id");
-			this.nextPageUrl = listTweetUrl(restId, null);
+			this.userId = JsonHelper.followPath(response, "data.user.rest_id");
 			this.currentCursor = null;
+			this.nextPageUrl = listTweetUrl();
 			this.postsIt = Collections.emptyIterator();
 			
 			computeNextPost();
@@ -120,8 +120,8 @@ public class TwitterDownloader extends Downloader
 						if (cursor.equals(currentCursor))
 							return null;
 						
-						nextPageUrl = listTweetUrl(restId, cursor);
 						currentCursor = cursor;
+						nextPageUrl = listTweetUrl();
 					}
 					return findNextPost();
 				}
@@ -162,14 +162,14 @@ public class TwitterDownloader extends Downloader
 			}
 		}
 		
-		private String listTweetUrl(String userId, String cursor)
+		private String listTweetUrl()
 		{
 			// @formatter:off
 			String variables =
 			"{" +
 				"\"userId\":\"" + userId + "\"," +
 				"\"count\":" + PAGE_SIZE + "," + 
-				(cursor == null ? "" : "\"cursor\":\"" + cursor + "\",") +
+				(currentCursor == null ? "" : "\"cursor\":\"" + currentCursor + "\",") +
 				"\"withHighlightedLabel\":false," +
 				"\"withTweetQuoteCount\":false," +
 				"\"includePromotedContent\":false," +
@@ -213,7 +213,6 @@ public class TwitterDownloader extends Downloader
 	private String[] getHeaders(DownloadSession session)
 	{
 		// @formatter:off
-		//TODO automatic login? (at least retrieve authorization and x-csrf-token)
 		return new String[] {
 			"accept", "*/*",
 			"accept-encoding", "gzip, deflate",
