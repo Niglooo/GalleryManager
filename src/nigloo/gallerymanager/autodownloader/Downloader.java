@@ -64,6 +64,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.apache.tika.config.TikaConfig;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.mime.MimeType;
+import org.apache.tika.mime.MimeTypeException;
 import org.jsoup.Jsoup;
 
 import com.github.mizosoft.methanol.MoreBodyHandlers;
@@ -93,6 +98,7 @@ import nigloo.gallerymanager.model.ImageReference;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
 import nigloo.tool.MetronomeTimer;
+import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.http.DownloadListener;
 import nigloo.tool.http.MonitorBodyHandler;
@@ -887,12 +893,15 @@ public abstract class Downloader
 		try {
 			Files.createDirectories(imageDest.getParent());
 			
+			StrongReference<String> contentType = new StrongReference<>();
+			
 			HttpRequest request = HttpRequest.newBuilder().uri(new URI(postImage.url())).GET().headers(getHeardersForImageDownload(session, postImage)).build();
 			return session.sendAsync(request, new MonitorBodyHandler<>(BodyHandlers.ofFile(imageDest), new DownloadListener()
 			{
 				@Override
 				public void onStartDownload(ResponseInfo responseInfo)
 				{
+					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
 					downloadsProgressView.newImage(session.id, post.id(), postImage.id(), imageDest);
 				}
 				
@@ -914,7 +923,12 @@ public abstract class Downloader
 					downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), error);
 				}
 			}))
-			.thenApply(response -> saveImageInGallery(session, post, postImage, response.body()));
+			.thenApplyAsync(fixExtension(contentType, ".jpg"), AsyncPools.DISK_IO)
+			.thenApply(filePath -> {
+				downloadsProgressView.updateFilePath(session.id, post.id(), postImage.id(), imageDest, filePath);
+				return filePath;
+			})
+			.thenApply(imagePath -> saveImageInGallery(session, post, postImage, imagePath));
 		}
 		catch (Exception e) {
 			return CompletableFuture.failedFuture(e);
@@ -965,6 +979,8 @@ public abstract class Downloader
 			
 			Files.createDirectories(fileDest.getParent());
 			
+			StrongReference<String> contentType = new StrongReference<>();
+			
 			HttpRequest request = HttpRequest.newBuilder()
 			                                 .uri(new URI(file.url()))
 			                                 .GET()
@@ -974,6 +990,7 @@ public abstract class Downloader
 			{
 				public void onStartDownload(java.net.http.HttpResponse.ResponseInfo responseInfo)
 				{
+					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
 					if (isZip)
 						downloadsProgressView.newZip(session.id, post.id(), file.id(), fileDest);
 					else
@@ -998,7 +1015,12 @@ public abstract class Downloader
 					downloadsProgressView.endDownload(session.id, post.id(), file.id(), error);
 				}
 			})
-			.thenAccept(response -> unZip(session, post, file, response.body()));
+			.thenApplyAsync(fixExtension(contentType, null), AsyncPools.DISK_IO)
+			.thenApply(filePath -> {
+				downloadsProgressView.updateFilePath(session.id, post.id(), file.id(), fileDest, filePath);
+				return filePath;
+			})
+			.thenAccept(filePath -> unZip(session, post, file, filePath));
 		}
 		catch (Exception e)
 		{
@@ -1006,7 +1028,7 @@ public abstract class Downloader
 		}
 	}
 	
-	private static final boolean isZip(String filename)
+	public static final boolean isZip(String filename)
 	{
 		return filename.toLowerCase(Locale.ROOT).endsWith(".zip");
 	}
@@ -1271,6 +1293,54 @@ public abstract class Downloader
 			
 			image.addTag(tag);
 		}
+	}
+	
+	private Function<HttpResponse<Path>, Path> fixExtension(StrongReference<String> contentType, String defaultExtention)
+	{
+		return response -> {
+			Path path = response.body();
+			String filename = path.getFileName().toString();
+			String extension = Utils.getExtention(filename);
+			// Already have an extension, nothing to do.
+			if (extension != null)
+				return path;
+			
+			TikaConfig config = TikaConfig.getDefaultConfig();
+			String mediaType = contentType.get();
+			
+			// Do the detection. Use DefaultDetector / getDetector() for more advanced detection
+			Metadata metadata = new Metadata();
+			metadata.set(Metadata.CONTENT_TYPE, mediaType);
+			try (TikaInputStream stream = TikaInputStream.get(path, metadata)) {
+				mediaType = config.getMimeRepository().detect(stream, metadata).toString();
+			}
+			catch (IOException e) {
+				throw new RuntimeException("Cannot detect media type of "+path, e);
+			}
+			
+			try {
+				// Fetch the most common extension for the detected type
+				MimeType mimeType = config.getMimeRepository().forName(mediaType);
+				extension = mimeType.getExtension();
+			}
+			catch (MimeTypeException e) {}
+			
+			if (Utils.isBlank(extension)) { // mimeType.getExtension() can return blank
+				if (defaultExtention == null) {
+					return path;
+				}
+				
+				LOGGER.warn("Not suitable extension found for " + path + ". Defaulted to " + defaultExtention);
+				extension = defaultExtention;
+			}
+			
+			try {
+				return Files.move(path, path.resolveSibling(filename + extension));
+			}
+			catch (IOException e) {
+				throw new RuntimeException("Cannot add the extension " + extension + " to " + path, e);
+			}
+		};
 	}
 	
 	private static void logRequest(HttpRequest request)

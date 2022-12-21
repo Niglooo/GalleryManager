@@ -46,6 +46,8 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import nigloo.gallerymanager.autodownloader.Downloader;
+import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.UIController;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ColumnStatusData.ProgressData;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.DLStatus;
@@ -265,6 +267,30 @@ public class DownloadsProgressViewDialog extends Stage
 		});
 	}
 	
+	public void updateFilePath(long sessionId, String postId, String fileId, Path oldFilePath, Path newFilePath)
+	{
+		if (oldFilePath.equals(newFilePath))
+			return;
+		
+		Platform.runLater(() ->
+		{
+			String id = id(sessionId, postId, fileId);
+			TreeItem<ItemInfo> fileItem = idToTreeItem.get(id);
+			if (fileItem == null)
+			{
+				LOGGER.error("TreeItem for file " + id + " not found");
+			}
+			else if (!(fileItem.getValue() instanceof FileInfo fileInfo))
+			{
+				LOGGER.error("TreeItem for " + id + " is not a file: " + fileItem.getValue());
+			}
+			else
+			{
+				fileInfo.updatePath(newFilePath);
+			}
+		});
+	}
+	
 	public void newImageInZip(long sessionId, String postId, String zipFileId, String pathInZip, Path imagePath)
 	{
 		Platform.runLater(() ->
@@ -414,7 +440,7 @@ public class DownloadsProgressViewDialog extends Stage
 		}
 		
 		protected final ObservableObjectValue<String> identifier;
-		protected final ObservableObjectValue<ColumnNameData> columnNameData;
+		protected final SimpleObjectProperty<ColumnNameData> columnNameData;
 		protected final ObservableObjectValue<ZonedDateTime> date;
 		protected final ObservableValue<ColumnStatusData> columnStatusData;
 		protected final SimpleObjectProperty<DLStatus> status;
@@ -424,7 +450,7 @@ public class DownloadsProgressViewDialog extends Stage
 		protected ItemInfo(ItemType type, String identifier, String name, ZonedDateTime date)
 		{
 			this.identifier = new ConstantObservableObject<String>(identifier);
-			this.columnNameData = new ConstantObservableObject<>(new ColumnNameData(type, name));
+			this.columnNameData = new SimpleObjectProperty<>(new ColumnNameData(type, name));
 			this.date = new ConstantObservableObject<ZonedDateTime>(date);
 			this.status = new SimpleObjectProperty<>(DLStatus.IN_PROGRESS);
 			this.progress = new SimpleObjectProperty<>(new ProgressData(0d, OptionalLong.empty(), OptionalLong.empty()));
@@ -491,12 +517,27 @@ public class DownloadsProgressViewDialog extends Stage
 	
 	private static class FileInfo extends ItemInfo
 	{
-		private final Path path;
+		private Path path;
 		
 		public FileInfo(ItemType type, String fileId, Path path, String pathInZip)
 		{
 			super(type, fileId, path.getFileName().toString(), null);
 			this.path = path;
+		}
+		
+		public void updatePath(Path newFilePath)
+		{
+			String filename = newFilePath.getFileName().toString();
+			
+			ItemType type = columnNameData.get().type();
+			if (Downloader.isZip(filename))
+				type = ItemType.ZIP;
+			else if (Image.isImage(newFilePath))
+				type = ItemType.IMAGE;
+			
+			columnNameData.setValue(new ColumnNameData(type, newFilePath.getFileName().toString()));
+			
+			path = newFilePath;
 		}
 		
 		public void setProgress(long nbBytesDownloaded, OptionalLong nbBytesTotal)

@@ -13,8 +13,10 @@ module nigloo.gallerymanager
 	requires com.google.gson;
 	requires methanol;
 	requires nigloo.tools;
+	requires org.apache.commons.io;//For needed for org.apache.tika.core
 	requires org.apache.logging.log4j;
 	requires org.apache.logging.log4j.core;
+	requires org.apache.tika.core;
 	requires org.jsoup;
 	requires org.kordamp.ikonli.javafx;
 	
