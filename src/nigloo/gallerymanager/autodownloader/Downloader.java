@@ -328,6 +328,7 @@ public abstract class Downloader
 	private static class Mapping
 	{
 		private final Map<ImageKey, ImageReference> imageMapping = new HashMap<>();
+		private final Map<FileKey, ImageReference> imageFileMapping = new HashMap<>();
 		private final Map<FileKey, Map<String, ImageReference>> zipMapping = new HashMap<>();
 		
 		public boolean contains(ImageKey imageKey)
@@ -340,6 +341,11 @@ public abstract class Downloader
 		
 		public boolean contains(FileKey fileKey)
 		{
+			synchronized (imageFileMapping)
+			{
+				if(imageFileMapping.containsKey(fileKey))
+					return true;
+			}
 			synchronized (zipMapping)
 			{
 				return zipMapping.containsKey(fileKey);
@@ -362,11 +368,37 @@ public abstract class Downloader
 			}
 		}
 		
+		public Optional<ImageReference> getFileAsImageMapping(FileKey fileKey)
+		{
+			synchronized (imageFileMapping)
+			{
+				return imageFileMapping.containsKey(fileKey)
+						? Optional.ofNullable(imageFileMapping.get(fileKey))
+						: null;
+			}
+		}
+		
+		public void put(FileKey fileKey, Image image)
+		{
+			synchronized (imageFileMapping)
+			{
+				imageFileMapping.put(fileKey, new ImageReference(image));
+			}
+			synchronized (zipMapping)
+			{
+				zipMapping.remove(fileKey);
+			}
+		}
+		
 		public void putEmptyMapping(FileKey fileKey)
 		{
 			synchronized (zipMapping)
 			{
 				zipMapping.put(fileKey, new TreeMap<>(Utils.NATURAL_ORDER));
+			}
+			synchronized (imageFileMapping)
+			{
+				imageFileMapping.remove(fileKey);
 			}
 		}
 		
@@ -377,6 +409,10 @@ public abstract class Downloader
 				zipMapping.computeIfAbsent(fileKey, k -> new TreeMap<>(Utils.NATURAL_ORDER))
 				          .put(pathInZip, new ImageReference(image));
 			}
+			synchronized (imageFileMapping)
+			{
+				imageFileMapping.remove(fileKey);
+			}
 		}
 		
 		public boolean isHandling(Image image)
@@ -384,6 +420,12 @@ public abstract class Downloader
 			synchronized (imageMapping)
 			{
 				for (ImageReference ref : imageMapping.values())
+					if (ref != null && ref.getImage().equals(image))
+						return true;
+			}
+			synchronized (imageFileMapping)
+			{
+				for (ImageReference ref : imageFileMapping.values())
 					if (ref != null && ref.getImage().equals(image))
 						return true;
 			}
@@ -405,6 +447,12 @@ public abstract class Downloader
 			synchronized (imageMapping)
 			{
 				for (Entry<ImageKey, ImageReference> entry : imageMapping.entrySet())
+					if (entry.getValue() != null && imageIds.contains(entry.getValue().getImageId()))
+						entry.setValue(null);
+			}
+			synchronized (imageFileMapping)
+			{
+				for (Entry<FileKey, ImageReference> entry : imageFileMapping.entrySet())
 					if (entry.getValue() != null && imageIds.contains(entry.getValue().getImageId()))
 						entry.setValue(null);
 			}
@@ -957,23 +1005,56 @@ public abstract class Downloader
 	                                          PostFile file,
 	                                          int fileNumber)
 	{
+		FileKey fileKey = new FileKey(post.id, file.id);
+		Optional<ImageReference> mappingAsImage;
+		final Path fileDest;
+		
+		synchronized (this)
+		{
+			mappingAsImage = mapping.getFileAsImageMapping(fileKey);
+			
+			if (mappingAsImage == null) // no mapping
+			{
+				// @formatter:off
+				fileDest = gallery.toAbsolutePath(
+					new PathPatternResolver(fileConfiguration.pathPattern)
+						.withCreatorId(creatorId)
+						.withPost(post)
+						.withFile(file, fileNumber)
+						.resolvePath());
+				// @formatter:on
+			}
+			else if (mappingAsImage.isPresent())
+			{
+				fileDest = mappingAsImage.get().getImage().getAbsolutePath();
+			}
+			else // Deleted
+			{
+				return CompletableFuture.completedFuture(null);
+			}
+			
+			if (Files.exists(fileDest))
+			{
+				if ((mappingAsImage == null && Image.isImage(fileDest)) || mappingAsImage.isPresent())
+				{
+					if (session.has(DownloadOption.UPDATE_IMAGES_ALREADY_DOWNLOADED))
+					{
+						saveFileAsImageInGallery(session, post, file, fileDest);
+					}
+					
+					downloadsProgressView.newImage(session.id, post.id(), file.id(), fileDest);
+					downloadsProgressView.endDownload(session.id, post.id(), file.id(), null);
+				}
+				
+				return CompletableFuture.completedFuture(null);
+			}
+		}
+		
 		try
 		{
-			// @formatter:off
-			final Path fileDest = gallery.toAbsolutePath(
-				new PathPatternResolver(fileConfiguration.pathPattern)
-					.withCreatorId(creatorId)
-					.withPost(post)
-					.withFile(file, fileNumber)
-					.resolvePath());
-			// @formatter:on
-			if (Files.exists(fileDest))
-				return CompletableFuture.completedFuture(null);
-			
 			boolean isZip = isZip(file.filename());
 			
 			// If the file is a zip and has a mapping (deleted or not), don't download it
-			FileKey fileKey = new FileKey(post.id, file.id);
 			if (isZip && mapping.contains(fileKey))
 				return CompletableFuture.completedFuture(null);
 			
@@ -1018,6 +1099,12 @@ public abstract class Downloader
 			.thenApplyAsync(fixExtension(contentType, null), AsyncPools.DISK_IO)
 			.thenApply(filePath -> {
 				downloadsProgressView.updateFilePath(session.id, post.id(), file.id(), fileDest, filePath);
+				return filePath;
+			})
+			.thenApply(filePath -> {
+				if (Image.isImage(filePath)) {
+					saveFileAsImageInGallery(session, post, file, filePath);
+				}
 				return filePath;
 			})
 			.thenAccept(filePath -> unZip(session, post, file, filePath));
@@ -1246,6 +1333,13 @@ public abstract class Downloader
 	{
 		Image image = doSaveInGallery(session, postImage.tags(), path);
 		mapping.put(new ImageKey(post.id(), postImage.id()), image);
+		return image;
+	}
+	
+	private Image saveFileAsImageInGallery(DownloadSession session, Post post, PostFile postFile, Path path)
+	{
+		Image image = doSaveInGallery(session, postFile.tags(), path);
+		mapping.put(new FileKey(post.id(), postFile.id()), image);
 		return image;
 	}
 	
@@ -1510,11 +1604,13 @@ public abstract class Downloader
 				mapping = new Mapping();
 			
 			synchronized (mapping.imageMapping) {
+			synchronized (mapping.imageFileMapping) {
 			synchronized (mapping.zipMapping) {
 				
 				List<Entry<?, ?>> bothMappingEntries = new ArrayList<>(mapping.imageMapping.size()
-				        + mapping.zipMapping.size());
+				        + mapping.imageFileMapping.size() + mapping.zipMapping.size());
 				bothMappingEntries.addAll(mapping.imageMapping.entrySet());
+				bothMappingEntries.addAll(mapping.imageFileMapping.entrySet());
 				bothMappingEntries.addAll(mapping.zipMapping.entrySet());
 				
 				bothMappingEntries.sort((e1, e2) ->
@@ -1563,7 +1659,7 @@ public abstract class Downloader
 					int res = Utils.NATURAL_ORDER.compare(postId1, postId2) * -1;
 					if (res != 0)
 						return res;
-					// Image mapping then zip mapping
+					// Image mapping then file/zip mapping
 					res = Integer.compare(order1, order2);
 					if (res != 0)
 						return res;
@@ -1594,33 +1690,45 @@ public abstract class Downloader
 					}
 					else if (entry.getKey() instanceof FileKey fileKey)
 					{
-						@SuppressWarnings("unchecked")
-						Map<String, ImageReference> zipEntries = (Map<String, ImageReference>) entry.getValue();
-						
 						out.name("postId");
 						out.value(fileKey.postId);
 						out.name("fileId");
 						out.value(fileKey.fileId);
-						out.name("zipEntries");
-						if (zipEntries == null)
-							out.value(DELETED_FILE);
-						else
+						
+						if (entry.getValue() instanceof ImageReference ref)
 						{
-							out.beginObject();
-							for (Entry<String, ImageReference> zipEntry : zipEntries.entrySet()
-							                                                        .stream()
-							                                                        .sorted(Comparator.comparing(Entry::getKey))
-							                                                        .toList())
+							out.name("imageRef");
+							if (ref == null)
+								out.value(DELETED_FILE);
+							else
+								out.value(ref.getImageId());
+						}
+						else // Zip entries
+						{
+							@SuppressWarnings("unchecked")
+							Map<String, ImageReference> zipEntries = (Map<String, ImageReference>) entry.getValue();
+							
+							out.name("zipEntries");
+							if (zipEntries == null)
+								out.value(DELETED_FILE);
+							else
 							{
-								ImageReference ref = zipEntry.getValue();
-								
-								out.name(zipEntry.getKey());
-								if (ref == null)
-									out.value(DELETED_FILE);
-								else
-									out.value(ref.getImageId());
+								out.beginObject();
+								for (Entry<String, ImageReference> zipEntry : zipEntries.entrySet()
+								                                                        .stream()
+								                                                        .sorted(Comparator.comparing(Entry::getKey))
+								                                                        .toList())
+								{
+									ImageReference ref = zipEntry.getValue();
+									
+									out.name(zipEntry.getKey());
+									if (ref == null)
+										out.value(DELETED_FILE);
+									else
+										out.value(ref.getImageId());
+								}
+								out.endObject();
 							}
-							out.endObject();
 						}
 					}
 					else
@@ -1631,7 +1739,7 @@ public abstract class Downloader
 					out.endObject();
 				}
 			
-			}}// En of synchronized blocks
+			}}}// En of synchronized blocks
 			
 			out.endArray();
 		}
@@ -1730,7 +1838,14 @@ public abstract class Downloader
 				}
 				else if (fileId != null)
 				{
-					mapping.zipMapping.put(new FileKey(postId, fileId), zipEntries);
+					FileKey fileKey = new FileKey(postId, fileId);
+					
+					if (ref != null)
+						mapping.imageFileMapping.put(fileKey, ref);
+					else if (zipEntries != null)
+						mapping.zipMapping.put(new FileKey(postId, fileId), zipEntries);
+					else if (ref == null && zipEntries == null)
+						mapping.imageFileMapping.put(fileKey, null);
 				}
 			}
 			
