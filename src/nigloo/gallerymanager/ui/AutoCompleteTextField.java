@@ -9,15 +9,22 @@ import java.util.Objects;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.DoublePropertyBase;
 import javafx.beans.value.ChangeListener;
+import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
-import javafx.geometry.Side;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.CustomMenuItem;
+import javafx.geometry.Bounds;
+import javafx.scene.Node;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import javafx.stage.Popup;
 import javafx.util.Duration;
 
 public class AutoCompleteTextField extends TextField
@@ -25,7 +32,8 @@ public class AutoCompleteTextField extends TextField
 	private static final int SUGGESTION_DELAY = 500;
 	
 	private AutoCompletionBehavior autoCompletionBehavior;
-	private ContextMenu entriesPopup;
+	private final DoubleProperty resultMaxHeight;
+	private final SuggestionsPopup entriesPopup;
 	
 	private final Timeline delayedShowSuggestion;
 	
@@ -35,8 +43,16 @@ public class AutoCompleteTextField extends TextField
 	
 	public AutoCompleteTextField()
 	{
-		this.entriesPopup = new ContextMenu();
 		this.autoCompletionBehavior = (field, searchText) -> List.of();
+		this.resultMaxHeight = new DoublePropertyBase(300) {
+			@Override public String getName() {
+				return "resultMaxHeight";
+			}
+			@Override public Object getBean() {
+				return AutoCompleteTextField.this;
+			}
+		};
+		this.entriesPopup = new SuggestionsPopup();
 		
 		delayedShowSuggestion = new Timeline(new KeyFrame(Duration.millis(SUGGESTION_DELAY),
 		                                                  event -> showSuggestions(false)));
@@ -87,7 +103,22 @@ public class AutoCompleteTextField extends TextField
 		this.autoCompletionBehavior = Objects.requireNonNull(autoCompletionBehavior, "autoCompletionBehavior");
 	}
 	
-	public void showSuggestions(boolean showEvenIfEmptySearchText)
+	public final DoubleProperty resultMaxHeightProperty()
+	{
+		return resultMaxHeight;
+	}
+	
+	public final double getResultMaxHeight()
+	{
+		return resultMaxHeight.get();
+	}
+
+	public final void setResultMaxHeight(int resultMaxHeight)
+	{
+		this.resultMaxHeight.set(resultMaxHeight);
+	}
+
+	private void showSuggestions(boolean showEvenIfEmptySearchText)
 	{
 		Platform.runLater(() ->
 		{
@@ -100,8 +131,7 @@ public class AutoCompleteTextField extends TextField
 			}
 			else if (suggestions != null && !suggestions.isEmpty())
 			{
-				populatePopup(suggestions, searchText);
-				entriesPopup.show(this, Side.BOTTOM, 0, 0);
+				entriesPopup.showSearchResult(suggestions, searchText);
 			}
 			else
 			{
@@ -110,38 +140,58 @@ public class AutoCompleteTextField extends TextField
 		});
 	}
 	
-	/**
-	 * Populate the entry set with the given search results. Display is limited to
-	 * 10 entries, for performance.
-	 * 
-	 * @param searchResult The set of matching strings.
-	 */
-	private void populatePopup(Collection<String> searchResult, String searchText)
+	private class SuggestionsPopup extends Popup
 	{
-		// List of "suggestions"
-		List<CustomMenuItem> menuItems = new LinkedList<>();
-		int i = 0;
-		for (String result : searchResult)
+		private final ObservableList<Node> items;
+		
+		public SuggestionsPopup()
 		{
-			if (++i > 10)//TODO scroll max items as property
-				break;
-			// TextFlow to highlight found subtext in suggestions
-			TextFlow entryTextFlow = buildTextFlow(result, searchText); // Somehow this change the prefHeight...
-			CustomMenuItem item = new CustomMenuItem(entryTextFlow, true);
-			menuItems.add(item);
+			VBox vBox = new VBox();
+			vBox.setFillWidth(true);
+			vBox.getStyleClass().add("suggestions-list");
+			items = vBox.getChildren();
 			
-			// if any suggestion is select set it into text and close popup
-			item.setOnAction(actionEvent ->
-			{
-				enableListener(false);
-				autoCompletionBehavior.onSuggestionSelected(this, result);
-				enableListener(true);
-				entriesPopup.hide();
-			});
+			ScrollPane scrollPane = new ScrollPane(vBox);
+			scrollPane.setVbarPolicy(ScrollBarPolicy.ALWAYS);
+			scrollPane.setHbarPolicy(ScrollBarPolicy.NEVER);
+			scrollPane.maxHeightProperty().bind(resultMaxHeight);
+			getContent().add(scrollPane);
 		}
 		
-		// "Refresh" context menu
-		entriesPopup.getItems().setAll(menuItems);
+		public void showSearchResult(Collection<String> searchResult, String searchText)
+		{
+			final AutoCompleteTextField field = AutoCompleteTextField.this;
+			items.clear();
+			
+			for (String result : searchResult)
+			{
+				// TextFlow to highlight found subtext in suggestions
+				TextFlow textFlow = buildTextFlow(result, searchText);
+				
+				Hyperlink hl = new Hyperlink();
+				hl.getStyleClass().add("suggestion-item");// customize "focused" effet in CSS
+				hl.setGraphic(textFlow);
+				hl.setMaxWidth(Double.POSITIVE_INFINITY);
+				// if any suggestion is select set it into text and close popup
+				hl.setOnAction(actionEvent ->
+				{
+					enableListener(false);
+					autoCompletionBehavior.onSuggestionSelected(field, result);
+					enableListener(true);
+					entriesPopup.hide();
+				});
+				hl.setOnMouseMoved(e -> {
+					if (!hl.isFocused() && hl.localToScene(hl.getBoundsInLocal()).contains(e.getSceneX(), e.getSceneY())) {
+						hl.requestFocus();
+					}
+				});
+				
+				items.add(hl);
+			}
+			
+			Bounds bounds = field.localToScreen(field.getBoundsInLocal());
+			super.show(field, bounds.getMinX(), bounds.getMaxY());
+		}
 	}
 	
 	/**
@@ -151,14 +201,18 @@ public class AutoCompleteTextField extends TextField
 	 * @param searchText - string to select in text
 	 * @return - TextFlow
 	 */
-	public static TextFlow buildTextFlow(String text, String searchText)
+	private static TextFlow buildTextFlow(String text, String searchText)
 	{
-		return new TextFlow(getColoredTexts(text,
-		                                    text.toLowerCase(Locale.ROOT),
-		                                    0,
-		                                    searchText == null ? null : searchText.toLowerCase(Locale.ROOT)).toArray(new Text[0]));
+		TextFlow textFlow = new TextFlow(getColoredTexts(text,
+		                                                 text.toLowerCase(Locale.ROOT),
+		                                                 0,
+		                                                 searchText == null ? null
+		                                                         : searchText.toLowerCase(Locale.ROOT)).toArray(Text[]::new));
+		// Somehow the USE_COMPUTED_SIZE of prefHeight is fucked up so we set it to 0
+		textFlow.setPrefHeight(0);
+		return textFlow;
 	}
-	
+
 	private static LinkedList<Text> getColoredTexts(String text,
 	                                                String lowerCaseText,
 	                                                int offset,
@@ -197,7 +251,7 @@ public class AutoCompleteTextField extends TextField
 		
 		return result;
 	}
-	
+
 	public interface AutoCompletionBehavior
 	{
 		default String getSearchText(AutoCompleteTextField field)

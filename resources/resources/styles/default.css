@@ -28,8 +28,28 @@
 }
 
 
+.suggestions-list
+{
+    -fx-background-color: WHITE;
+}
 
-.tag-filter-field .highlight
+.suggestion-item Text
+{
+    -fx-fill: -fx-text-base-color;
+}
+
+.suggestion-item:focused Text
+{
+    -fx-fill: -fx-focused-text-base-color;
+}
+
+.suggestion-item:focused
+{
+    -fx-background-color: -fx-selection-bar;
+    -fx-border-color: -fx-selection-bar;
+}
+
+.suggestion-item .highlight
 {
     -fx-fill: ORANGE;
     -fx-font-weight: bold;
