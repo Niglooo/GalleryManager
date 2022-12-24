@@ -931,9 +931,8 @@ public abstract class Downloader
 						saveImageInGallery(session, post, postImage, imageDest);
 					}
 				}
-				//TODO Different visual (color) for file already downloaded
-				downloadsProgressView.newImage(session.id, post.id(), postImage.id(), imageDest);
-				downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), null);
+				
+				downloadsProgressView.newExistingImage(session.id, post.id(), postImage.id(), imageDest);
 				
 				return CompletableFuture.completedFuture(image);
 			}
@@ -1042,9 +1041,8 @@ public abstract class Downloader
 					{
 						saveFileAsImageInGallery(session, post, file, fileDest);
 					}
-					//TODO Different visual (color) for file already downloaded
-					downloadsProgressView.newImage(session.id, post.id(), file.id(), fileDest);
-					downloadsProgressView.endDownload(session.id, post.id(), file.id(), null);
+					
+					downloadsProgressView.newExistingImage(session.id, post.id(), file.id(), fileDest);
 				}
 				
 				return CompletableFuture.completedFuture(null);

@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.OptionalLong;
@@ -248,7 +249,27 @@ public class DownloadsProgressViewDialog extends Stage
 				return;
 			}
 			
-			TreeItem<ItemInfo> imageItem = new TreeItem<>(new FileInfo(ItemType.IMAGE, imageId, imagePath, null));
+			TreeItem<ItemInfo> imageItem = new TreeItem<>(new FileInfo(ItemType.IMAGE, imageId, imagePath, null, false));
+			idToTreeItem.put(id(sessionId, postId, imageId), imageItem);
+			postItem.getChildren().add(imageItem);
+		});
+	}
+	
+	public void newExistingImage(long sessionId, String postId, String imageId, Path imagePath)
+	{
+		Platform.runLater(() ->
+		{
+			String parentId = id(sessionId, postId);
+			TreeItem<ItemInfo> postItem = idToTreeItem.get(parentId);
+			if (postItem == null)
+			{
+				LOGGER.error("TreeItem for post " + parentId + " not found");
+				return;
+			}
+			
+			FileInfo fileInfo = new FileInfo(ItemType.IMAGE, imageId, imagePath, null, true);
+			fileInfo.setComplete(null);
+			TreeItem<ItemInfo> imageItem = new TreeItem<>(fileInfo);
 			idToTreeItem.put(id(sessionId, postId, imageId), imageItem);
 			postItem.getChildren().add(imageItem);
 		});
@@ -266,7 +287,7 @@ public class DownloadsProgressViewDialog extends Stage
 				return;
 			}
 			
-			TreeItem<ItemInfo> zipItem = new TreeItem<>(new FileInfo(ItemType.ZIP, fileId, filePath, null));
+			TreeItem<ItemInfo> zipItem = new TreeItem<>(new FileInfo(ItemType.ZIP, fileId, filePath, null, false));
 			idToTreeItem.put(id(sessionId, postId, fileId), zipItem);
 			postItem.getChildren().add(zipItem);
 		});
@@ -284,7 +305,7 @@ public class DownloadsProgressViewDialog extends Stage
 				return;
 			}
 			
-			TreeItem<ItemInfo> fileItem = new TreeItem<>(new FileInfo(ItemType.OTHER_FILE, fileId, filePath, null));
+			TreeItem<ItemInfo> fileItem = new TreeItem<>(new FileInfo(ItemType.OTHER_FILE, fileId, filePath, null, false));
 			idToTreeItem.put(id(sessionId, postId, fileId), fileItem);
 			postItem.getChildren().add(fileItem);
 		});
@@ -325,7 +346,7 @@ public class DownloadsProgressViewDialog extends Stage
 				LOGGER.error("TreeItem for zip " + parentId + " not found");
 				return;
 			}
-			FileInfo fileInfo = new FileInfo(ItemType.IMAGE, pathInZip, imagePath, pathInZip);
+			FileInfo fileInfo = new FileInfo(ItemType.IMAGE, pathInZip, imagePath, pathInZip, false);
 			fileInfo.setComplete(null);
 			TreeItem<ItemInfo> imageItem = new TreeItem<>(fileInfo);
 			idToTreeItem.put(id(sessionId, postId, zipFileId, pathInZip), imageItem);
@@ -344,7 +365,7 @@ public class DownloadsProgressViewDialog extends Stage
 				LOGGER.error("TreeItem for zip " + parentId + " not found");
 				return;
 			}
-			FileInfo fileInfo = new FileInfo(ItemType.OTHER_FILE, pathInZip, filePath, pathInZip);
+			FileInfo fileInfo = new FileInfo(ItemType.OTHER_FILE, pathInZip, filePath, pathInZip, false);
 			fileInfo.setComplete(null);
 			TreeItem<ItemInfo> fileItem = new TreeItem<>(fileInfo);
 			idToTreeItem.put(id(sessionId, postId, zipFileId, pathInZip), fileItem);
@@ -480,7 +501,7 @@ public class DownloadsProgressViewDialog extends Stage
 		}
 	}
 	
-	record ColumnNameData(ItemType type, String name) implements Comparable<ColumnNameData>
+	record ColumnNameData(ItemType type, String name, List<String> styleClasses) implements Comparable<ColumnNameData>
 	{
 		@Override
 		public int compareTo(ColumnNameData o)
@@ -522,10 +543,10 @@ public class DownloadsProgressViewDialog extends Stage
 		protected final SimpleObjectProperty<ProgressData> progress;
 		protected final SimpleObjectProperty<Throwable> error;
 		
-		protected ItemInfo(ItemType type, String identifier, String name, ZonedDateTime date)
+		protected ItemInfo(ItemType type, String identifier, String name, List<String> nameStyleClasses, ZonedDateTime date)
 		{
 			this.identifier = new ConstantObservableObject<String>(identifier);
-			this.columnNameData = new SimpleObjectProperty<>(new ColumnNameData(type, name));
+			this.columnNameData = new SimpleObjectProperty<>(new ColumnNameData(type, name, nameStyleClasses));
 			this.date = new ConstantObservableObject<ZonedDateTime>(date);
 			this.status = new SimpleObjectProperty<>(DLStatus.IN_PROGRESS);
 			this.progress = new SimpleObjectProperty<>(new ProgressData(0d, OptionalLong.empty(), OptionalLong.empty()));
@@ -576,7 +597,7 @@ public class DownloadsProgressViewDialog extends Stage
 	{
 		public SessionInfo(long sessionId, String name)
 		{
-			super(ItemType.SESSION, String.valueOf(sessionId), name, null);
+			super(ItemType.SESSION, String.valueOf(sessionId), name, null, null);
 			progress.setValue(null);
 		}
 	}
@@ -585,7 +606,7 @@ public class DownloadsProgressViewDialog extends Stage
 	{
 		public PostInfo(String postId, String title, ZonedDateTime date)
 		{
-			super(ItemType.POST, postId, title.isBlank() ? "[No Title]" : title, date);
+			super(ItemType.POST, postId, title.isBlank() ? "[No Title]" : title, null, date);
 			progress.setValue(null);
 		}
 	}
@@ -594,9 +615,9 @@ public class DownloadsProgressViewDialog extends Stage
 	{
 		private Path path;
 		
-		public FileInfo(ItemType type, String fileId, Path path, String pathInZip)
+		public FileInfo(ItemType type, String fileId, Path path, String pathInZip, boolean alreadyExist)
 		{
-			super(type, fileId, path.getFileName().toString(), null);
+			super(type, fileId, path.getFileName().toString(), List.of(alreadyExist ? "already-exist" : "new"), null);
 			this.path = path;
 		}
 		
@@ -610,7 +631,7 @@ public class DownloadsProgressViewDialog extends Stage
 			else if (Image.isImage(newFilePath))
 				type = ItemType.IMAGE;
 			
-			columnNameData.setValue(new ColumnNameData(type, newFilePath.getFileName().toString()));
+			columnNameData.setValue(new ColumnNameData(type, filename, columnNameData.get().styleClasses()));
 			
 			path = newFilePath;
 		}
@@ -635,10 +656,13 @@ public class DownloadsProgressViewDialog extends Stage
 		
 		private final FontIcon icon;
 		
+		private List<String> extraStyleClasses;
+		
 		public NameCell()
 		{
 			this.getStyleClass().add(CELL_STYLE_CLASS);
 			this.icon = new FontIcon();
+			this.extraStyleClasses = null;
 		}
 		
 		@Override
@@ -671,6 +695,13 @@ public class DownloadsProgressViewDialog extends Stage
 				setGraphic(icon);
 				setText(nameData.name());
 			}
+			
+			if (extraStyleClasses != null)
+				getStyleClass().removeAll(extraStyleClasses);
+			
+			extraStyleClasses = nameData == null ? null : nameData.styleClasses();
+			if (extraStyleClasses != null)
+				getStyleClass().addAll(extraStyleClasses);
 		}
 	}
 	

@@ -125,6 +125,10 @@
     -fx-icon-code: ci-error;
 }
 
+.download-name-cell.already-exist
+{
+    -fx-text-fill: GREEN;
+}
 
 .session-icon
 {
