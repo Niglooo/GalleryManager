@@ -17,6 +17,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
 public class MasonryDownloader extends Downloader
 {
@@ -126,20 +128,41 @@ public class MasonryDownloader extends Downloader
 		                                 .GET()
 		                                 .headers(session.getExtraInfo(HEADERS_KEY))
 		                                 .build();
-		//TODO handle "work"
-		return session.sendAsync(request, BodyHandlers.ofString())
-		              .thenApply(r -> Jsoup.parseBodyFragment(r.body())
-		                                   .select(".av-masonry-container > a")
-		                                   .stream()
-		                                   .map(imageElement ->
-		                                   {
-			                                   String imageId = imageElement.attr("data-av-masonry-item");
-			                                   String url = imageElement.attr("href");
-			                                   String filename = imageElement.selectFirst("img").attr("title");
-			                                   String extension = url.substring(url.lastIndexOf('.'));
-			                                   return PostImage.create(imageId, filename + extension, url, extraInfo.tags());
-		                                   })
-		                                   .toList());
+		
+		return session.sendAsync(request, BodyHandlers.ofString()).thenApply(r ->
+		{
+			Document htmlPost = Jsoup.parseBodyFragment(r.body());
+			
+			// Regular post
+			Elements imagesElement = htmlPost.select(".av-masonry-container > a");
+			if (imagesElement.size() > 0)
+			{
+				return imagesElement.stream().map(imageElement ->
+				{
+					String imageId = imageElement.attr("data-av-masonry-item");
+					String url = imageElement.attr("href");
+					String filename = imageElement.selectFirst("img").attr("title");
+					String extension = url.substring(url.lastIndexOf('.'));
+					return PostImage.create(imageId, filename + extension, url, extraInfo.tags());
+				}).toList();
+			}
+			
+			// Single image post
+			imagesElement = htmlPost.select(".avia-image-container img");
+			if (imagesElement.size() > 0)
+			{
+				return imagesElement.stream().map(imageElement ->
+				{
+					String imageId = "single_image";
+					String url = imageElement.attr("src");
+					String filename = imageElement.attr("title");
+					String extension = url.substring(url.lastIndexOf('.'));
+					return PostImage.create(imageId, filename + extension, url, extraInfo.tags());
+				}).toList();
+			}
+			
+			return List.of();
+		});
 	}
 
 	@Override
