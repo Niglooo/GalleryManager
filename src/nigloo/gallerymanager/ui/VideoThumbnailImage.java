@@ -6,21 +6,17 @@ import java.util.concurrent.CancellationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javafx.beans.property.ReadOnlyDoubleProperty;
-import javafx.beans.property.ReadOnlyDoubleWrapper;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.SnapshotParameters;
-import javafx.scene.image.WritableImage;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import nigloo.gallerymanager.ui.util.CustomImage;
 import nigloo.tool.StopWatch;
 
-public class VideoThumbnailImage extends WritableImage
+public class VideoThumbnailImage extends CustomImage
 {
 	private static final Logger LOGGER = LogManager.getLogger(VideoThumbnailImage.class);
 	
@@ -29,17 +25,11 @@ public class VideoThumbnailImage extends WritableImage
 	
 	private final String filename;
 	
-	private final ReadOnlyObjectWrapper<Exception> loadingException;
-	private final ReadOnlyDoubleWrapper loadingProgress;
-	
 	public VideoThumbnailImage(int width, int height, Path source)
 	{
 		super(width, height);
 		
 		filename = source.getFileName().toString();
-		
-		loadingException = new ReadOnlyObjectWrapper<>(this, "loadingException");
-		loadingProgress = new ReadOnlyDoubleWrapper(this, "loadingProgress");
 		
 		StopWatch timer = LOGGER.isDebugEnabled() ? new StopWatch().start() : null;
 		
@@ -113,16 +103,6 @@ public class VideoThumbnailImage extends WritableImage
 				loadingException.set(new CancellationException("Loading cancelled"));
 			}
 		}
-	}
-	
-	public final ReadOnlyObjectProperty<Exception> loadingExceptionProperty()
-	{
-		return loadingException.getReadOnlyProperty();
-	}
-	
-	public ReadOnlyDoubleProperty loadingProgressProperty()
-	{
-		return loadingProgress.getReadOnlyProperty();
 	}
 	
 	private Runnable reportError(Runnable runnable)

@@ -9,6 +9,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.ui.util.CustomImage;
 import nigloo.gallerymanager.ui.util.Displayable;
 import nigloo.gallerymanager.ui.util.ImageCache;
 import nigloo.tool.injection.Injector;
@@ -71,7 +72,7 @@ public class ThumbnailView extends ImageView implements Displayable
 			if (displayed)
 			{
 				fxImage = imageCache.getThumbnail(galleryImage, true);
-				double progress = fxImage instanceof VideoThumbnailImage vtImage ? vtImage.loadingProgressProperty().get() : fxImage.getProgress();
+				double progress = fxImage instanceof CustomImage customImage ? customImage.loadingProgressProperty().get() : fxImage.getProgress();
 				if (progress == 1)
 					setImage(fxImage);
 				else
@@ -96,10 +97,10 @@ public class ThumbnailView extends ImageView implements Displayable
 		{
 			this.imageView = imageView;
 			this.fxImage = imageView.fxImage;
-			if (fxImage instanceof VideoThumbnailImage vtImage)
+			if (fxImage instanceof CustomImage customImage)
 			{
-				vtImage.loadingProgressProperty().addListener(this);
-				vtImage.loadingExceptionProperty().addListener(this);
+				customImage.loadingProgressProperty().addListener(this);
+				customImage.loadingExceptionProperty().addListener(this);
 			}
 			else
 			{
@@ -111,21 +112,21 @@ public class ThumbnailView extends ImageView implements Displayable
 		@Override
 		public void changed(ObservableValue<? extends Object> observable, Object oldValue, Object newValue)
 		{
-			if (fxImage instanceof VideoThumbnailImage vtImage)
+			if (fxImage instanceof CustomImage customImage)
 			{
-				if (observable == vtImage.loadingProgressProperty())
+				if (observable == customImage.loadingProgressProperty())
 				{
 					if (((Number) newValue).doubleValue() == 1)
 					{
 						imageView.setImage(fxImage);
-						vtImage.loadingProgressProperty().removeListener(this);
-						vtImage.loadingExceptionProperty().removeListener(this);
+						customImage.loadingProgressProperty().removeListener(this);
+						customImage.loadingExceptionProperty().removeListener(this);
 					}
 				}
-				else if (observable == vtImage.loadingExceptionProperty())
+				else if (observable == customImage.loadingExceptionProperty())
 				{
-					vtImage.loadingProgressProperty().removeListener(this);
-					vtImage.loadingExceptionProperty().removeListener(this);
+					customImage.loadingProgressProperty().removeListener(this);
+					customImage.loadingExceptionProperty().removeListener(this);
 					
 					if (!(newValue instanceof CancellationException))
 						imageView.setImage(THUMBNAIL_CANNOT_LOAD_PLACEHOLDER);
