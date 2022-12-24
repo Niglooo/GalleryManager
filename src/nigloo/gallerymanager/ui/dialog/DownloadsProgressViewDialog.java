@@ -24,6 +24,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleObjectProperty;
@@ -52,8 +53,11 @@ import nigloo.gallerymanager.ui.UIController;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ColumnStatusData.ProgressData;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.DLStatus;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.ItemType;
+import nigloo.tool.MetronomeTimer;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.javafx.component.dialog.ExceptionDialog;
+import nigloo.tool.thread.SafeThread;
+import nigloo.tool.thread.ThreadStopException;
 
 @Singleton
 public class DownloadsProgressViewDialog extends Stage
@@ -66,6 +70,12 @@ public class DownloadsProgressViewDialog extends Stage
 	private final Map<String, TreeItem<ItemInfo>> idToTreeItem;
 	private final Set<Long> activeSessions = new HashSet<>();
 	private final ReadOnlyBooleanWrapper downloadActive = new ReadOnlyBooleanWrapper(false);
+	// MUST me synchronized on
+	private Map<Long,Map<String, DownloadProgressInfo>> lastProgress = new HashMap<>();
+	private record DownloadProgressInfo(long nbBytesDownloaded, OptionalLong nbBytesTotal){}
+	
+	private final BooleanBinding showingAndDownloadActive;
+	
 	//TODO DownloadsProgressViewDialog with FXML
 	@SuppressWarnings("unchecked")
 	public DownloadsProgressViewDialog()
@@ -146,6 +156,19 @@ public class DownloadsProgressViewDialog extends Stage
 		
 		setScene(new Scene(content));
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
+		
+		ProgressUpdaterTread progressUpdaterTread = new ProgressUpdaterTread();
+		
+		showingAndDownloadActive = showingProperty().and(downloadActive);
+		showingAndDownloadActive.addListener((obs, oldValue, dialogShowingAndDownloadActive) -> {
+			if (dialogShowingAndDownloadActive)
+				progressUpdaterTread.safeResume();
+			else
+				progressUpdaterTread.safeSuspend();
+		});
+		
+		progressUpdaterTread.start();
+		progressUpdaterTread.safeSuspend();
 	}
 	
 	private static String id(Object... ids)
@@ -334,24 +357,17 @@ public class DownloadsProgressViewDialog extends Stage
 	                                   String fileId,
 	                                   long nbBytesDownloaded,
 	                                   OptionalLong nbBytesTotal)
-	{//TODO Batch those update and apply only the last one for a given file
-		Platform.runLater(() ->
+	{
+		String id = id(sessionId, postId, fileId);
+		DownloadProgressInfo newProgressInfo = new DownloadProgressInfo(nbBytesDownloaded, nbBytesTotal);
+		synchronized (lastProgress)
 		{
-			String id = id(sessionId, postId, fileId);
-			TreeItem<ItemInfo> fileItem = idToTreeItem.get(id);
-			if (fileItem == null)
-			{
-				LOGGER.error("TreeItem for file " + id + " not found");
-			}
-			else if (!(fileItem.getValue() instanceof FileInfo fileInfo))
-			{
-				LOGGER.error("TreeItem for " + id + " is not a file: " + fileItem.getValue());
-			}
-			else
-			{
-				fileInfo.setProgress(nbBytesDownloaded, nbBytesTotal);
-			}
-		});
+			lastProgress.computeIfAbsent(sessionId, s -> new HashMap<>())
+			            .compute(id, (i, progressInfo) -> (progressInfo == null
+			                              || progressInfo.nbBytesDownloaded() < newProgressInfo.nbBytesDownloaded)
+			                                      ? newProgressInfo
+			                                      : progressInfo);
+		}
 	}
 	
 	public void endDownload(long sessionId, String postId, String fileId, Throwable error)
@@ -403,6 +419,65 @@ public class DownloadsProgressViewDialog extends Stage
 			if (activeSessions.remove(sessionId) && activeSessions.isEmpty())
 				downloadActive.set(false);
 		});
+	}
+	
+	private class ProgressUpdaterTread extends SafeThread
+	{
+		static final int UPDATE_INTERVAL = 500;
+		
+		public ProgressUpdaterTread()
+		{
+			super("download-progress-updater");
+			setDaemon(true);
+		}
+		
+		@Override
+		public void run()
+		{
+			try
+			{
+				MetronomeTimer timer = new MetronomeTimer(UPDATE_INTERVAL);
+				while (true)
+				{
+					checkThreadState();
+					timer.waitNextTick();
+					
+					synchronized (lastProgress)
+					{
+						lastProgress.values().stream().flatMap(e -> e.entrySet().stream()).forEach(e ->
+						{
+							String id = e.getKey();
+							DownloadProgressInfo progressInfo = e.getValue();
+							
+							Platform.runLater(() ->
+							{
+								TreeItem<ItemInfo> fileItem = idToTreeItem.get(id);
+								if (fileItem == null)
+								{
+									LOGGER.error("TreeItem for file " + id + " not found");
+								}
+								else if (!(fileItem.getValue() instanceof FileInfo fileInfo))
+								{
+									LOGGER.error("TreeItem for " + id + " is not a file: " + fileItem.getValue());
+								}
+								else
+								{
+									fileInfo.setProgress(progressInfo.nbBytesDownloaded, progressInfo.nbBytesTotal);
+								}
+							});
+						});
+						
+						LOGGER.trace(() -> "Updated "
+						        + lastProgress.values().stream().flatMap(e -> e.entrySet().stream()).count() + " in progress files");
+						
+						lastProgress.clear();
+					}
+				}
+			}
+			catch (ThreadStopException | InterruptedException e)
+			{
+			}
+		}
 	}
 	
 	record ColumnNameData(ItemType type, String name) implements Comparable<ColumnNameData>
