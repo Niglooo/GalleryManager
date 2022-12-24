@@ -18,7 +18,7 @@ import nigloo.tool.StopWatch;
 
 public class FXImageVideoWrapper
 {
-	private static final Logger LOGGER = LogManager.getLogger(VideoThumbnailImage.class);
+	private static final Logger LOGGER = LogManager.getLogger(FXImageVideoWrapper.class);
 	
 	private final Path absPath;
 	private final String filename;
