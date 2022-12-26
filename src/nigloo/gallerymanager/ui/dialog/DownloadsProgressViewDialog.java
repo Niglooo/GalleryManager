@@ -32,8 +32,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
+import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TreeItem;
@@ -42,10 +41,7 @@ import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import nigloo.gallerymanager.autodownloader.Downloader;
@@ -65,28 +61,34 @@ public class DownloadsProgressViewDialog extends Stage
 {
 	private static final Logger LOGGER = LogManager.getLogger(DownloadsProgressViewDialog.class);
 	
-	private final TreeTableView<ItemInfo> tableTree;
+	@FXML
+	protected TreeTableView<ItemInfo> tableTree;
+	@FXML
+	protected TreeTableColumn<ItemInfo, String> identifierColumn = new TreeTableColumn<>("Identifier");
+	@FXML
+	protected TreeTableColumn<ItemInfo, ColumnNameData> nameColumn = new TreeTableColumn<>("Name");
+	@FXML
+	protected TreeTableColumn<ItemInfo, ColumnStatusData> statusColumn = new TreeTableColumn<>("Status");
+	@FXML
+	protected TreeTableColumn<ItemInfo, ZonedDateTime> dateColumn = new TreeTableColumn<>("Date");
 	
 	// MUST be only used in the JavaFX Application Thread
 	private final Map<String, TreeItem<ItemInfo>> idToTreeItem;
 	private final Set<Long> activeSessions = new HashSet<>();
 	private final ReadOnlyBooleanWrapper downloadActive = new ReadOnlyBooleanWrapper(false);
-	// MUST me synchronized on
+	// MUST be synchronized on
 	private Map<Long,Map<String, DownloadProgressInfo>> lastProgress = new HashMap<>();
 	private record DownloadProgressInfo(long nbBytesDownloaded, OptionalLong nbBytesTotal){}
 	
 	private final BooleanBinding showingAndDownloadActive;
 	
-	//TODO DownloadsProgressViewDialog with FXML
-	@SuppressWarnings("unchecked")
+	
 	public DownloadsProgressViewDialog()
 	{
-		setTitle("Downloads");
+		UIController.loadFXML(this, "downloads_progress_view_dialog.fxml");
+		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
-		tableTree = new TreeTableView<>(new TreeItem<>());
-		tableTree.getStyleClass().add("download-progress-view");
-		tableTree.setShowRoot(false);
-		
+		tableTree.setRoot(new TreeItem<>());
 		tableTree.setRowFactory(new Callback<TreeTableView<ItemInfo>, TreeTableRow<ItemInfo>>()
 		{
 			@Override
@@ -110,53 +112,18 @@ public class DownloadsProgressViewDialog extends Stage
 			}
 		});
 		
-		TreeTableColumn<ItemInfo, String> identifierColumn = new TreeTableColumn<>("Identifier");
-		identifierColumn.getStyleClass().add("identifier-column");
 		identifierColumn.setCellValueFactory(param -> param.getValue().getValue().getIdentifier());
 		
-		TreeTableColumn<ItemInfo, ColumnNameData> nameColumn = new TreeTableColumn<>("Name");
-		nameColumn.getStyleClass().add("name-column");
 		nameColumn.setCellValueFactory(param -> param.getValue().getValue().getColumnNameData());
 		nameColumn.setCellFactory(param -> new NameCell());
 		
-		TreeTableColumn<ItemInfo, ColumnStatusData> statusColumn = new TreeTableColumn<>("Status");
-		statusColumn.getStyleClass().add("status-column");
 		statusColumn.setCellValueFactory(param -> param.getValue().getValue().getColumnStatusData());
 		statusColumn.setCellFactory(param -> new StatusCell());
 		
-		TreeTableColumn<ItemInfo, ZonedDateTime> dateColumn = new TreeTableColumn<>("Date");
-		dateColumn.getStyleClass().add("date-column");
 		dateColumn.setCellValueFactory(param -> param.getValue().getValue().getDate());
 		dateColumn.setCellFactory(param -> new DateCell());
 		
-		tableTree.getColumns().addAll(nameColumn, identifierColumn, statusColumn, dateColumn);
-		
-		// Would love to set that by CSS but the resizing is junky af
-		tableTree.setColumnResizePolicy(TreeTableView.UNCONSTRAINED_RESIZE_POLICY);
-		nameColumn.setPrefWidth(600);
-		statusColumn.setPrefWidth(160);
-		statusColumn.setStyle("-fx-alignment: CENTER;");
-		dateColumn.setPrefWidth(170);
-		
 		idToTreeItem = new HashMap<>();
-		
-		FontIcon clearIcon = new FontIcon();
-		clearIcon.getStyleClass().add("clear-icon");
-		Button clearButton = new Button("Clear", clearIcon);
-		clearButton.getStyleClass().add("clear-button");
-		clearButton.setOnAction(e -> clearInactiveSessions());
-		
-		HBox buttonBar = new HBox();
-		buttonBar.getStyleClass().add("button-bar");
-		buttonBar.getChildren().addAll(clearButton);
-		
-		VBox content = new VBox();
-		content.getStyleClass().add("download-progress-dialog-content");
-		content.getChildren().addAll(buttonBar, tableTree);
-		VBox.setVgrow(tableTree, Priority.ALWAYS);
-		
-		setScene(new Scene(content));
-		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
 		ProgressUpdaterTread progressUpdaterTread = new ProgressUpdaterTread();
 		
@@ -177,7 +144,8 @@ public class DownloadsProgressViewDialog extends Stage
 		return Stream.of(ids).map(Object::toString).collect(Collectors.joining(";"));
 	}
 	
-	private void clearInactiveSessions()
+	@FXML
+	protected void clearInactiveSessions()
 	{
 		Platform.runLater(() ->
 		{

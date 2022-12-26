@@ -146,6 +146,11 @@
     -fx-icon-code: ci-error;
 }
 
+.status-column
+{
+    -fx-alignment: CENTER;
+}
+
 .download-name-cell.already-exist
 {
     -fx-text-fill: GREEN;
