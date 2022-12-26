@@ -830,6 +830,11 @@ public class FileSystemTreeManager
 					if (e.getTarget() instanceof Styleable n && n.getStyleClass().contains("arrow"))
 						return;
 					
+					// Behavior we want instead.
+					int row = treeView.getRow(getTreeItem());
+					treeView.getSelectionModel().clearAndSelect(row);
+					treeView.requestFocus();
+					
 					e.consume();
 				}
 			});
