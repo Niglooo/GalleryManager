@@ -8,8 +8,7 @@ import java.util.List;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.ObjectBinding;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -17,6 +16,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
+import javafx.css.PseudoClass;
 import javafx.css.Styleable;
 import javafx.css.StyleableDoubleProperty;
 import javafx.css.StyleableObjectProperty;
@@ -45,7 +45,6 @@ import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderStroke;
 import javafx.scene.layout.BorderStrokeStyle;
 import javafx.scene.layout.BorderWidths;
-import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -817,106 +816,33 @@ public class VScrollablePane extends Region
 	
 	private class TileWrapper extends StackPane
 	{
-		private static final CornerRadii CORNER_RADIUS = null;
-		private static final double BORDER_WIDTH = 2;
+		private static final PseudoClass SELECTED_STATE = PseudoClass.getPseudoClass("selected");
+		private static final PseudoClass FOCUSED_STATE = PseudoClass.getPseudoClass("focused");
 		
-		private static final Background SELECTED_REGION_BACKGROUND = new Background(new BackgroundFill(Color.rgb(204,
-		                                                                                                         232,
-		                                                                                                         255),
-		                                                                                               CORNER_RADIUS,
-		                                                                                               null));
-		
-		private static final Border FOCUSED_REGION_BORDER;
-		static
-		{
-			BorderStroke stroke = new BorderStroke(Color.rgb(153, 209, 255),
-			                                       BorderStrokeStyle.SOLID,
-			                                       CORNER_RADIUS,
-			                                       new BorderWidths(BORDER_WIDTH));
-			FOCUSED_REGION_BORDER = new Border(stroke, stroke, stroke, stroke);
-		}
-		
-		private static final Background HOVER_REGION_BACKGROUND = new Background(new BackgroundFill(Color.rgb(229,
-		                                                                                                      243,
-		                                                                                                      255),
-		                                                                                            CORNER_RADIUS,
-		                                                                                            null));
-		
-		private boolean displayed = false;;
+		private boolean displayed = false;
 		private final Node content;
 		
 		public TileWrapper(Node content)
 		{
 			super();
-			
-			ObservableList<Node> selection = focusSelectionManager.getSelectionModel().getSelectedItems();
-			BooleanBinding selected = new BooleanBinding()
-			{
-				{
-					bind(selection);
-				}
-				
-				@Override
-				protected boolean computeValue()
-				{
-					return selection.contains(content);
-				}
-			};
-			
-			ReadOnlyObjectProperty<Node> focusedItem = focusSelectionManager.getFocusModel().focusedItemProperty();
-			BooleanBinding focused = new BooleanBinding()
-			{
-				{
-					bind(focusedItem);
-				}
-				
-				@Override
-				protected boolean computeValue()
-				{
-					return focusedItem.get() == content;
-				}
-			};
-			
-			Region backgroundRegion = new Region();
-			backgroundRegion.backgroundProperty().bind(new ObjectBinding<Background>()
-			{
-				{
-					bind(selected, hoverProperty());
-				}
-				
-				@Override
-				protected Background computeValue()
-				{
-					if (selected.get())
-						return SELECTED_REGION_BACKGROUND;
-					else if (hoverProperty().get())
-						return HOVER_REGION_BACKGROUND;
-					else
-						return Background.EMPTY;
-				}
-			});
-			
-			Region borderRegion = new Region();
-			borderRegion.setMouseTransparent(true);
-			borderRegion.borderProperty().bind(new ObjectBinding<Border>()
-			{
-				{
-					bind(focused);
-				}
-				
-				@Override
-				protected Border computeValue()
-				{
-					if (focused.get())
-						return FOCUSED_REGION_BORDER;
-					else
-						return Border.EMPTY;
-				}
-			});
+			getStyleClass().add("tile-wrapper");
 			
 			this.content = content;
 			
-			getChildren().addAll(backgroundRegion, content, borderRegion);
+			ObservableList<Node> selection = focusSelectionManager.getSelectionModel().getSelectedItems();
+			selection.addListener((InvalidationListener) obs -> pseudoClassStateChanged(SELECTED_STATE, selection.contains(content)));
+			
+			ReadOnlyObjectProperty<Node> focusedItem = focusSelectionManager.getFocusModel().focusedItemProperty();
+			focusedItem.addListener((InvalidationListener) obs -> pseudoClassStateChanged(FOCUSED_STATE, focusedItem.get() == content));
+			
+			Region bottomRegion = new Region();
+			bottomRegion.getStyleClass().add("bottom-region");
+			
+			Region topRegion = new Region();
+			topRegion.setMouseTransparent(true);
+			topRegion.getStyleClass().add("top-region");
+			
+			getChildren().addAll(bottomRegion, content, topRegion);
 			setAlignment(content, getTileAlignment());
 			
 			addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
@@ -929,7 +855,7 @@ public class VScrollablePane extends Region
 				{
 					int index = tiles.indexOf(content);
 					focusSelectionManager.getFocusModel().focus(index);
-					if (!selected.get() && !(event.isControlDown() && !event.isShiftDown()))
+					if (!focusSelectionManager.getSelectionModel().isSelected(index) && !(event.isControlDown() && !event.isShiftDown()))
 						focusSelectionManager.getSelectionModel().clearAndSelect(index);
 				}
 			});

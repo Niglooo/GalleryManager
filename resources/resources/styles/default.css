@@ -65,10 +65,31 @@
 	-fx-background-color: LIGHTBLUE;
 }
 
+/* From moderna.css */
+.v-scrollable-pane {
+    -fx-background-color: -fx-control-inner-background;
+}
+.v-scrollable-pane:focused {
+    -fx-background-color: -fx-faint-focus-color, -fx-focus-color, -fx-control-inner-background;
+    -fx-background-insets: -1.4, -0.3, 1;
+    -fx-background-radius: 2, 0, 0;
+}
+
+.v-scrollable-pane > .tile-wrapper:hover > .bottom-region {
+    -fx-background-color: #E5F3FF;
+}
+
+.v-scrollable-pane > .tile-wrapper:selected > .bottom-region {
+    -fx-background-color: #CCE8FF;
+}
+
+.v-scrollable-pane > .tile-wrapper:focused > .top-region {
+    -fx-border-width: 1px;
+    -fx-border-color: #99D1FF;
+}
 
 #thumbnails_view
 {
-    -fx-background-color: WHITE;
     -fx-padding: 10px;
     -fx-tile-width: 150px;
     -fx-tile-height: 150px;
