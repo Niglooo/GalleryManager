@@ -15,7 +15,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.css.CssMetaData;
 import javafx.css.Styleable;
@@ -67,7 +66,6 @@ public class VScrollablePane extends Region
 	private final ScrollBar vScrollBar;
 	private final ObservableList<Node> tiles;
 	private final GridFocusSelectionManager<Node> focusSelectionManager;
-	private final ChangeListener<Node> applyFocusListener;
 	
 	private static final double MIDDLE_SCROLL_DEAD_AREA_SIZE = 20;
 	private static final double MIDDLE_SCROLL_REFRESH_RATE = 60;
@@ -81,6 +79,7 @@ public class VScrollablePane extends Region
 	public VScrollablePane()
 	{
 		super();
+		getStyleClass().add("v-scrollable-pane");
 		setFocusTraversable(true);
 		
 		vScrollBar = new ScrollBar();
@@ -124,15 +123,6 @@ public class VScrollablePane extends Region
 		};
 		
 		focusSelectionManager = new GridFocusSelectionManager<>(tiles);
-		//FIXME thumbnail view steals focus from file system view
-		applyFocusListener = (obs, oldValue, newValue) ->
-		{
-			if (newValue == null)
-				VScrollablePane.this.requestFocus();
-			else
-				newValue.getParent().requestFocus();
-		};
-		focusSelectionManager.getFocusModel().focusedItemProperty().addListener(applyFocusListener);
 		
 		selectionArea = new Region();
 		BorderStroke stroke = new BorderStroke(Color.rgb(0, 120, 215),
@@ -164,6 +154,16 @@ public class VScrollablePane extends Region
 		{
 			updateInputState(event);
 			vScrollBar.setValue(vScrollBar.getValue() - event.getDeltaY());
+		});
+		
+		// On a click, if the VScrollablePane or its children don't have the focus, the VScrollablePane get the focus
+		addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+			Node node = getScene().getFocusOwner();
+			while (node != null && node != this)
+				node = node.getParent();
+			
+			if (node != this)
+				requestFocus();
 		});
 		
 		addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
@@ -204,7 +204,6 @@ public class VScrollablePane extends Region
 			{
 				focusSelectionManager.getSelectionModel().clearSelection();
 				requestLayout();
-				focusSelectionManager.getFocusModel().focus(-1);
 			}
 			
 			stopAreaSelection();
@@ -271,7 +270,7 @@ public class VScrollablePane extends Region
 		{
 			updateInputState(event);
 			
-			int focusedIndex = Math.max(0, getFocusModel().getFocusedIndex());
+			int focusedIndex = Math.max(0, focusSelectionManager.getFocusModel().getFocusedIndex());
 			int shift = switch (event.getCode())
 			{
 				case LEFT -> -1;
@@ -309,40 +308,25 @@ public class VScrollablePane extends Region
 			}
 		});
 		
-		// The focus model drive the focus, but when the focus is changed from external
-		// source, we want the focus model to reflect that change. Note that we don't
-		// set the focusModel to -1 if we lose the focus. We keep its value so we will
-		// be able to restore it when the VScrollablePane regain focus
+		// When the focus is changed from external source,
+		// we want the focus model to reflect that change.
 		sceneProperty().addListener((o, nullScene, scene) ->
 		{
 			scene.focusOwnerProperty().addListener((obs, oldValue, newValue) ->
 			{
-				ObservableList<Node> children = getChildren();
-				
 				Node node = newValue;
 				
 				while (node != null)
 				{
-					if (node instanceof TileWrapper && node.getParent() == VScrollablePane.this)
+					if (node instanceof TileWrapper tw && node.getParent() == VScrollablePane.this)
 					{
-						internalSetFocus(children.indexOf(node) - TILE_LIST_OFFSET);
+						focusSelectionManager.getFocusModel().focus(tw.getContent());
 						return;
 					}
 					else
 						node = node.getParent();
 				}
 			});
-		});
-		
-		// Restore focus on the correct item when regaining focus
-		focusedProperty().addListener((obs, oldValue, newValue) ->
-		{
-			if (newValue)
-			{
-				Node focusedItem = getFocusModel().getFocusedItem();
-				if (focusedItem != null)
-					focusedItem.getParent().requestFocus();
-			}
 		});
 	}
 	
@@ -865,8 +849,6 @@ public class VScrollablePane extends Region
 		{
 			super();
 			
-			setFocusTraversable(true);
-			
 			ObservableList<Node> selection = focusSelectionManager.getSelectionModel().getSelectedItems();
 			BooleanBinding selected = new BooleanBinding()
 			{
@@ -951,14 +933,6 @@ public class VScrollablePane extends Region
 						focusSelectionManager.getSelectionModel().clearAndSelect(index);
 				}
 			});
-			
-			focusedProperty().addListener((obs, oldValue, newValue) ->
-			{
-				if (newValue)
-				{
-					content.requestFocus();
-				}
-			});
 		}
 		
 		public Node getContent()
@@ -986,14 +960,6 @@ public class VScrollablePane extends Region
 					c.onDisplayedChange(displayed);
 			}
 		}
-	}
-	
-	private void internalSetFocus(int index)
-	{
-		FocusModel<Node> focusModel = getFocusModel();
-		focusModel.focusedItemProperty().removeListener(applyFocusListener);
-		focusModel.focus(index);
-		focusModel.focusedItemProperty().addListener(applyFocusListener);
 	}
 	
 	/***************************************************************************

@@ -27,22 +27,19 @@ public class GridFocusSelectionManager<T>
 		this.source.addListener((Change<? extends T> c) ->
 		{
 			selection.removeIf(item -> !source.contains(item));
-			if (!source.contains(focusModel.getFocusedItem()))
-				focusModel.focus(-1);
+			int idxSelected = source.indexOf(selectionModel.getSelectedItem());
+			selectionModel.select0(idxSelected);
 			
-			if (!source.contains(selectionModel.getSelectedItem()))
-			{
-				selectionModel.select0(-1);
-			}
+			focusModel.focus(focusModel.actuallyFocusedItem);
 		});
 	}
 	
-	public FocusModel<T> getFocusModel()
+	public GridFocusModel getFocusModel()
 	{
 		return focusModel;
 	}
 	
-	public MultipleSelectionModel<T> getSelectionModel()
+	public GridSelectionModel getSelectionModel()
 	{
 		return selectionModel;
 	}
@@ -50,7 +47,6 @@ public class GridFocusSelectionManager<T>
 	public void click(T item, boolean shiftDown, boolean controlDown)
 	{
 		int itemIdx = source.indexOf(item);
-		focusModel.focus(itemIdx);
 		
 		if (shiftDown)
 		{
@@ -92,9 +88,11 @@ public class GridFocusSelectionManager<T>
 			selectionModel.select0(itemIdx);
 			selection.setAll(List.of(item));
 		}
+		
+		focusModel.focus(itemIdx);
 	}
 
-	private class GridSelectionModel extends MultipleSelectionModel<T>
+	public class GridSelectionModel extends MultipleSelectionModel<T>
 	{
 		@Override
 		public ObservableList<Integer> getSelectedIndices()
@@ -245,8 +243,34 @@ public class GridFocusSelectionManager<T>
 		}
 	}
 	
-	private class GridFocusModel extends FocusModel<T>
+	public class GridFocusModel extends FocusModel<T>
 	{
+		//FocusModel is index based so  getFocusedItem can return the wrong value if the source change
+		private T actuallyFocusedItem = null;
+		
+		@Override
+		public void focus(int index)
+		{
+			T item = (index < 0 || index >= source.size()) ? null : source.get(index);
+			focus(item);
+		}
+		
+		public void focus(T item)
+		{
+			int index = source.indexOf(item);
+			
+			if (index >= 0)
+			{
+				actuallyFocusedItem = item;
+				super.focus(index);
+			}
+			else
+			{
+				actuallyFocusedItem = null;
+				super.focus(-1);
+			}
+		}
+		
 		@Override
 		protected int getItemCount()
 		{
