@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -24,6 +25,7 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -39,7 +41,6 @@ import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.control.cell.TextFieldTreeCell;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -809,6 +810,20 @@ public class FileSystemTreeManager
 	
 	private class FileSystemTreeCell extends TextFieldTreeCell<FileSystemElement>
 	{
+		private final static String IMAGE_STYLE_CLASS = "image";
+		private final static String FOLDER_STYLE_CLASS = "folder";
+		private final static Map<Status, String> STATUS_STYLE_CLASSES;
+		static {
+			STATUS_STYLE_CLASSES = new EnumMap<>(Status.class);
+			STATUS_STYLE_CLASSES.put(Status.NOT_LOADED, "not-loaded");
+			STATUS_STYLE_CLASSES.put(Status.LOADING, "loading");
+			STATUS_STYLE_CLASSES.put(Status.NOT_FULLY_LOADED, "not-fully-loaded");
+			STATUS_STYLE_CLASSES.put(Status.EMPTY, "empty");
+			STATUS_STYLE_CLASSES.put(Status.SYNC, "sync");
+			STATUS_STYLE_CLASSES.put(Status.UNSYNC, "unsync");
+			STATUS_STYLE_CLASSES.put(Status.DELETED, "deleted");
+		}
+		
 		public FileSystemTreeCell()
 		{
 			this.setOnDragDetected((MouseEvent event) -> dragDetected(event, this));
@@ -882,13 +897,29 @@ public class FileSystemTreeManager
 			else
 			{
 				setText(element.getPath().getFileName().toString());
-				ImageView iv = new ImageView(element.getIcon());
-				iv.setFitHeight(16);
-				iv.setFitWidth(16);
-				iv.setPreserveRatio(true);
-				setGraphic(iv);
+				
+				// Recycle the icon
+				FontIcon icon = (FontIcon) getGraphic();
+				if (icon != null) {
+					icon.getStyleClass().removeAll(IMAGE_STYLE_CLASS, FOLDER_STYLE_CLASS);
+					icon.getStyleClass().removeAll(STATUS_STYLE_CLASSES.values());
+				} else {
+					icon = new FontIcon();
+					setGraphic(icon);
+				}
+				
+				if (element.isImage())
+					icon.getStyleClass().add(IMAGE_STYLE_CLASS);
+				else if (element.isDirectory())
+					icon.getStyleClass().add(FOLDER_STYLE_CLASS);
+				
+				icon.getStyleClass().add(STATUS_STYLE_CLASSES.get(element.getStatus()));
+				
+				icon.applyCss();// Necessary to avoid blinking (broken icon (square) because the css in not applied on time)
+				
 				setContextMenu(contextMenu);
 				
+				//TODO use pseudo class for cut element? same with drop-target ?)
 				if (Clipboard.getSystemClipboard().hasFiles()
 				        && Clipboard.getSystemClipboard().getFiles().contains(element.getPath().toFile()))
 					getStyleClass().add(CUT_ELEMENT_STYLE_CLASS);

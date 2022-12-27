@@ -55,6 +55,43 @@
     -fx-font-weight: bold;
 }
 
+#file_system_view .ikonli-font-icon.image
+{
+    -fx-icon-code: bi-file-image;
+}
+#file_system_view .ikonli-font-icon.folder
+{
+    -fx-icon-code: bi-folder-fill;
+}
+#file_system_view .ikonli-font-icon.not-loaded
+{
+    -fx-icon-color: #EFCE4A;
+}
+#file_system_view .ikonli-font-icon.loading
+{
+    -fx-icon-color: GREY;
+}
+#file_system_view .ikonli-font-icon.not-fully-loaded
+{
+    -fx-icon-color: #EFCE4A;
+}
+#file_system_view .ikonli-font-icon.empty
+{
+    -fx-icon-color: #F3E29A;
+}
+#file_system_view .ikonli-font-icon.sync
+{
+    -fx-icon-color: GREEN;
+}
+#file_system_view .ikonli-font-icon.unsync
+{
+    -fx-icon-color: ORANGE;
+}
+#file_system_view .ikonli-font-icon.deleted
+{
+    -fx-icon-color: RED;
+}
+
 #file_system_view .drop-target
 {
 	-fx-background-color: LIGHTBLUE;
