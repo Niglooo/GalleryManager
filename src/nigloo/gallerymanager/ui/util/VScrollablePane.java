@@ -739,7 +739,7 @@ public class VScrollablePane extends Region
 			
 			if (tileY + tileHeight >= 0 && tileY < height)
 			{
-				tile.setDisplayed(true);
+				tile.setVisible(true);
 				
 				layoutInArea(tile,
 				             tileX,
@@ -754,7 +754,7 @@ public class VScrollablePane extends Region
 				visibleTiles.add(tile);
 			}
 			else
-				tile.setDisplayed(false);
+				tile.setVisible(false);
 			
 			if (++c == actualColumns)
 			{
@@ -765,7 +765,7 @@ public class VScrollablePane extends Region
 		
 		lastVisibleTiles.removeAll(visibleTiles);
 		for (TileWrapper tile : lastVisibleTiles)
-			tile.setDisplayed(false);
+			tile.setVisible(false);
 		lastVisibleTiles = visibleTiles;
 	}
 	
@@ -819,7 +819,6 @@ public class VScrollablePane extends Region
 		private static final PseudoClass SELECTED_STATE = PseudoClass.getPseudoClass("selected");
 		private static final PseudoClass FOCUSED_STATE = PseudoClass.getPseudoClass("focused");
 		
-		private boolean displayed = false;
 		private final Node content;
 		
 		public TileWrapper(Node content)
@@ -828,6 +827,8 @@ public class VScrollablePane extends Region
 			getStyleClass().add("tile-wrapper");
 			
 			this.content = content;
+			
+			content.visibleProperty().bind(this.visibleProperty());
 			
 			ObservableList<Node> selection = focusSelectionManager.getSelectionModel().getSelectedItems();
 			selection.addListener((InvalidationListener) obs -> pseudoClassStateChanged(SELECTED_STATE, selection.contains(content)));
@@ -864,27 +865,6 @@ public class VScrollablePane extends Region
 		public Node getContent()
 		{
 			return content;
-		}
-		
-		public void setDisplayed(boolean displayed)
-		{
-			if (displayed)
-			{
-				setOpacity(1);
-				setMouseTransparent(false);
-			}
-			else
-			{
-				setOpacity(0);
-				setMouseTransparent(true);
-			}
-			
-			if (this.displayed != displayed)
-			{
-				this.displayed = displayed;
-				if (content instanceof Displayable c)
-					c.onDisplayedChange(displayed);
-			}
 		}
 	}
 	

@@ -10,12 +10,11 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.image.ImageView;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.util.CustomImage;
-import nigloo.gallerymanager.ui.util.Displayable;
 import nigloo.gallerymanager.ui.util.ImageCache;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
-public class ThumbnailView extends ImageView implements Displayable
+public class ThumbnailView extends ImageView
 {
 	private static javafx.scene.image.Image THUMBNAIL_LOADING_PLACEHOLDER = null;
 	private static javafx.scene.image.Image THUMBNAIL_CANNOT_LOAD_PLACEHOLDER = null;
@@ -56,6 +55,8 @@ public class ThumbnailView extends ImageView implements Displayable
 		lazyLoadPlaceholders();
 		setImage(THUMBNAIL_LOADING_PLACEHOLDER);
 		Injector.init(this);
+		
+		visibleProperty().addListener(obs -> onDisplayedChange(isVisible()));
 	}
 	
 	public Image getGalleryImage()
@@ -63,28 +64,27 @@ public class ThumbnailView extends ImageView implements Displayable
 		return galleryImage;
 	}
 	
-	@Override
-	public void onDisplayedChange(boolean displayed)
+	private void onDisplayedChange(boolean displayed)
 	{
-		if (this.displayed != displayed)
+		if (this.displayed == displayed)
+			return;
+		
+		this.displayed = displayed;
+		if (displayed)
 		{
-			this.displayed = displayed;
-			if (displayed)
+			fxImage = imageCache.getThumbnail(galleryImage, true);
+			double progress = fxImage instanceof CustomImage customImage ? customImage.loadingProgressProperty().get() : fxImage.getProgress();
+			if (progress == 1)
+				setImage(fxImage);
+			else
 			{
-				fxImage = imageCache.getThumbnail(galleryImage, true);
-				double progress = fxImage instanceof CustomImage customImage ? customImage.loadingProgressProperty().get() : fxImage.getProgress();
-				if (progress == 1)
-					setImage(fxImage);
-				else
-				{
-					new ProgressListener(this);
-				}
+				new ProgressListener(this);
 			}
-			else if (fxImage != null)
-			{
-				imageCache.cancelLoadingThumbnail(galleryImage);
-				fxImage = null;
-			}
+		}
+		else if (fxImage != null)
+		{
+			imageCache.cancelLoadingThumbnail(galleryImage);
+			fxImage = null;
 		}
 	}
 	
