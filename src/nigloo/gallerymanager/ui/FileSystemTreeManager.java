@@ -231,10 +231,7 @@ public class FileSystemTreeManager
 			// [FX Thread] Set the item status to LOADING
 			TreeItem<FileSystemElement> item = getTreeItem(path);
 			if (item != null)
-			{
-				item.getValue().setStatus(Status.LOADING);
-				treeView.refresh();
-			}
+				setStatus(item, Status.LOADING);
 		}, AsyncPools.FX_APPLICATION).thenRunAsync(() ->
 		{
 			// [IO Thread] List files from disk
@@ -333,6 +330,11 @@ public class FileSystemTreeManager
 				return CompletableFuture.completedFuture(null);
 			
 		}, AsyncPools.DISK_IO);
+	}
+	
+	private static void setStatus(TreeItem<FileSystemElement> item, Status status)
+	{
+		item.setValue(item.getValue().withStatus(status));
 	}
 	
 	private TreeItem<FileSystemElement> getTreeItem(Path path)
@@ -488,8 +490,7 @@ public class FileSystemTreeManager
 		if (newSatus == currentStatus)
 			return;
 		
-		item.getValue().setStatus(newSatus);
-		treeView.refresh();
+		setStatus(item, newSatus);
 		
 		TreeItem<FileSystemElement> parent = item.getParent();
 		if (parent != null)
@@ -597,8 +598,7 @@ public class FileSystemTreeManager
 			if (!image.isSaved())
 			{
 				gallery.saveImage(image);
-				element.setStatus(Status.SYNC);
-				treeView.refresh();
+				setStatus(item, Status.SYNC);
 				updateFolderAndParentStatus(item.getParent(), false);
 			}
 			
@@ -1194,11 +1194,11 @@ public class FileSystemTreeManager
 						                                    itemToAdd.getValue().getStatus());
 						
 						if (status.contains(Status.SYNC))
-							item.getValue().setStatus(Status.SYNC);
+							setStatus(item, Status.SYNC);
 						else if (status.contains(Status.UNSYNC))
-							item.getValue().setStatus(Status.UNSYNC);
+							setStatus(item, Status.UNSYNC);
 						else
-							item.getValue().setStatus(Status.DELETED);
+							setStatus(item, Status.DELETED);
 					}
 				}
 			}

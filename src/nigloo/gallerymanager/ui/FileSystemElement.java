@@ -77,7 +77,7 @@ public class FileSystemElement
 	
 	private final Image image;
 	private final Path path;
-	private Status status;
+	private final Status status;
 	private long lastModified = -1;
 	
 	public FileSystemElement(Image image, Status status)
@@ -96,7 +96,7 @@ public class FileSystemElement
 		this.path = Objects.requireNonNull(path, "path");
 		if (!path.isAbsolute())
 			throw new IllegalArgumentException("path must be absolute. Got: " + path);
-		this.status = status;
+		this.status = Objects.requireNonNull(status, "status");
 	}
 	
 	@Override
@@ -180,9 +180,17 @@ public class FileSystemElement
 		return status;
 	}
 	
-	public void setStatus(Status status)
+	public FileSystemElement withStatus(Status status)
 	{
-		this.status = Objects.requireNonNull(status, "status");
+		FileSystemElement other;
+		if (image != null)
+			other = new FileSystemElement(image, status);
+		else
+			other =new FileSystemElement(path, status);
+		
+		other.lastModified = lastModified;
+		
+		return other;
 	}
 	
 	public long getLastModified()
