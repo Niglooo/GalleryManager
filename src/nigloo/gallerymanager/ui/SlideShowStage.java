@@ -64,10 +64,7 @@ public class SlideShowStage extends Stage
 	
 	private final ImageView imageView;
 	private final MediaView mediaView;
-	private final VBox infoZone;
-	private final Text infoImagePath;
-	private final Text infoImageSize;
-	private final VBox infoImageTags;
+	private final InfoZone infoZone;
 	
 	private final Timeline autoplay;
 	private final ImageLoaderDaemon fullImageUpdatingThread;
@@ -123,17 +120,7 @@ public class SlideShowStage extends Stage
 		setScene(new Scene(contentRoot));
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
-		infoImagePath = new Text();
-		infoImagePath.getStyleClass().add("image-path");
-		
-		infoImageSize = new Text();
-		infoImagePath.getStyleClass().add("image-size");
-		
-		infoImageTags = new VBox();
-		infoImageTags.getStyleClass().add("tag-list");
-		
-		infoZone = new VBox(infoImagePath, infoImageSize, infoImageTags);
-		infoZone.getStyleClass().add("info-zone");
+		infoZone = new InfoZone();
 		infoZone.setVisible(false);
 		
 		contentRoot.getChildren().add(infoZone);
@@ -328,7 +315,7 @@ public class SlideShowStage extends Stage
 			index += nbImages;
 		return index % nbImages;
 	}
-	//TODO add video control (play pause rewind, volume)
+	//TODO add video control (play pause rewind, volume) visible when pressing alt (pousse action on video control then
 	//TODO add possibility to (un)zoom
 	private void setCurrent(int index)
 	{
@@ -376,47 +363,74 @@ public class SlideShowStage extends Stage
 			javafx.scene.image.Image thumbnail = imageCache.getThumbnail(currentImage, false);
 			imageView.setImage(thumbnail);
 		}
-		updateInfoImageSize(fxImageVideo);
-		
-		infoImagePath.setText(currentImage.getPath().toString());
-		infoImageTags.getChildren().clear();
-		currentImage.getTags().stream().sorted(Comparator.comparing(Tag::getName)).forEachOrdered(tag ->
-		{
-			Color tagColor = tag.getColor();
-			
-			Text tagText = new Text(tag.getName());
-			tagText.getStyleClass().add("tag");
-			if (tagColor != null)
-				tagText.setStyle("-fx-fill: " + FXUtils.toRGBA(tagColor) + ";");
-			
-			infoImageTags.getChildren().add(tagText);
-		});
+		infoZone.setImage(currentImage);
+		infoZone.updateImageLoadingInfo(fxImageVideo);
 		
 		currentImageProperty.fireValueChangedEvent();
 	}
 	
-	private void updateInfoImageSize(FXImageVideoWrapper fxImageVideo)
+	private static class InfoZone extends VBox
 	{
-		if (fxImageVideo.getProgressProperty().get() >= 1)
+		private final Text imagePath;
+		private final Text imageSize;
+		private final VBox imageTags;
+		
+		InfoZone()
 		{
-			int width;
-			int height;
+			imagePath = new Text();
+			imagePath.getStyleClass().add("image-path");
 			
-			if (fxImageVideo.isVideo())
-			{
-				width = fxImageVideo.getAsFxVideo().getMedia().getWidth();
-				height = fxImageVideo.getAsFxVideo().getMedia().getHeight();
-			}
-			else
-			{
-				width = (int) fxImageVideo.getAsFxImage().getWidth();
-				height = (int) fxImageVideo.getAsFxImage().getHeight();
-			}
+			imageSize = new Text();
+			imagePath.getStyleClass().add("image-size");
 			
-			infoImageSize.setText("%dx%d".formatted(width, height));
+			imageTags = new VBox();
+			imageTags.getStyleClass().add("tag-list");
+			
+			getChildren().setAll(imagePath, imageSize, imageTags);
+			getStyleClass().add("info-zone");
 		}
-		else
-			infoImageSize.setText("???x???");
+		
+		public void setImage(Image image)
+		{
+			imagePath.setText(image.getPath().toString());
+			imageTags.getChildren().clear();
+			image.getTags().stream().sorted(Comparator.comparing(Tag::getName)).forEachOrdered(tag ->
+			{
+				Color tagColor = tag.getColor();
+				
+				Text tagText = new Text(tag.getName());
+				tagText.getStyleClass().add("tag");
+				if (tagColor != null)
+					tagText.setStyle("-fx-fill: " + FXUtils.toRGBA(tagColor) + ";");
+				
+				imageTags.getChildren().add(tagText);
+			});
+		}
+		
+		public void updateImageLoadingInfo(FXImageVideoWrapper fxImageVideo)
+		{
+			int width = 0;
+			int height = 0;
+			
+			if (fxImageVideo.getProgressProperty().get() >= 1)
+			{
+				if (fxImageVideo.isVideo())
+				{
+					width = fxImageVideo.getAsFxVideo().getMedia().getWidth();
+					height = fxImageVideo.getAsFxVideo().getMedia().getHeight();
+				}
+				else
+				{
+					width = (int) fxImageVideo.getAsFxImage().getWidth();
+					height = (int) fxImageVideo.getAsFxImage().getHeight();
+				}
+			}
+			
+			String w = width > 0 ? "%d".formatted(width) : "???";
+			String h = height > 0 ? "%d".formatted(height) : "???";
+			
+			imageSize.setText(w + "x" + h);
+		}
 	}
 	
 	private class CurrentImageProperty extends ReadOnlyObjectPropertyBase<Image>
@@ -528,7 +542,7 @@ public class SlideShowStage extends Stage
 								
 								imageView.setImage(fxImageVideo.getAsFxImage());
 							}
-							updateInfoImageSize(fxImageVideo);
+							infoZone.updateImageLoadingInfo(fxImageVideo);
 						}
 					}
 					
