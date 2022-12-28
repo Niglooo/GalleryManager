@@ -723,12 +723,13 @@ public abstract class Downloader
 			logRequest(request);
 			HttpResponse<T> response = null;
 			maxConcurrentStreams.acquire();
-			if (requestLimiter != null)
-				requestLimiter.waitNextTick();
-			if (listener != null)
-				responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
 			try
 			{
+				if (requestLimiter != null)
+					requestLimiter.waitNextTick();
+				if (listener != null)
+					responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
+				
 				response = httpClient.send(request, MoreBodyHandlers.decoding(responseBodyHandler));
 			}
 			finally
@@ -754,20 +755,25 @@ public abstract class Downloader
 		{
 			logRequest(request);
 			maxConcurrentStreams.acquire();
-			if (requestLimiter != null)
-				requestLimiter.waitNextTick();
-			if (listener != null)
-				responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
-			return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
-			                     (response, error) ->
-			                     {
-				                     maxConcurrentStreams.release();
-				                     if (error == null)
-					                     logResponse(response);
-			                     })
-			            .thenCompose(response -> isErrorResponse(response)
-			                    ? CompletableFuture.failedFuture(new HttpException(response))
-			                    : CompletableFuture.completedFuture(response));
+			try {
+				if (requestLimiter != null)
+					requestLimiter.waitNextTick();
+				if (listener != null)
+					responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
+				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
+				                     (response, error) ->
+				                     {
+					                     maxConcurrentStreams.release();
+					                     if (error == null)
+						                     logResponse(response);
+				                     })
+				            .thenCompose(response -> isErrorResponse(response)
+				                    ? CompletableFuture.failedFuture(new HttpException(response))
+				                    : CompletableFuture.completedFuture(response));
+			} catch (Exception e) {
+				maxConcurrentStreams.release();
+				throw e;
+			}
 		}
 		
 		private boolean stopCheckingPost(ZonedDateTime publishedDatetime)
@@ -1697,10 +1703,7 @@ public abstract class Downloader
 						if (entry.getValue() instanceof ImageReference ref)
 						{
 							out.name("imageRef");
-							if (ref == null)
-								out.value(DELETED_FILE);
-							else
-								out.value(ref.getImageId());
+							out.value(ref.getImageId());
 						}
 						else // Zip entries
 						{
