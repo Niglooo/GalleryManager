@@ -10,8 +10,11 @@ import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectPropertyBase;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -39,6 +42,7 @@ import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.util.ImageCache;
+import nigloo.tool.StrongReference;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.FXUtils;
@@ -62,9 +66,12 @@ public class SlideShowStage extends Stage
 	
 	private final CurrentImageProperty currentImageProperty = new CurrentImageProperty();
 	
+	private final StackPane contentRoot;
 	private final ImageView imageView;
 	private final MediaView mediaView;
 	private final InfoZone infoZone;
+	
+	private final SimpleBooleanProperty altDown;
 	
 	private final Timeline autoplay;
 	private final ImageLoaderDaemon fullImageUpdatingThread;
@@ -114,7 +121,7 @@ public class SlideShowStage extends Stage
 		autoplay.setCycleCount(Timeline.INDEFINITE);
 		setAutoplayDelay(gallery.getSlideShowParameter().getAutoplayDelay());
 		
-		StackPane contentRoot = new StackPane(imageView, mediaView);
+		contentRoot = new StackPane(imageView, mediaView);
 		contentRoot.setId("slide_show_content");
 		contentRoot.setCursor(Cursor.NONE);
 		setScene(new Scene(contentRoot));
@@ -122,7 +129,6 @@ public class SlideShowStage extends Stage
 		
 		infoZone = new InfoZone();
 		infoZone.setVisible(false);
-		
 		contentRoot.getChildren().add(infoZone);
 		StackPane.setAlignment(infoZone, Pos.TOP_LEFT);
 		StackPane.setMargin(infoZone, new Insets(10));
@@ -130,12 +136,20 @@ public class SlideShowStage extends Stage
 		SlideShowContextMenu contextMenu = new SlideShowContextMenu(this);
 		contextMenu.setHideOnEscape(true);
 		
-		contextMenu.addEventHandler(WindowEvent.WINDOW_HIDDEN, event -> contentRoot.setCursor(Cursor.NONE));
+		altDown = new SimpleBooleanProperty(false);
+		contentRoot.cursorProperty().bind(new ObjectBinding<Cursor>() {{
+				bind(altDown, contextMenu.showingProperty());
+			}
+			@Override protected Cursor computeValue() {
+				return altDown.get() || contextMenu.isShowing() ? null : Cursor.NONE;
+			}
+		});
+		
+		infoZone.visibleProperty().bind(altDown);
 		
 		addEventHandler(KeyEvent.KEY_PRESSED, event ->
 		{
-			if (event.isAltDown())
-				infoZone.setVisible(true);
+			altDown.set(event.isAltDown());
 			
 			if (event.getCode() == KeyCode.ESCAPE)
 				close();
@@ -149,20 +163,35 @@ public class SlideShowStage extends Stage
 				contextMenu.updateItems();
 			}
 		});
-		addEventHandler(KeyEvent.KEY_RELEASED, event ->
-		{
-			if (!event.isAltDown())
-				infoZone.setVisible(false);
-		});
+		addEventHandler(KeyEvent.KEY_RELEASED, event -> altDown.set(event.isAltDown()));
 		Robot robot = new Robot();
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
 			if (event.getButton() == MouseButton.SECONDARY)
 			{
-				Point2D center = new Point2D(getWidth() / 2, getHeight() / 2);
-				robot.mouseMove(center);
-				contentRoot.setCursor(Cursor.DEFAULT);
-				contextMenu.show(contentRoot, center.getX(), center.getY());
+				double x, y;
+				// If the cursor isn't visible, center it
+				if (contentRoot.getCursor() == Cursor.NONE)
+				{
+					x = getWidth() / 2;
+					y = getHeight() / 2;
+					
+					// Calling just Platform.runLater doesn't work...
+					// My guess is that robot.mouseMove is called too early when the cursor still isn't visible, and so does nothing
+					StrongReference<Runnable> r = new StrongReference<>();
+					r.set(() -> {
+						Platform.runLater(() -> robot.mouseMove(x, y));
+						getScene().removePostLayoutPulseListener(r.get());
+					});
+					getScene().addPostLayoutPulseListener(r.get());
+				}
+				else
+				{
+					x = event.getScreenX();
+					y = event.getScreenY();
+				}
+				
+				contextMenu.show(contentRoot, x, y);
 			}
 		});
 		addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
