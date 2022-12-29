@@ -11,12 +11,10 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.ObjectBinding;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectPropertyBase;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
@@ -404,8 +402,10 @@ public class SlideShowStage extends Stage
 		private final Text imageSize;
 		private final VBox imageTags;
 		
-		InfoZone()
+		public InfoZone()
 		{
+			getStyleClass().add("info-zone");
+			
 			imagePath = new Text();
 			imagePath.getStyleClass().add("image-path");
 			
@@ -416,7 +416,6 @@ public class SlideShowStage extends Stage
 			imageTags.getStyleClass().add("tag-list");
 			
 			getChildren().setAll(imagePath, imageSize, imageTags);
-			getStyleClass().add("info-zone");
 		}
 		
 		public void setImage(Image image)
