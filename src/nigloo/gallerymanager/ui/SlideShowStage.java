@@ -507,6 +507,7 @@ public class SlideShowStage extends Stage
 		public void run()
 		{
 			List<Image> previousImagesToLoad = List.of();
+			List<Image> imagesToLoad = List.of();
 			try
 			{
 				mainLoop:
@@ -515,11 +516,11 @@ public class SlideShowStage extends Stage
 					SafeThread.checkThreadState();
 					
 					int current = currentImageIdx;
-					List<Image> imagesToLoad = List.of(images.get(validIndex(current, 0)),
-					                                   images.get(validIndex(current, 1)),
-					                                   images.get(validIndex(current, -1)),
-					                                   images.get(validIndex(current, 2)),
-					                                   images.get(validIndex(current, 3)));
+					imagesToLoad = List.of(images.get(validIndex(current, 0)),
+					                       images.get(validIndex(current, 1)),
+					                       images.get(validIndex(current, -1)),
+					                       images.get(validIndex(current, 2)),
+					                       images.get(validIndex(current, 3)));
 					
 					for (Image image : previousImagesToLoad)
 					{
@@ -587,6 +588,8 @@ public class SlideShowStage extends Stage
 			finally
 			{
 				for (Image image : previousImagesToLoad)
+					imageCache.cancelLoadingFXImageVideo(image);
+				for (Image image : imagesToLoad)
 					imageCache.cancelLoadingFXImageVideo(image);
 			}
 		}

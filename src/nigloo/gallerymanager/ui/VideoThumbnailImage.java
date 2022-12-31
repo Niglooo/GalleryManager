@@ -78,7 +78,7 @@ public class VideoThumbnailImage extends CustomImage
 					                                   actualHeight));
 					mView.snapshot(params, VideoThumbnailImage.this);
 					
-					player.stop();
+					player.dispose();
 					mView = null;
 					loadingProgress.set(1);
 				}

@@ -90,12 +90,10 @@ public class FXImageVideoWrapper
 		{
 			synchronized (this)
 			{
-				if (progress.get() < 1)
-				{
-					LOGGER.debug("Loading video for {} ; Cancelled", filename);
-					fxPlayer.dispose();
-					exception.set(new CancellationException("Loading cancelled"));
-				}
+				// Always "dispose" otherwise the file is locked (we can't move it for example)
+				LOGGER.debug("Loading video for {} ; Cancelled", filename);
+				fxPlayer.dispose();
+				exception.set(new CancellationException("Loading cancelled"));
 			}
 		}
 	}
