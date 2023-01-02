@@ -8,6 +8,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<javafx-version>17.0.2</javafx-version>
+		<lombok-version>1.18.24</lombok-version>
 	</properties>
 
 	<build>
@@ -18,7 +19,32 @@
 				<version>3.8.1</version>
 				<configuration>
 					<release>17</release>
+					<annotationProcessorPaths>
+						<path>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+							<version>${lombok-version}</version>
+						</path>
+					</annotationProcessorPaths>
 				</configuration>
+			</plugin>
+			
+			<plugin>
+				<groupId>com.github.auties00</groupId>
+				<artifactId>delombok-plugin</artifactId>
+				<version>1.18.20</version>
+				<configuration>
+					<rootDirectory>${project.build.sourceDirectory}</rootDirectory>
+					<outputDirectory>${project.build.directory}/delombok</outputDirectory>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>delombok</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 			<plugin>
@@ -60,6 +86,14 @@
 			<groupId>nigloo</groupId>
 			<artifactId>Tools</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>${lombok-version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
 		</dependency>
 
 		<dependency>

@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import nigloo.gallerymanager.ui.FXImageVideoWrapper;
 import nigloo.gallerymanager.ui.util.ImageCache;
 import nigloo.tool.injection.Injector;
@@ -16,7 +17,9 @@ import nigloo.tool.injection.annotation.Inject;
 
 public class Image
 {
+	@Getter
 	long id;
+	@Getter
 	private Path path;
 	private Set<TagReference> tags = new HashSet<>();
 	
@@ -56,16 +59,6 @@ public class Image
 	public boolean isNotSaved()
 	{
 		return this.id <= 0;
-	}
-	
-	public long getId()
-	{
-		return id;
-	}
-	
-	public Path getPath()
-	{
-		return path;
 	}
 	
 	public Path getAbsolutePath()

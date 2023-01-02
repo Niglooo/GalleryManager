@@ -12,6 +12,8 @@ import java.util.stream.Collectors;
 import com.google.gson.annotations.JsonAdapter;
 
 import javafx.scene.paint.Color;
+import lombok.Getter;
+import lombok.Setter;
 import nigloo.tool.gson.javafx.ColorTypeAdapter;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -21,9 +23,10 @@ public class Tag
 	private static final Set<Character> FORBIDDEN_CHARS = " -!+".chars()
 	                                                            .mapToObj(c -> (char) c)
 	                                                            .collect(Collectors.toUnmodifiableSet());
-	
+	@Getter
 	private String name;
 	private HashSet<TagReference> parents;
+	@Setter
 	@JsonAdapter(ColorTypeAdapter.class)
 	private Color color;
 	
@@ -49,11 +52,6 @@ public class Tag
 		if (invalidChar.isPresent())
 			throw new IllegalArgumentException("The character '" + invalidChar.get()
 			        + "' is not allowed in tags. Got : \"" + name + "\"");
-	}
-	
-	public String getName()
-	{
-		return name;
 	}
 	
 	@Override
@@ -91,7 +89,7 @@ public class Tag
 		}
 	}
 	
-	private ArrayDeque<Tag> getClosestAncestorWith(Collection<TagReference> parents, Predicate<Tag> predicate)
+	private static ArrayDeque<Tag> getClosestAncestorWith(Collection<TagReference> parents, Predicate<Tag> predicate)
 	{
 		if (parents == null)
 			return null;
@@ -127,11 +125,6 @@ public class Tag
 		
 		ArrayDeque<Tag> tags = getClosestAncestorWith(parents, t -> t.color != null);
 		return tags == null ? null : tags.getLast().color;
-	}
-	
-	public void setColor(Color color)
-	{
-		this.color = color;
 	}
 	
 	public static boolean isCharacterAllowed(char c)

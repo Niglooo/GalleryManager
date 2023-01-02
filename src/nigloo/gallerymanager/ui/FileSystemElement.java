@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
+import lombok.Getter;
+import lombok.With;
 import nigloo.gallerymanager.model.Image;
 
 public class FileSystemElement
@@ -37,16 +39,19 @@ public class FileSystemElement
 		}
 	}
 	
+	@Getter
 	private final Image image;
 	private final Path path;
+	@Getter @With
 	private final Status status;
-	private long lastModified = -1;
+	@Getter(lazy = true)
+	private final long lastModified = computeLastModified();
 	
 	public FileSystemElement(Image image, Status status)
 	{
-		this.image = Objects.requireNonNull(image, "image");
-		this.path = null;
-		this.status = Objects.requireNonNull(status, "status");
+		this(image, null, status);
+		Objects.requireNonNull(image, "image");
+		Objects.requireNonNull(status, "status");
 		if (status != Status.SYNC && status != Status.UNSYNC && status != Status.DELETED)
 			throw new IllegalArgumentException("Invalid status. Must be one of " + Status.SYNC + ", " + Status.UNSYNC
 			        + ", " + Status.DELETED + ". Got: " + status);
@@ -54,13 +59,20 @@ public class FileSystemElement
 	
 	public FileSystemElement(Path path, Status status)
 	{
-		this.image = null;
-		this.path = Objects.requireNonNull(path, "path");
+		this(null, path, status);
+		Objects.requireNonNull(path, "path");
 		if (!path.isAbsolute())
 			throw new IllegalArgumentException("path must be absolute. Got: " + path);
-		this.status = Objects.requireNonNull(status, "status");
+		Objects.requireNonNull(status, "status");
 	}
 	
+	private FileSystemElement(Image image, Path path, Status status)
+	{
+		this.image = image;
+		this.path = path;
+		this.status = status;
+	}
+
 	@Override
 	public String toString()
 	{
@@ -95,11 +107,6 @@ public class FileSystemElement
 		return image != null ? image.getAbsolutePath() : path;
 	}
 	
-	public Image getImage()
-	{
-		return image;
-	}
-	
 	public boolean isDirectory()
 	{
 		return image == null;
@@ -110,38 +117,15 @@ public class FileSystemElement
 		return image != null;
 	}
 	
-	public Status getStatus()
+	private long computeLastModified()
 	{
-		return status;
-	}
-	
-	public FileSystemElement withStatus(Status status)
-	{
-		FileSystemElement other;
-		if (image != null)
-			other = new FileSystemElement(image, status);
-		else
-			other =new FileSystemElement(path, status);
-		
-		other.lastModified = lastModified;
-		
-		return other;
-	}
-	
-	public long getLastModified()
-	{
-		if (lastModified == -1)
+		try
 		{
-			try
-			{
-				lastModified = Files.getLastModifiedTime(getPath()).toMillis();
-			}
-			catch (IOException e)
-			{
-				lastModified = 0;
-			}
+			return Files.getLastModifiedTime(getPath()).toMillis();
 		}
-		
-		return lastModified;
+		catch (IOException e)
+		{
+			return 0;
+		}
 	}
 }

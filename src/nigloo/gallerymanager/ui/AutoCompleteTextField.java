@@ -26,11 +26,13 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Popup;
 import javafx.util.Duration;
+import lombok.Getter;
 
 public class AutoCompleteTextField extends TextField
 {
 	private static final int SUGGESTION_DELAY = 500;
 	
+	@Getter
 	private AutoCompletionBehavior autoCompletionBehavior;
 	private final DoubleProperty resultMaxHeight;
 	private final SuggestionsPopup entriesPopup;
@@ -93,11 +95,6 @@ public class AutoCompleteTextField extends TextField
 		}
 	}
 	
-	public AutoCompletionBehavior getAutoCompletionBehavior()
-	{
-		return autoCompletionBehavior;
-	}
-	
 	public void setAutoCompletionBehavior(AutoCompletionBehavior autoCompletionBehavior)
 	{
 		this.autoCompletionBehavior = Objects.requireNonNull(autoCompletionBehavior, "autoCompletionBehavior");
@@ -127,7 +124,7 @@ public class AutoCompleteTextField extends TextField
 			
 			if ((searchText == null || searchText.isEmpty()) && !showEvenIfEmptySearchText)
 			{
-				// Don't show suggestions don't hide any visible one either (from ctrl+space)
+				// Don't show suggestions. Don't hide any visible one either (from ctrl+space)
 			}
 			else if (suggestions != null && !suggestions.isEmpty())
 			{

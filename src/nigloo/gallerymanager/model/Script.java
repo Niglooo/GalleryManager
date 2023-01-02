@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.model;
 
+import lombok.Getter;
 import nigloo.tool.Utils;
 
 public class Script
@@ -9,17 +10,15 @@ public class Script
 		ON_APP_START, ON_APP_STOP, NONE
 	}
 	
+	@Getter
 	private String title = "";
+	@Getter
 	private AutoExecution autoExecution = AutoExecution.NONE;
+	@Getter
 	private String text = "";
 	
 	Script()
 	{
-	}
-	
-	public String getTitle()
-	{
-		return title;
 	}
 	
 	public void setTitle(String title)
@@ -27,19 +26,9 @@ public class Script
 		this.title = Utils.coalesce(title, "");
 	}
 	
-	public AutoExecution getAutoExecution()
-	{
-		return autoExecution;
-	}
-	
 	public void setAutoExecution(AutoExecution autoExecution)
 	{
 		this.autoExecution = Utils.coalesce(autoExecution, AutoExecution.NONE);
-	}
-	
-	public String getText()
-	{
-		return text;
 	}
 	
 	public void setText(String text)

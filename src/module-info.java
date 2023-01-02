@@ -11,6 +11,7 @@ module nigloo.gallerymanager
 	requires javafx.media;
 	
 	requires com.google.gson;
+	requires lombok;
 	requires methanol;
 	requires nigloo.tools;
 	requires org.apache.commons.io;//For needed for org.apache.tika.core

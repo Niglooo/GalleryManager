@@ -26,6 +26,7 @@ import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.reflect.TypeToken;
 
+import lombok.Getter;
 import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.DownloadFiles;
@@ -39,17 +40,21 @@ public final class Gallery
 	private static final Logger LOGGER = LogManager.getLogger(Gallery.class);
 	private static final Path PATH_WILDCARD = Paths.get("{wildcard}");
 	
+	@Getter
 	private transient Path rootFolder;
 	// Explicitly specify ArrayList/HashMap to ensure they're not read-only
+	@Getter
 	private ArrayList<Artist> artists;
 	private ArrayList<Image> images;
 	private ArrayList<Tag> tags;
 	private FileFolderOrder defaultSortOrder;
 	@JsonAdapter(SortOrderSerializer.class)
 	private HashMap<Path, FileFolderOrder> sortOrder;
+	@Getter
 	private SlideShowParameters slideShowParameter;
 	private ArrayList<Script> scripts;
 	
+	@Getter
 	private transient Exception validationError = new RuntimeException("Not validated");
 	private transient long nextId = 1;
 	transient WeakIdentityHashSet<ImageReference> allImageReferences = new WeakIdentityHashSet<>();
@@ -126,16 +131,6 @@ public final class Gallery
 	public boolean isValide()
 	{
 		return validationError == null;
-	}
-	
-	public Exception getValidationError()
-	{
-		return validationError;
-	}
-	
-	public Path getRootFolder()
-	{
-		return rootFolder;
 	}
 	
 	public Path toRelativePath(Path path)
@@ -298,11 +293,6 @@ public final class Gallery
 		return Collections.unmodifiableList(tags);
 	}
 	
-	public List<Artist> getArtists()
-	{
-		return artists;
-	}
-	
 	public FileFolderOrder getDefaultSortOrder()
 	{
 		synchronized (sortOrder)
@@ -384,11 +374,6 @@ public final class Gallery
 		{
 			return !sortOrder.containsKey(toRelativePath(path).resolve(PATH_WILDCARD));
 		}
-	}
-	
-	public SlideShowParameters getSlideShowParameter()
-	{
-		return slideShowParameter;
 	}
 	
 	public List<Script> getScripts()
