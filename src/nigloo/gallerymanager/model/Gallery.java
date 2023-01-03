@@ -90,12 +90,12 @@ public final class Gallery
 			if (rootFolder == null)
 				throw new NullPointerException("rootFolder cannot be null");
 			if (!rootFolder.isAbsolute())
-				throw new NullPointerException("rootFolder must be absolute");
+				throw new IllegalArgumentException("rootFolder must be absolute");
 			
 			if (!Double.isFinite(slideShowParameter.getAutoplayDelay()))
-					throw new NullPointerException("slideShowParameter.autoplayDelay must be finite");
+					throw new IllegalArgumentException("slideShowParameter.autoplayDelay must be finite");
 			if (slideShowParameter.getAutoplayDelay() <= 0)
-				throw new NullPointerException("slideShowParameter.autoplayDelay must be strictly positive");
+				throw new IllegalArgumentException("slideShowParameter.autoplayDelay must be strictly positive");
 			if (slideShowParameter.getVideos().getVolume() < 0d || slideShowParameter.getVideos().getVolume() > 1d)
 				throw new IllegalArgumentException("slideShowParameter.videos.volume must be in [0-1]");
 			

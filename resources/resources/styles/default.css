@@ -94,12 +94,12 @@
 
 #file_system_view .drop-target
 {
-	-fx-background-color: LIGHTBLUE;
+    -fx-background-color: LIGHTBLUE;
 }
 
 #file_system_view .cut-element
 {
-	-fx-background-color: LIGHTBLUE;
+    -fx-background-color: LIGHTBLUE;
 }
 
 /* From moderna.css */
@@ -299,30 +299,30 @@
 
 #slide_show_content
 {
-	-fx-background-color: BLACK;
+    -fx-background-color: BLACK;
 }
 
 #slide_show_content .info-zone
 {
-	-fx-padding: 5px;
-	-fx-background-color: rgba(255,255,255,0.9);
-	-fx-background-radius: 5px;
-	-fx-pref-width: -1;
-	-fx-pref-height: -1;
-	-fx-max-width: 0;
-	-fx-max-height: 0;
-	-fx-spacing: 5px;
+    -fx-padding: 5px;
+    -fx-background-color: rgba(255,255,255,0.9);
+    -fx-background-radius: 5px;
+    -fx-pref-width: -1;
+    -fx-pref-height: -1;
+    -fx-max-width: 0;
+    -fx-max-height: 0;
+    -fx-spacing: 5px;
 }
 
 #slide_show_content .image-path
 {
-	-fx-font-size: 1.1em;
+    -fx-font-size: 1.1em;
 }
 
 #slide_show_content .tag-list
 {
-	-fx-pref-width: -1;
-	-fx-pref-height: -1;
+    -fx-pref-width: -1;
+    -fx-pref-height: -1;
 }
 
 #slide_show_content .notification-label
