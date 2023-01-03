@@ -56,7 +56,7 @@ public class FXImageVideoWrapper
 			
 			final Media media = new Media(url);
 			fxPlayer = new MediaPlayer(media);
-			
+			fxPlayer.setAutoPlay(false);
 			fxPlayer.setMute(true);
 			
 			LOGGER.debug("Loading video for {} ; Set up: {}ms", () -> filename, () -> timer.split());

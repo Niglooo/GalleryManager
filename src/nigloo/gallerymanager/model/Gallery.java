@@ -81,6 +81,8 @@ public final class Gallery
 				sortOrder = new HashMap<>();
 			if (slideShowParameter == null)
 				slideShowParameter = new SlideShowParameters();
+			if (slideShowParameter.getVideos() == null)
+				slideShowParameter.setVideos(new SlideShowParameters.VideoParameters());
 			if (scripts == null)
 				scripts = new ArrayList<>();
 			
@@ -94,6 +96,8 @@ public final class Gallery
 					throw new NullPointerException("slideShowParameter.autoplayDelay must be finite");
 			if (slideShowParameter.getAutoplayDelay() <= 0)
 				throw new NullPointerException("slideShowParameter.autoplayDelay must be strictly positive");
+			if (slideShowParameter.getVideos().getVolume() < 0d || slideShowParameter.getVideos().getVolume() > 1d)
+				throw new IllegalArgumentException("slideShowParameter.videos.volume must be in [0-1]");
 			
 			for (Artist artist : artists)
 			{

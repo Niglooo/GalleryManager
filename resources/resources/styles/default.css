@@ -324,3 +324,72 @@
 	-fx-pref-width: -1;
 	-fx-pref-height: -1;
 }
+
+#slide_show_content .notification-label
+{
+    -fx-font-size: 70px;
+    -fx-font-weight: bold;
+}
+#slide_show_content .notification-label .text
+{
+    -fx-fill: white;
+    -fx-stroke: black;
+    -fx-stroke-width: 3px;
+    -fx-stroke-line-cap: round;
+}
+
+#slide_show_content .video-control
+{
+    -fx-padding: 5px;
+    -fx-alignment: center;
+    -fx-background-color: rgba(255,255,255,0.9);
+    -fx-background-radius: 5px;
+    -fx-min-width: 1000px;
+    -fx-pref-width: 1000px;
+    -fx-max-width: 1000px;
+    -fx-pref-height: -1;
+    -fx-max-height: 0;
+    -fx-spacing: 5px;
+}
+
+.timeline-tooltip
+{
+    -fx-padding: 5px 5px 12px 5px;
+    -fx-background-color: rgba(255,255,255,0.9);
+    -fx-shape: "M 100 0 L 600 0 Q 700 0 700 100 L 700 200 Q 700 300 600 300 L 400 300 L 350 400 L 300 300 L 100 300 Q 0 300 0 200 L 0 100 Q 0 0 100 0 Z";
+}
+
+.video-play-icon
+{
+    -fx-icon-code: bi-play-fill;
+}
+
+.video-pause-icon
+{
+    -fx-icon-code: bi-pause-fill;
+}
+
+.video-unknow-status-icon
+{
+    -fx-icon-code: bi-question;
+}
+
+.volume-off-icon
+{
+    -fx-icon-code: bi-volume-off-fill;
+}
+
+.volume-down-icon
+{
+    -fx-icon-code: bi-volume-down-fill;
+}
+
+.volume-up-icon
+{
+    -fx-icon-code: bi-volume-up-fill;
+}
+
+.volume-mute-icon
+{
+    -fx-icon-code: bi-volume-mute-fill;
+}
