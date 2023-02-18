@@ -461,6 +461,7 @@ public class UIController extends Application
 				thumbnailsView.scrollTo(lastImageSeenIdx);
 				thumbnailsView.getFocusModel().focus(lastImageSeenIdx);
 			}
+			fileSystemView.requestFocus();
 		});
 		slideShow.show();
 	}
