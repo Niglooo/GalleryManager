@@ -61,6 +61,7 @@ public class VScrollablePane extends Region
 	private static final double DEFAULT_VGAP = 0;
 	private static final Pos DEFAULT_TILE_ALIGNMENT = Pos.CENTER;
 	
+	private static final double TILE_VIEW_ORDER = 1;
 	private static final int TILE_LIST_OFFSET = 2;// vScrollBar,selectionArea
 	private final ScrollBar vScrollBar;
 	private final ObservableList<Node> tiles;
@@ -83,6 +84,7 @@ public class VScrollablePane extends Region
 		
 		vScrollBar = new ScrollBar();
 		vScrollBar.setOrientation(Orientation.VERTICAL);
+		vScrollBar.setViewOrder(TILE_VIEW_ORDER - 1);
 		vScrollBar.setBlockIncrement(1000);
 		vScrollBar.setUnitIncrement(100);
 		vScrollBar.valueProperty().addListener((obs, oldValue, newValue) ->
@@ -740,6 +742,7 @@ public class VScrollablePane extends Region
 			if (tileY + tileHeight >= 0 && tileY < height)
 			{
 				tile.setVisible(true);
+				tile.setViewOrder(TILE_VIEW_ORDER);
 				
 				layoutInArea(tile,
 				             tileX,
