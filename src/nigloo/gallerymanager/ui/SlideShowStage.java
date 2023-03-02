@@ -96,6 +96,7 @@ public class SlideShowStage extends Stage
 	private final FadeTransition notificationLabelEffectTL;
 	
 	private final SimpleBooleanProperty altDown;
+	private final SimpleBooleanProperty keyBoardControlVideo;
 	
 	private final VideoParameters parametersPreviousVideo;
 	
@@ -183,6 +184,8 @@ public class SlideShowStage extends Stage
 		contextMenu.setHideOnEscape(true);
 		
 		altDown = new SimpleBooleanProperty(false);
+		keyBoardControlVideo = new SimpleBooleanProperty(false);
+		keyBoardControlVideo.addListener((obs, oldValue, newValue) -> showNotification("Keyboard Control Video "+(newValue ? "ON" : "OFF")));
 		contentRoot.cursorProperty().bind(new ObjectBinding<Cursor>() {{
 				bind(altDown, contextMenu.showingProperty());
 			}
@@ -199,6 +202,11 @@ public class SlideShowStage extends Stage
 			}
 		};
 		
+		videoActuallyVisible.addListener((obs, oldValue, newValue) -> {
+			if (!newValue)
+				keyBoardControlVideo.set(false);
+		});
+		
 		infoZone.visibleProperty().bind(altDown);
 		videoControl.visibleProperty().bind(new BooleanBinding() {{
 				bind(altDown, videoActuallyVisible);
@@ -214,18 +222,27 @@ public class SlideShowStage extends Stage
 			
 			boolean consumed = true;
 			
+			if (event.getCode() == KeyCode.ALT)
+			{
+				if (keyBoardControlVideo.get())
+					keyBoardControlVideo.set(false);
+				else if (currentImageProperty().get().isActuallyVideo())
+					keyBoardControlVideo.set(true);
+			}
 			if (event.getCode() == KeyCode.ESCAPE)
+			{
 				close();
+			}
 			else if (event.getCode() == KeyCode.LEFT)
 			{
-				if (videoActuallyVisible.get())
+				if (keyBoardControlVideo.get())
 					videoControl.jump(-0.1);
 				else
 					previous();
 			}
 			else if (event.getCode() == KeyCode.RIGHT)
 			{
-				if (videoActuallyVisible.get())
+				if (keyBoardControlVideo.get())
 					videoControl.jump(+0.1);
 				else
 					next();
@@ -240,7 +257,7 @@ public class SlideShowStage extends Stage
 			}
 			else if (event.getCode() == KeyCode.SPACE)
 			{
-				if (videoActuallyVisible.get())
+				if (keyBoardControlVideo.get())
 				{
 					videoControl.playPauseAction();
 				}
