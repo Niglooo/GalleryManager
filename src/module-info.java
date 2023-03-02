@@ -3,6 +3,7 @@ module nigloo.gallerymanager
 	requires java.desktop;
 	requires java.net.http;
 	requires java.scripting;
+	requires java.sql;//For needed for graalvm
 	
 	requires javafx.base;
 	requires javafx.controls;
