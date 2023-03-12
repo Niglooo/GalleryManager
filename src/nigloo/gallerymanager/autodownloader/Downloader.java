@@ -192,7 +192,7 @@ public abstract class Downloader
 		DownloadFiles downloadFiles = Optional.ofNullable(fileConfiguration).map(FilesConfiguration::getDownload).orElse(DownloadFiles.NO);
 		
 		DownloadSession session = new DownloadSession(secrets, options);
-		downloadsProgressView.newSession(session.id, this.toString());
+		downloadsProgressView.newSession(session.id(), this.toString());
 		
 		try
 		{
@@ -219,7 +219,7 @@ public abstract class Downloader
 			
 			for (Post post : postsToDownload)
 			{
-				downloadsProgressView.newPost(session.id, post.id(), post.title(), post.publishedDatetime());
+				downloadsProgressView.newPost(session.id(), post.id(), post.title(), post.publishedDatetime());
 				
 				CompletableFuture<List<PostImage>> listImagesFuture = (downloadImages == DownloadImages.YES ||
 				                                                       downloadImages == DownloadImages.IF_NO_FILES ||
@@ -284,12 +284,12 @@ public abstract class Downloader
 			                     (r, error) ->
 			                     {
 				                     session.onSessionEnd();
-				                     downloadsProgressView.endSession(session.id, error);
+				                     downloadsProgressView.endSession(session.id(), error);
 			                     });
 		}
 		catch (Exception e)
 		{
-			downloadsProgressView.endSession(session.id, e);
+			downloadsProgressView.endSession(session.id(), e);
 			return CompletableFuture.failedFuture(e);
 		}
 	}
@@ -689,6 +689,11 @@ public abstract class Downloader
 				this.options.addAll(List.of(options));
 		}
 		
+		public long id()
+		{
+			return id;
+		}
+		
 		public boolean has(DownloadOption option)
 		{
 			return options.contains(option);
@@ -938,7 +943,7 @@ public abstract class Downloader
 					}
 				}
 				
-				downloadsProgressView.newExistingImage(session.id, post.id(), postImage.id(), imageDest);
+				downloadsProgressView.newExistingImage(session.id(), post.id(), postImage.id(), imageDest);
 				
 				return CompletableFuture.completedFuture(image);
 			}
@@ -956,30 +961,30 @@ public abstract class Downloader
 				public void onStartDownload(ResponseInfo responseInfo)
 				{
 					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
-					downloadsProgressView.newImage(session.id, post.id(), postImage.id(), imageDest);
+					downloadsProgressView.newImage(session.id(), post.id(), postImage.id(), imageDest);
 				}
 				
 				@Override
 				public void onProgress(long nbNewBytes, long nbBytesDownloaded, OptionalLong nbBytesTotal)
 				{
-					downloadsProgressView.updateDownloadProgress(session.id, post.id(), postImage.id(), nbBytesDownloaded, nbBytesTotal);
+					downloadsProgressView.updateDownloadProgress(session.id(), post.id(), postImage.id(), nbBytesDownloaded, nbBytesTotal);
 				}
 				
 				@Override
 				public void onComplete()
 				{
-					downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), null);
+					downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), null);
 				}
 				
 				@Override
 				public void onError(Throwable error)
 				{
-					downloadsProgressView.endDownload(session.id, post.id(), postImage.id(), error);
+					downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), error);
 				}
 			}))
 			.thenApplyAsync(fixExtension(contentType, ".jpg"), AsyncPools.DISK_IO)
 			.thenApply(filePath -> {
-				downloadsProgressView.updateFilePath(session.id, post.id(), postImage.id(), imageDest, filePath);
+				downloadsProgressView.updateFilePath(session.id(), post.id(), postImage.id(), imageDest, filePath);
 				return filePath;
 			})
 			.thenApply(imagePath -> saveImageInGallery(session, post, postImage, imagePath));
@@ -1078,32 +1083,32 @@ public abstract class Downloader
 				{
 					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
 					if (isZip)
-						downloadsProgressView.newZip(session.id, post.id(), file.id(), fileDest);
+						downloadsProgressView.newZip(session.id(), post.id(), file.id(), fileDest);
 					else
-						downloadsProgressView.newOtherFile(session.id, post.id(), file.id(), fileDest);
+						downloadsProgressView.newOtherFile(session.id(), post.id(), file.id(), fileDest);
 				}
 				
 				@Override
 				public void onProgress(long nbNewBytes, long nbBytesDownloaded, OptionalLong nbBytesTotal)
 				{
-					downloadsProgressView.updateDownloadProgress(session.id, post.id(), file.id(), nbBytesDownloaded, nbBytesTotal);
+					downloadsProgressView.updateDownloadProgress(session.id(), post.id(), file.id(), nbBytesDownloaded, nbBytesTotal);
 				}
 				
 				@Override
 				public void onComplete()
 				{
-					downloadsProgressView.endDownload(session.id, post.id(), file.id(), null);
+					downloadsProgressView.endDownload(session.id(), post.id(), file.id(), null);
 				}
 				
 				@Override
 				public void onError(Throwable error)
 				{
-					downloadsProgressView.endDownload(session.id, post.id(), file.id(), error);
+					downloadsProgressView.endDownload(session.id(), post.id(), file.id(), error);
 				}
 			})
 			.thenApplyAsync(fixExtension(contentType, null), AsyncPools.DISK_IO)
 			.thenApply(filePath -> {
-				downloadsProgressView.updateFilePath(session.id, post.id(), file.id(), fileDest, filePath);
+				downloadsProgressView.updateFilePath(session.id(), post.id(), file.id(), fileDest, filePath);
 				return filePath;
 			})
 			.thenApply(filePath -> {
@@ -1192,11 +1197,11 @@ public abstract class Downloader
 					if (Image.isImage(entryPath))
 					{
 						saveImageFromZipInGallery(session, post, file, zipEntry.getName(), entryPath);
-						downloadsProgressView.newImageInZip(session.id, post.id, file.id, zipEntry.getName(), entryPath);
+						downloadsProgressView.newImageInZip(session.id(), post.id, file.id, zipEntry.getName(), entryPath);
 					}
 					else
 					{
-						downloadsProgressView.newFileInZip(session.id, post.id, file.id, zipEntry.getName(), entryPath);
+						downloadsProgressView.newFileInZip(session.id(), post.id, file.id, zipEntry.getName(), entryPath);
 					}
 				}
 				zipEntry = zis.getNextEntry();
