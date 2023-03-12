@@ -1046,7 +1046,7 @@ public abstract class Downloader
 			
 			if (Files.exists(fileDest))
 			{
-				if ((mappingAsImage == null && Image.isImage(fileDest)) || mappingAsImage.isPresent())
+				if ((mappingAsImage == null && Image.isImage(fileDest)) || (mappingAsImage != null && mappingAsImage.isPresent()))
 				{
 					if (session.has(DownloadOption.UPDATE_IMAGES_ALREADY_DOWNLOADED))
 					{
@@ -1054,9 +1054,8 @@ public abstract class Downloader
 					}
 					
 					downloadsProgressView.newExistingImage(session.id(), post.id(), file.id(), fileDest);
+					return CompletableFuture.completedFuture(null);
 				}
-				
-				return CompletableFuture.completedFuture(null);
 			}
 		}
 		
