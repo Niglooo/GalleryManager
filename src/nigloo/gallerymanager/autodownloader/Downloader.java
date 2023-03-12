@@ -1163,13 +1163,27 @@ public abstract class Downloader
 					if (name.lastIndexOf('.') >= 0)
 						name = name.substring(0, name.lastIndexOf('.'));
 					
-					Set<UnicodeBlock> JAPANESE_UNICODE_BLOCKS = Set.of(UnicodeBlock.HIRAGANA, UnicodeBlock.KATAKANA, UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS);
+					Map<String, Long> counts = name.chars()
+					                               .mapToObj(Integer::valueOf)
+					                               .collect(Collectors.groupingBy(codepoint ->
+					                               {
+						                               UnicodeBlock block = UnicodeBlock.of(codepoint.intValue());
+						                               if (block == UnicodeBlock.HIRAGANA
+						                                       || block == UnicodeBlock.KATAKANA
+						                                       || block == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS)
+							                               return "japanese";
+						                               else if (block == UnicodeBlock.BASIC_LATIN)
+							                               return "basic-latin";
+						                               else
+							                               return "other";
+					                               }, Collectors.counting()));
 					
-					Map<Boolean, Long> counts = name.chars()
-					                                .mapToObj(Integer::valueOf)
-					                                .collect(Collectors.groupingBy(cp -> JAPANESE_UNICODE_BLOCKS.contains(UnicodeBlock.of(cp.intValue())), Collectors.counting()));
-					// Less japanese character than non japanese character
-					if (counts.getOrDefault(true, 0L) < counts.getOrDefault(false, 0L))
+					double total = name.length();
+					double nbJapanese = counts.getOrDefault("japanese", 0L);
+					double nbBasicLatin = counts.getOrDefault("basic-latin", 0L);
+					
+					// Less japanese than half are japanese and basic latin less than 70% of non japanese
+					if (nbJapanese < total / 2d && nbBasicLatin / (total - nbJapanese) < 0.7d)
 					{
 						throw new IllegalArgumentException("Not japanese: " + zipEntry.getName());
 					}
