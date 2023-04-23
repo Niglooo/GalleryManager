@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.ui;
 
+import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -238,14 +239,24 @@ public class SlideShowStage extends Stage
 				if (keyBoardControlVideo.get())
 					videoControl.jump(-0.1);
 				else
-					previous();
+				{
+					if (event.isControlDown() && !isShuffled())
+						previousFolder();
+					else
+						previous();
+				}
 			}
 			else if (event.getCode() == KeyCode.RIGHT)
 			{
 				if (keyBoardControlVideo.get())
 					videoControl.jump(+0.1);
 				else
-					next();
+				{
+					if (event.isControlDown() && !isShuffled())
+						nextFolder();
+					else
+						next();
+				}
 			}
 			else if (event.getCode() == KeyCode.UP)
 			{
@@ -335,7 +346,7 @@ public class SlideShowStage extends Stage
 	{
 		return currentImageProperty.get();
 	}
-	//TODO add "nextPost" (go to next sibling folder
+
 	public void next()
 	{
 		autoplay.jumpTo(Duration.ZERO);
@@ -345,6 +356,49 @@ public class SlideShowStage extends Stage
 	public void previous()
 	{
 		autoplay.jumpTo(Duration.ZERO);
+		setCurrent(validIndex(currentImageIdx, -1));
+	}
+
+	public void nextFolder()
+	{
+		autoplay.jumpTo(Duration.ZERO);
+
+		Path currentImageFolder = getCurrentImage().getPath().getParent();
+		for (int offset = 1 ; offset < images.size(); offset++) {
+			int index = validIndex(currentImageIdx, offset);
+			Path imageFolder = images.get(index).getPath().getParent();
+			if (imageFolder.equals(currentImageFolder) == false) {
+				setCurrent(index);
+				return;
+			}
+		}
+
+		// All images are in the same folders, just go to the next image
+		setCurrent(validIndex(currentImageIdx, 1));
+	}
+
+	public void previousFolder()
+	{
+		autoplay.jumpTo(Duration.ZERO);
+
+		Path currentImageFolder = getCurrentImage().getPath().getParent();
+		Path previousFolder = null;
+		for (int offset = 1 ; offset <= images.size(); offset++) {
+			int index = validIndex(currentImageIdx, -offset);
+			Path imageFolder = images.get(index).getPath().getParent();
+
+			if (previousFolder == null && currentImageFolder.equals(imageFolder) == false)
+			{
+				previousFolder = imageFolder;
+			}
+			else if (previousFolder != null && previousFolder.equals(imageFolder) == false)
+			{
+				setCurrent(validIndex(index, 1));
+				return;
+			}
+		}
+
+		// All images are in the same folders, just go to the previous image
 		setCurrent(validIndex(currentImageIdx, -1));
 	}
 	

@@ -31,7 +31,17 @@
     <MenuItem
       mnemonicParsing="false"
       onAction="#previous"
-      text="Back" />
+      text="Previous" />
+    <MenuItem
+      fx:id="nextFolderItem"
+      mnemonicParsing="false"
+      onAction="#nextFolder"
+      text="Next Folder" />
+    <MenuItem
+      fx:id="previousFolderItem"
+      mnemonicParsing="false"
+      onAction="#previousFolder"
+      text="Previous Folder" />
     <SeparatorMenuItem />
     <CheckMenuItem
       fx:id="shuffleItem"

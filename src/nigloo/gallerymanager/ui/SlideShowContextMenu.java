@@ -15,6 +15,10 @@ public class SlideShowContextMenu extends ContextMenu
 	@FXML
 	private MenuItem pauseItem;
 	@FXML
+	private MenuItem nextFolderItem;
+	@FXML
+	private MenuItem previousFolderItem;
+	@FXML
 	private CheckMenuItem shuffleItem;
 	@FXML
 	private CheckMenuItem loopItem;
@@ -34,7 +38,10 @@ public class SlideShowContextMenu extends ContextMenu
 	{
 		playItem.setDisable(slideShow.isAutoPlay());
 		pauseItem.setDisable(!slideShow.isAutoPlay());
-		
+
+		nextFolderItem.setDisable(slideShow.isShuffled());
+		previousFolderItem.setDisable(slideShow.isShuffled());
+
 		shuffleItem.setSelected(slideShow.isShuffled());
 		loopItem.setSelected(slideShow.isLooped());
 		
@@ -73,6 +80,17 @@ public class SlideShowContextMenu extends ContextMenu
 	protected void previous()
 	{
 		slideShow.previous();
+	}
+	@FXML
+	protected void nextFolder()
+	{
+		slideShow.nextFolder();
+	}
+
+	@FXML
+	protected void previousFolder()
+	{
+		slideShow.previousFolder();
 	}
 	
 	@FXML
