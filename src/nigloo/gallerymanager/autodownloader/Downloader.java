@@ -462,7 +462,7 @@ public abstract class Downloader
 				for (Entry<FileKey, Map<String, ImageReference>> entry : zipMapping.entrySet())
 					if (entry.getValue() != null)
 						for (Entry<String, ImageReference> zipEntry : entry.getValue().entrySet())
-							if (imageIds.contains(zipEntry.getValue().getImageId()))
+							if (zipEntry.getValue() != null && imageIds.contains(zipEntry.getValue().getImageId()))
 								zipEntry.setValue(null);
 			}
 		}
