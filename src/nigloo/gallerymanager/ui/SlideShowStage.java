@@ -237,7 +237,12 @@ public class SlideShowStage extends Stage
 			else if (event.getCode() == KeyCode.LEFT)
 			{
 				if (keyBoardControlVideo.get())
-					videoControl.jump(-0.1);
+				{
+					if (event.isControlDown())
+						videoControl.jump(-0.2);
+					else
+						videoControl.jump(-0.1);
+				}
 				else
 				{
 					if (event.isControlDown() && !isShuffled())
@@ -249,7 +254,12 @@ public class SlideShowStage extends Stage
 			else if (event.getCode() == KeyCode.RIGHT)
 			{
 				if (keyBoardControlVideo.get())
-					videoControl.jump(+0.1);
+				{
+					if (event.isControlDown())
+						videoControl.jump(+0.2);
+					else
+						videoControl.jump(+0.1);
+				}
 				else
 				{
 					if (event.isControlDown() && !isShuffled())
