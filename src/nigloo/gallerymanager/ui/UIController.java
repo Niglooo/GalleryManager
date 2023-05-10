@@ -12,12 +12,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.ChoiceFormat;
 import java.text.MessageFormat;
+import java.text.ParseException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,6 +32,8 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import nigloo.gallerymanager.filter.ImageFilter;
+import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
@@ -548,16 +550,18 @@ public class UIController extends Application
 	
 	private Predicate<Image> getTagFilter()
 	{
-		List<String> nomalizedTags = Arrays.stream(tagFilterField.getText().split(" "))
-		                                   .filter(t -> !t.isBlank())
-		                                   .map(Tag::normalize)
-		                                   .distinct()
-		                                   .toList();
-		
-		if (nomalizedTags.isEmpty())
+		String filterExpression = tagFilterField.getText();
+
+		if (filterExpression.isBlank())
 			return image -> true;
-		else
-			return image -> image.getImplicitTags().containsAll(nomalizedTags);
+		else {
+			try {
+				return ImageFilter.parse(filterExpression);
+			} catch (ParseException e) {
+				new ExceptionDialog(e, "Bad filter").show();
+				return image -> false;
+			}
+		}
 	}
 	
 	private void updateStatusBar()

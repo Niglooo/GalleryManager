@@ -20,7 +20,7 @@ import nigloo.tool.injection.annotation.Inject;
 
 public class Tag
 {
-	private static final Set<Character> FORBIDDEN_CHARS = " -!+".chars()
+	private static final Set<Character> FORBIDDEN_CHARS = " -!+&|[]".chars()
 	                                                            .mapToObj(c -> (char) c)
 	                                                            .collect(Collectors.toUnmodifiableSet());
 	@Getter
