@@ -365,7 +365,25 @@ public class UIController extends Application
 		
 		StopWatch timer = new StopWatch().start();
 		
+		List<Image> visibleImages = thumbnailsView
+				.getTiles()
+				.stream()
+				.filter(Node::isVisible)
+				.map(tv -> ((ThumbnailView) tv).getGalleryImage())
+				.toList();
+		
+		Image imageToSrollTo = sortedImages
+				.stream()
+				.filter(visibleImages::contains)
+				.findFirst()
+				.orElse(null);
+		
 		thumbnailsView.getTiles().setAll(sortedImages.stream().map(UIController.this::getImageView).toList());
+		
+		if (imageToSrollTo != null)
+			thumbnailsView.scrollTo(sortedImages.indexOf(imageToSrollTo));
+		else
+			thumbnailsView.scrollTo(0);
 		
 		LOGGER.debug("thumbnailsView.getTiles().setAll(...) ({}) : {}ms", sortedImages.size(), timer.split());
 		
