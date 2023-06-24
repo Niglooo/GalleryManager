@@ -189,13 +189,13 @@ public class FanboxDownloader extends Downloader
 	}
 	
 	@Override
-	protected String[] getHeardersForImageDownload(DownloadSession session, PostImage image)
+	protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
 	{
 		return getHeaders(session);
 	}
 	
 	@Override
-	protected String[] getHeardersForFileDownload(DownloadSession session, PostFile image)
+	protected String[] getHeadersForFileDownload(DownloadSession session, PostFile image)
 	{
 		return getHeaders(session);
 	}

@@ -149,7 +149,7 @@ public class PixivDownloader extends Downloader
 	}
 
 	@Override
-	protected String[] getHeardersForImageDownload(DownloadSession session, PostImage image)
+	protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
 	{
 		return session.getExtraInfo(HEADERS_KEY);
 	}

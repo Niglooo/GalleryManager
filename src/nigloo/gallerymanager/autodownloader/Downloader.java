@@ -606,16 +606,19 @@ public abstract class Downloader
 	
 	protected abstract CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception;
 	
-	protected abstract String[] getHeardersForImageDownload(DownloadSession session, PostImage image);
+	protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
+	{
+		return null;
+	}
 	
 	protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) throws Exception
 	{
 		return CompletableFuture.completedFuture(List.of());
 	}
 	
-	protected String[] getHeardersForFileDownload(DownloadSession session, PostFile image)
+	protected String[] getHeadersForFileDownload(DownloadSession session, PostFile image)
 	{
-		throw new UnsupportedOperationException(getClass().getSimpleName()+".getHeardersForFileDownload");
+		return null;
 	}
 	
 	public static class HttpException extends RuntimeException
@@ -953,8 +956,8 @@ public abstract class Downloader
 			Files.createDirectories(imageDest.getParent());
 			
 			StrongReference<String> contentType = new StrongReference<>();
-			
-			HttpRequest request = HttpRequest.newBuilder().uri(new URI(postImage.url())).GET().headers(getHeardersForImageDownload(session, postImage)).build();
+
+			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(new URI(postImage.url())).GET(), getHeadersForImageDownload(session, postImage)).build();
 			return session.sendAsync(request, new MonitorBodyHandler<>(BodyHandlers.ofFile(imageDest), new DownloadListener()
 			{
 				@Override
@@ -1071,10 +1074,8 @@ public abstract class Downloader
 			
 			StrongReference<String> contentType = new StrongReference<>();
 			
-			HttpRequest request = HttpRequest.newBuilder()
-			                                 .uri(new URI(file.url()))
-			                                 .GET()
-			                                 .headers(getHeardersForFileDownload(session, file))
+			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(new URI(file.url())).GET(),
+			                                 getHeadersForFileDownload(session, file))
 			                                 .build();
 			return session.sendAsync(request, BodyHandlers.ofFile(fileDest), new DownloadListener()
 			{
@@ -1525,6 +1526,13 @@ public abstract class Downloader
 		}
 		
 		return str;
+	}
+
+	private static HttpRequest.Builder withHeaders(HttpRequest.Builder requestBuilder, String[] headers) {
+		if (headers == null || headers.length == 0)
+			return requestBuilder;
+
+		return requestBuilder.headers(headers);
 	}
 	
 	@SuppressWarnings("unused")

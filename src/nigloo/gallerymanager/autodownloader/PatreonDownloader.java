@@ -249,13 +249,13 @@ public class PatreonDownloader extends Downloader
 	}
 
 	@Override
-	protected String[] getHeardersForImageDownload(DownloadSession session, PostImage image)
+	protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
 	{
 		return session.getExtraInfo(HEADERS_KEY);
 	}
 	
 	@Override
-	protected String[] getHeardersForFileDownload(DownloadSession session, PostFile image)
+	protected String[] getHeadersForFileDownload(DownloadSession session, PostFile image)
 	{
 		return session.getExtraInfo(HEADERS_KEY);
 	}
