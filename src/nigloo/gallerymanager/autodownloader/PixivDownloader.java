@@ -18,19 +18,14 @@ import nigloo.tool.gson.JsonHelper;
 
 public class PixivDownloader extends Downloader
 {
-	@SuppressWarnings("unused")
-	private PixivDownloader()
-	{
-		super();
-	}
-	
-	public PixivDownloader(String creatorId)
-	{
-		super(creatorId);
-	}
-	
 	private static final String HEADERS_KEY = "headers";
-	
+
+	@Override
+	public DownloaderType getType()
+	{
+		return DownloaderType.PIXIV;
+	}
+
 	@Override
 	protected void onStartDownload(DownloadSession session) throws Exception
 	{

@@ -10,7 +10,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.google.gson.annotations.JsonAdapter;
-
 import javafx.scene.paint.Color;
 import lombok.Getter;
 import lombok.Setter;

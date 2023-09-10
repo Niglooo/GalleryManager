@@ -2,6 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.io.IOException;
 import java.lang.Character.UnicodeBlock;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.net.HttpCookie;
 import java.net.MalformedURLException;
@@ -59,6 +60,8 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -125,34 +128,24 @@ public abstract class Downloader
 	private static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
 	                                                              .setParents(HTTP_RESPONSE);
 	
-	private static final Map<String, Class<? extends Downloader>> TYPE_TO_CLASS = new HashMap<>();
-	private static final Map<Class<? extends Downloader>, String> CLASS_TO_TYPE = new HashMap<>();
-	
-	public static void register(String type, Class<? extends Downloader> clazz)
-	{
-		TYPE_TO_CLASS.put(type, clazz);
-		CLASS_TO_TYPE.put(clazz, type);
-	}
-	
-	static
-	{
-		register("FANBOX", FanboxDownloader.class);
-		register("PIXIV", PixivDownloader.class);
-		register("TWITTER", TwitterDownloader.class);
-		register("MASONRY", MasonryDownloader.class);
-		register("PATREON", PatreonDownloader.class);
-	}
-	
 	@Inject
 	protected transient Gallery gallery;
 	@Inject
 	private transient DownloadsProgressViewDialog downloadsProgressView;
-	
+
+	@Getter
+	@Setter
 	protected transient Artist artist;
-	
+
+	@Getter
 	protected String creatorId;
+	@Getter
+	@Setter
 	protected ZonedDateTime mostRecentPostCheckedDate = null;
+	@Getter
 	protected long minDelayBetweenRequests = 0;
+	@Getter
+	@Setter
 	protected Pattern titleFilterRegex = null;
 	
 	protected ImagesConfiguration imageConfiguration;
@@ -160,23 +153,35 @@ public abstract class Downloader
 	
 	@JsonAdapter(value = MappingTypeAdapter.class, nullSafe = false)
 	private Mapping mapping = new Mapping();
+
+	public static Downloader build(DownloaderType type, String creatorId)
+	{
+		try
+		{
+			Downloader downloader = type.getImplClass().getConstructor().newInstance();
+			downloader.setCreatorId(creatorId);
+			return downloader;
+		}
+		catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e)
+		{
+			throw new RuntimeException(e);
+		}
+	}
 	
 	protected Downloader()
 	{
 		Injector.init(this);
 	}
-	
-	protected Downloader(String creatorId)
+
+	public DownloaderType getType()
 	{
-		this();
-		this.creatorId = creatorId;
+		throw new IllegalStateException("No type registered for " + getClass());
 	}
-	
+
 	@Override
 	public String toString()
 	{
-		return creatorId + " (" + (artist == null ? "no_artist" : artist.getName()) + ") from "
-		        + CLASS_TO_TYPE.get(getClass());
+		return creatorId + " (" + (artist == null ? "no_artist" : artist.getName()) + ") from " + getType();
 	}
 	
 	public final CompletableFuture<?> download(Properties secrets, DownloadOption... options)
@@ -274,7 +279,7 @@ public abstract class Downloader
 				{
 					if (error != null)
 						LOGGER.error("Error downloading post " + post + " for " + creatorId + " (" + artist.getName()
-						        + ") from " + CLASS_TO_TYPE.get(getClass()), error);
+						        + ") from " + getType(), error);
 					
 					session.onPostDownloaded(post, error);
 				}));
@@ -468,6 +473,8 @@ public abstract class Downloader
 		}
 	}
 
+	@Getter
+	@Setter
 	public static class ImagesConfiguration
 	{
 		public enum DownloadImages
@@ -477,30 +484,12 @@ public abstract class Downloader
 			IF_NO_FILES
 		}
 		
-		private DownloadImages download;
+		private DownloadImages download = DownloadImages.NO;
 		private String pathPattern;
-		
-		public DownloadImages getDownload()
-		{
-			return download;
-		}
-		
-		public void setDownload(DownloadImages download)
-		{
-			this.download = download;
-		}
-		
-		public String getPathPattern()
-		{
-			return pathPattern;
-		}
-		
-		public void setPathPattern(String pathPattern)
-		{
-			this.pathPattern = pathPattern;
-		}
 	}
-	
+
+	@Getter
+	@Setter
 	public static class FilesConfiguration
 	{
 		public enum DownloadFiles
@@ -515,39 +504,9 @@ public abstract class Downloader
 			NO, SAME_DIRECTORY, NEW_DIRECTORY
 		}
 		
-		private DownloadFiles download;
+		private DownloadFiles download = DownloadFiles.NO;
 		private String pathPattern;
-		private AutoExtractZip autoExtractZip;
-		
-		public DownloadFiles getDownload()
-		{
-			return download;
-		}
-		
-		public void setDownload(DownloadFiles download)
-		{
-			this.download = download;
-		}
-		
-		public String getPathPattern()
-		{
-			return pathPattern;
-		}
-		
-		public void setPathPattern(String pathPattern)
-		{
-			this.pathPattern = pathPattern;
-		}
-
-		public AutoExtractZip getAutoExtractZip()
-		{
-			return autoExtractZip;
-		}
-
-		public void setAutoExtractZip(AutoExtractZip autoExtractZip)
-		{
-			this.autoExtractZip = autoExtractZip;
-		}
+		private AutoExtractZip autoExtractZip = AutoExtractZip.NO;
 	}
 	
 	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
@@ -1597,13 +1556,8 @@ public abstract class Downloader
 		@Override
 		public JsonElement serialize(Downloader src, Type typeOfSrc, JsonSerializationContext context)
 		{
-			Class<?> clazz = src.getClass();
-			String type = CLASS_TO_TYPE.get(clazz);
-			if (type == null)
-				throw new IllegalStateException("No type registered for " + clazz);
-			
 			JsonObject out = new JsonObject();
-			out.addProperty("type", type);
+			out.addProperty("type", src.getType().name());
 			
 			for (Entry<String, JsonElement> e : context.serialize(src).getAsJsonObject().entrySet())
 				out.add(e.getKey(), e.getValue());
@@ -1615,12 +1569,8 @@ public abstract class Downloader
 		public Downloader deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
 		        throws JsonParseException
 		{
-			String type = json.getAsJsonObject().get("type").getAsString();
-			Class<?> clazz = TYPE_TO_CLASS.get(type);
-			if (clazz == null)
-				throw new IllegalStateException("No class registered for " + type);
-			
-			return context.deserialize(json, clazz);
+			DownloaderType type = DownloaderType.valueOf(json.getAsJsonObject().get("type").getAsString());
+			return context.deserialize(json, type.getImplClass());
 		}
 	}
 	
@@ -1892,34 +1842,71 @@ public abstract class Downloader
 	{
 		mapping.markDeleted(images);
 	}
-	
-	public final Artist getArtist()
+
+	public void setCreatorId(String creatorId)
 	{
-		return artist;
+		if (Utils.isBlank(creatorId))
+			throw new IllegalArgumentException("creatorId cannot be blank");
+
+		this.creatorId = creatorId;
 	}
-	
-	public final void setArtist(Artist artist)
+
+	public void setMinDelayBetweenRequests(long minDelayBetweenRequests)
 	{
-		this.artist = artist;
+		this.minDelayBetweenRequests = Math.max(0, minDelayBetweenRequests);
 	}
-	
+
 	public final ImagesConfiguration getImageConfiguration()
 	{
-		return imageConfiguration;
+		if (imageConfiguration != null)
+		{
+			return imageConfiguration;
+		}
+		else
+		{
+			return new ImagesConfiguration();
+		}
 	}
 
 	public final void setImageConfiguration(ImagesConfiguration imageConfiguration)
 	{
+		if (imageConfiguration != null &&
+				(imageConfiguration.getDownload() == null || imageConfiguration.getDownload() == DownloadImages.NO))
+		{
+			imageConfiguration = null;
+		}
+		else {
+			if (Utils.isBlank(imageConfiguration.getPathPattern()))
+				throw new IllegalArgumentException("pathPattern cannot be empty");
+		}
+
 		this.imageConfiguration = imageConfiguration;
 	}
 
 	public final FilesConfiguration getFileConfiguration()
 	{
-		return fileConfiguration;
+		if (fileConfiguration != null)
+		{
+			return fileConfiguration;
+		}
+		else
+		{
+			return new FilesConfiguration();
+		}
 	}
 
 	public final void setFileConfiguration(FilesConfiguration fileConfiguration)
 	{
+		if (fileConfiguration != null &&
+				(fileConfiguration.getDownload() == null || fileConfiguration.getDownload() == DownloadFiles.NO))
+		{
+			fileConfiguration = null;
+		}
+		else {
+			if (Utils.isBlank(fileConfiguration.getPathPattern()))
+				throw new IllegalArgumentException("pathPattern cannot be empty");
+		}
+
 		this.fileConfiguration = fileConfiguration;
 	}
 }

@@ -27,22 +27,17 @@ import nigloo.tool.gson.JsonHelper;
 
 public class PatreonDownloader extends Downloader
 {
-	@SuppressWarnings("unused")
-	private PatreonDownloader()
-	{
-		super();
-	}
-	
-	public PatreonDownloader(String creatorId)
-	{
-		super(creatorId);
-	}
-	
 	private static final String HEADERS_KEY = "headers";
 	
 	private record RessourcesId(String id, String type) {}
 	private record PostExtraInfo(JsonElement jPost, Map<RessourcesId, JsonElement> resources) {}
-	
+
+	@Override
+	public DownloaderType getType()
+	{
+		return DownloaderType.PATREON;
+	}
+
 	@Override
 	protected void onStartDownload(DownloadSession session) throws Exception
 	{

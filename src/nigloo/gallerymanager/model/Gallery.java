@@ -3,17 +3,12 @@ package nigloo.gallerymanager.model;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import nigloo.gallerymanager.autodownloader.DownloaderType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,7 +38,6 @@ public final class Gallery
 	@Getter
 	private transient Path rootFolder;
 	// Explicitly specify ArrayList/HashMap to ensure they're not read-only
-	@Getter
 	private ArrayList<Artist> artists;
 	private ArrayList<Image> images;
 	private ArrayList<Tag> tags;
@@ -146,7 +140,41 @@ public final class Gallery
 	{
 		return path.isAbsolute() ? path : rootFolder.resolve(path);
 	}
-	
+
+	public List<Artist> getArtists()
+	{
+		synchronized (artists)
+		{
+			return Collections.unmodifiableList(artists);
+		}
+	}
+
+	public Downloader newDownloader(Artist artist, DownloaderType type, String creatorId)
+	{
+		Objects.requireNonNull(artist, "artist");
+		Objects.requireNonNull(type, "type");
+		if (Utils.isBlank(creatorId))
+			throw new IllegalArgumentException("creatorId cannot be blank");
+
+		Downloader downloader = Downloader.build(type, creatorId);
+		downloader.setArtist(artist);
+		artist.autodownloaders.add(downloader);
+
+		return downloader;
+	}
+
+	public void deleteDownloader(Downloader downloader)
+	{
+		synchronized (artists)
+		{
+			for (Artist artist : artists) {
+				if (artist.autodownloaders.remove(downloader))
+					break;
+			}
+			downloader.setArtist(null);
+		}
+	}
+
 	public Image findImage(long imageId)
 	{
 		synchronized (images)

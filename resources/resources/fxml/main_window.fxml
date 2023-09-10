@@ -14,6 +14,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.stage.Stage?>
+<?import nigloo.gallerymanager.ui.ArtistsEditor?>
 <?import nigloo.gallerymanager.ui.AutoCompleteTextField?>
 <?import nigloo.gallerymanager.ui.util.VScrollablePane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
@@ -77,7 +78,11 @@
                   </SplitPane>
                 </content>
               </Tab>
-              <Tab text="Artists" />
+              <Tab text="Artists">
+                <content>
+                  <ArtistsEditor id="artists_editor_view" fx:id="artistsEditor" />
+                </content>
+              </Tab>
               <Tab text="Scripts">
                 <content>
                   <TabPane

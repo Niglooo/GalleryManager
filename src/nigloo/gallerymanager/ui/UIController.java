@@ -1,15 +1,9 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
+import java.io.*;
 import java.lang.ref.SoftReference;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.text.ChoiceFormat;
 import java.text.MessageFormat;
 import java.text.ParseException;
@@ -114,7 +108,10 @@ public class UIController extends Application
 	@FXML
 	private VScrollablePane thumbnailsView;
 	private ThumbnailUpdaterThread thumbnailUpdater;
-	
+
+	@FXML
+	private ArtistsEditor artistsEditor;
+
 	@FXML
 	private TabPane scriptEditors;
 	
@@ -202,16 +199,11 @@ public class UIController extends Application
 		{
 			scriptEditors.getTabs().add(newScriptEditorTab(script));
 		}
-		Tab addTab = new Tab(" + ");
-		addTab.setClosable(false);
-		addTab.setOnSelectionChanged(e -> {
+		UIUtils.addableTabs(scriptEditors, "Add Script", () -> {
 			Script script = gallery.newScript();
 			script.setTitle("New script");
-			Tab tab = newScriptEditorTab(script);
-			scriptEditors.getTabs().add(scriptEditors.getTabs().size()-1, tab);
-			scriptEditors.getSelectionModel().select(tab);
+			return newScriptEditorTab(script);
 		});
-		scriptEditors.getTabs().add(addTab);
 		
 		downloadsProgressDialog.downloadActiveProperty().addListener((obs, oldValue, newValue) -> updateStatusBar());
 		updateStatusBar();

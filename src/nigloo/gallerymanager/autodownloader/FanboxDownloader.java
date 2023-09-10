@@ -17,19 +17,14 @@ import nigloo.tool.gson.JsonHelper;
 
 public class FanboxDownloader extends Downloader
 {
-	@SuppressWarnings("unused")
-	private FanboxDownloader()
-	{
-		super();
-	}
-	
-	public FanboxDownloader(String creatorId)
-	{
-		super(creatorId);
-	}
-	
 	private static final String HEADERS_KEY = "headers";
-	
+
+	@Override
+	public DownloaderType getType()
+	{
+		return DownloaderType.FANBOX;
+	}
+
 	@Override
 	protected void onStartDownload(DownloadSession session) throws Exception
 	{

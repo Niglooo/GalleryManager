@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.model;
 
+import java.util.Collections;
 import java.util.List;
 
 import lombok.Getter;
@@ -11,9 +12,8 @@ public class Artist
 	private TagReference tag;
 	@Getter @Setter
 	private String name;
-	
-	@Getter
-	private List<Downloader> autodownloaders;
+
+	List<Downloader> autodownloaders;
 	
 	public Artist()
 	{
@@ -27,5 +27,10 @@ public class Artist
 	public void setTag(Tag tag)
 	{
 		this.tag = new TagReference(tag);
+	}
+
+	public List<Downloader> getAutodownloaders()
+	{
+		return Collections.unmodifiableList(autodownloaders);
 	}
 }

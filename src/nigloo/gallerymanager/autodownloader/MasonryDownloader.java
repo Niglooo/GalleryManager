@@ -8,11 +8,7 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -27,7 +23,13 @@ public class MasonryDownloader extends Downloader
 	private static final String HOST_KEY = "host";
 	private static final String HEADERS_KEY = "headers";
 	private static final String AVNO_KEY = "avno";
-	
+
+	@Override
+	public DownloaderType getType()
+	{
+		return DownloaderType.MASONRY;
+	}
+
 	@Override
 	protected void onStartDownload(DownloadSession session) throws Exception
 	{

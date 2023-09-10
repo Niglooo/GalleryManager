@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+<?import nigloo.tool.javafx.component.EditableIntegerSpinner?>
+
+<fx:root styleClass="downloader-editor" type="VBox" xmlns="http://javafx.com/javafx/17.0.2" xmlns:fx="http://javafx.com/fxml/1">
+   <children>
+      <GridPane>
+        <columnConstraints>
+          <ColumnConstraints hgrow="SOMETIMES" />
+          <ColumnConstraints hgrow="ALWAYS" minWidth="-Infinity" />
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints vgrow="NEVER" />
+          <RowConstraints vgrow="NEVER" />
+            <RowConstraints vgrow="NEVER" />
+          <RowConstraints vgrow="ALWAYS" />
+          <RowConstraints vgrow="ALWAYS" />
+            <RowConstraints vgrow="ALWAYS" />
+            <RowConstraints vgrow="ALWAYS" />
+        </rowConstraints>
+         <children>
+            <Label text="Type" />
+            <Label fx:id="type" GridPane.columnIndex="1" />
+            <Label text="Creator ID" GridPane.rowIndex="1" />
+            <TextField fx:id="creatorId" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+            <TitledPane fx:id="imagesConfigurationPane" animated="false" layoutX="10.0" layoutY="36.0" text="Images" GridPane.columnSpan="2147483647" GridPane.rowIndex="2">
+               <content>
+                  <GridPane>
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" />
+                        <ColumnConstraints hgrow="ALWAYS" />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints vgrow="SOMETIMES" />
+                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                     </rowConstraints>
+                     <children>
+                        <Label text="Download" />
+                        <ComboBox fx:id="imageDownload" GridPane.columnIndex="1" />
+                        <Label text="Path pattern" GridPane.rowIndex="1" />
+                        <TextField fx:id="imagePathPattern" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                     </children>
+                  </GridPane>
+               </content>
+            </TitledPane>
+            <TitledPane fx:id="filesConfigurationPane" animated="false" text="Files" GridPane.columnSpan="2147483647" GridPane.rowIndex="3">
+               <content>
+                  <GridPane>
+                    <columnConstraints>
+                      <ColumnConstraints hgrow="SOMETIMES" />
+                      <ColumnConstraints hgrow="ALWAYS" />
+                    </columnConstraints>
+                    <rowConstraints>
+                      <RowConstraints vgrow="SOMETIMES" />
+                      <RowConstraints vgrow="SOMETIMES" />
+                        <RowConstraints vgrow="SOMETIMES" />
+                    </rowConstraints>
+                     <children>
+                        <Label text="Download" />
+                        <ComboBox fx:id="fileDownload" GridPane.columnIndex="1" />
+                        <Label text="Path pattern" GridPane.rowIndex="1" />
+                        <TextField fx:id="filePathPattern" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                        <ComboBox fx:id="fileAutoExtractZip" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                        <Label text="Unzip" GridPane.rowIndex="2" />
+                     </children>
+                  </GridPane>
+               </content>
+            </TitledPane>
+            <Label text="Most recent post" GridPane.rowIndex="4" />
+            <Label text="Min delay" GridPane.rowIndex="5" />
+            <Label text="Title filter regex" GridPane.rowIndex="6" />
+            <DatePicker fx:id="mostRecentPostCheckedDate" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+            <EditableIntegerSpinner fx:id="minDelayBetweenRequests" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+            <TextField fx:id="titleFilterRegex" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+         </children>
+      </GridPane>
+   </children>
+</fx:root>

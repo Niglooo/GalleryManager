@@ -135,6 +135,43 @@
     -fx-tile-alignment: TOP_CENTER;
 }
 
+.artist-editor
+{
+    -fx-spacing: 5px;
+}
+
+.artist-editor > GridPane
+{
+    -fx-padding: 10px 10px 0px 10px;
+    -fx-hgap: 20px;
+    -fx-vgap: 2px;
+}
+
+.artist-editor-button-bar
+{
+    -fx-padding: 0px 10px 0px 10px;
+    -fx-spacing: 5px;
+}
+
+#downloader_editors
+{
+    -fx-open-tab-animation: NONE;
+    -fx-close-tab-animation: NONE;
+}
+
+.downloader-editor > GridPane
+{
+    -fx-padding: 10px;
+    -fx-hgap: 20px;
+    -fx-vgap: 5px;
+}
+
+.downloader-editor > GridPane > TitledPane > .content > GridPane
+{
+    -fx-hgap: 20px;
+    -fx-vgap: 5px;
+}
+
 
 .script-pane-list
 {

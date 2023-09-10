@@ -48,16 +48,11 @@ public class TwitterDownloader extends Downloader
 	private static final int PAGE_SIZE = 20;
 	
 	private static final String HEADERS_KEY = "headers";
-	
-	@SuppressWarnings("unused")
-	private TwitterDownloader()
+
+	@Override
+	public DownloaderType getType()
 	{
-		super();
-	}
-	
-	public TwitterDownloader(String creatorId)
-	{
-		super(creatorId);
+		return DownloaderType.TWITTER;
 	}
 	
 	@Override
