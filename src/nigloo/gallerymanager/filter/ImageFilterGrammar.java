@@ -2,10 +2,12 @@ package nigloo.gallerymanager.filter;
 
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
+import nigloo.tool.Utils;
 import nigloo.tool.parser.grammar.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -70,8 +72,22 @@ class ImageFilterGrammar {
         PRIMARY_EXPR.possibleSequences().addAll(List.of(
                 new GrammarSequence<>(List.of(TokenType.TAG_NAME), evaluatedTokens -> {
                     Token<?> token = (Token<?>) evaluatedTokens.get(0);
-                    String normalisedTag = Tag.normalize(token.value().toString());
-                    return new TagFilter(normalisedTag);
+                    String value = token.value().toString();
+                    int posSep = value.indexOf(ImageFilter.META_TAG_SEPARATOR);
+                    if (posSep >= 0) {
+                        String metaTagType = value.substring(0, posSep);
+                        if (ImageFilter.META_TAG_TYPE_PATH.equalsIgnoreCase(metaTagType)) {
+                            String path = value.substring(posSep + 1).replace(String.valueOf(ImageFilter.META_TAG_QUOTE), "");
+                            return new PathFilter(PathFilter.normalizePath(path));
+                        }
+                        else {
+                            throw new IllegalArgumentException("Invalid metatag: "+metaTagType);
+                        }
+                    }
+                    else {
+                        String normalisedTag = Tag.normalize(value);
+                        return new TagFilter(normalisedTag);
+                    }
                 }),
                 new GrammarSequence<>(List.of(TokenType.NEGATE, PRIMARY_EXPR), evaluatedTokens -> {
                     ImageFilter filter = (ImageFilter) evaluatedTokens.get(1);
@@ -106,6 +122,17 @@ class ImageFilterGrammar {
         @Override
         public boolean test(Image image) {
             return image.getImplicitTags().contains(normalizedTag);
+        }
+    }
+
+    private record PathFilter(String normalizedPath) implements ImageFilter {
+        @Override
+        public boolean test(Image image) {
+            return normalizePath(image.getPath().toString()).contains(normalizedPath);
+        }
+
+        static String normalizePath(String path) {
+            return Utils.stripAccents(path).toLowerCase(Locale.ROOT);
         }
     }
 

@@ -23,6 +23,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -179,8 +180,10 @@ public class UIController extends Application
 		loadFXML(this, primaryStage, "main_window.fxml");
 		
 		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
-		
-		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior());
+
+		// ---- Tab "Gallery" ----
+
+		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior(true));
 		tagFilterField.setOnAction(e -> requestRefreshThumbnails());
 		
 		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder(), Status.NOT_LOADED));
@@ -502,60 +505,103 @@ public class UIController extends Application
 		
 		return matchingTags;
 	}
-	
-	public final AutoCompletionBehavior getMultiTagsAutocompleteBehavior()
+
+	public final AutoCompletionBehavior getMultiTagsAutocompleteBehavior(boolean allowMetatag)
 	{
-		return new AutoCompletionBehavior()
+		return new MultiTagsAutocompleteBehavior(allowMetatag);
+	}
+
+	@RequiredArgsConstructor
+	private class MultiTagsAutocompleteBehavior implements AutoCompletionBehavior
+	{
+		private static final String PATH_PREFIX;
+		private static final Pattern PATH_PATTERN;
+		static
 		{
-			@Override
-			public String getSearchText(AutoCompleteTextField field)
+			PATH_PREFIX = ImageFilter.META_TAG_TYPE_PATH + ImageFilter.META_TAG_SEPARATOR;
+			String path = Pattern.quote(PATH_PREFIX);
+			String q = Pattern.quote(String.valueOf(ImageFilter.META_TAG_QUOTE));
+			PATH_PATTERN = Pattern.compile(".*\\b(" + path + "(" + q + "[^" + q + "]*" + q + "?|\\S*))");
+		}
+
+		private final boolean allowMetatag;
+
+		@Override
+		public String getSearchText(AutoCompleteTextField field)
+		{
+			int caret = field.getCaretPosition();
+			String text = field.getText();
+
+			if (allowMetatag)
 			{
-				int caret = field.getCaretPosition();
-				String text = field.getText();
-				
-				if (caret < text.length() && Tag.isCharacterAllowed(text.charAt(caret)))
-					return "";
-				
-				int idxBeginTag = findBeginTag(field);
-				if (idxBeginTag == caret)
-					return "";
-				
-				return text.substring(idxBeginTag, caret);
-			};
-			
-			@Override
-			public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
-			{
-				return autocompleteTags(searchText);
+				Matcher m = PATH_PATTERN.matcher(text.substring(0, caret));
+				if (m.matches())
+					return m.group(1);
 			}
-			
-			@Override
-			public void onSuggestionSelected(AutoCompleteTextField field, String suggestion)
-			{
-				int caret = field.getCaretPosition();
-				int idxBeginTag = findBeginTag(field);
-				String text = field.getText();
-				
-				String newText = text.substring(0, idxBeginTag) + suggestion + text.substring(caret);
-				field.setText(newText);
-				field.positionCaret(idxBeginTag + suggestion.length());
-			};
-			
-			private int findBeginTag(AutoCompleteTextField field)
-			{
-				int caret = field.getCaretPosition();
-				if (caret == 0)
-					return 0;
-				
-				String text = field.getText();
-				
-				int idxBeginTag = caret;
-				while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag - 1)))
-					idxBeginTag--;
-				
-				return idxBeginTag;
-			}
+
+			if (caret < text.length() && Tag.isCharacterAllowed(text.charAt(caret)))
+				return "";
+
+			int idxBeginTag = findBeginSearchText(field);
+			if (idxBeginTag == caret)
+				return "";
+
+			return text.substring(idxBeginTag, caret);
 		};
+
+		@Override
+		public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
+		{
+			if (allowMetatag)
+			{
+				if (searchText.startsWith(PATH_PREFIX))
+					return List.of(searchText);
+
+				if (PATH_PREFIX.startsWith(searchText))
+				{
+					ArrayList<String> suggestions = new ArrayList<>();
+					suggestions.add(PATH_PREFIX);
+					suggestions.addAll(autocompleteTags(searchText));
+					return suggestions;
+				}
+			}
+
+			return autocompleteTags(searchText);
+		}
+
+		@Override
+		public void onSuggestionSelected(AutoCompleteTextField field, String suggestion)
+		{
+			int caret = field.getCaretPosition();
+			int idxBeginTag = findBeginSearchText(field);
+			String text = field.getText();
+
+			String newText = text.substring(0, idxBeginTag) + suggestion + text.substring(caret);
+			field.setText(newText);
+			field.positionCaret(idxBeginTag + suggestion.length());
+		};
+
+		private int findBeginSearchText(AutoCompleteTextField field)
+		{
+			int caret = field.getCaretPosition();
+			if (caret == 0)
+				return 0;
+
+			String text = field.getText();
+
+			if (allowMetatag)
+			{
+				Matcher m = PATH_PATTERN.matcher(text.substring(0, caret));
+				if (m.matches())
+					return caret - m.group(1).length();
+			}
+
+			int idxBeginTag = caret;
+			while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag - 1)))
+				idxBeginTag--;
+
+			return idxBeginTag;
+		}
 	}
 	
 	private Predicate<Image> getTagFilter()

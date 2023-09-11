@@ -47,6 +47,26 @@ class ImageFilterTokenizer implements Iterator<Token<TokenType>> {
                 while (pos < source.length() && Tag.isCharacterAllowed(source.charAt(pos)))
                     advance();
 
+                // metatag (ex:  path:"path with spaces"
+                if (pos < source.length() && source.charAt(pos) == ImageFilter.META_TAG_SEPARATOR) {
+                    advance();
+
+                    // Start with a "
+                    if (pos < source.length() && source.charAt(pos) == ImageFilter.META_TAG_QUOTE) {
+                        advance();
+                        // Advance to the closing quotes
+                        while (pos < source.length() && source.charAt(pos) != ImageFilter.META_TAG_QUOTE)
+                            advance();
+
+                        if (pos < source.length() && source.charAt(pos) == ImageFilter.META_TAG_QUOTE)
+                            advance();
+                    }
+                    else {
+                        while (pos < source.length() && !Character.isWhitespace(source.charAt(pos)))
+                            advance();
+                    }
+                }
+
                 yield new Token<>(TokenType.TAG_NAME, CharBuffer.wrap(source, posBegin, pos), posBegin, line, col);
             }
         };

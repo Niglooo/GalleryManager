@@ -70,7 +70,7 @@ public class EditImageTagsDialog extends Stage
 		tagNameField.setAutoCompletionBehavior((field, searchText) -> uiController.autocompleteTags(searchText));
 		tagNameField.setTextFormatter(tagFormatter());
 		
-		parentTagField.setAutoCompletionBehavior(uiController.getMultiTagsAutocompleteBehavior());
+		parentTagField.setAutoCompletionBehavior(uiController.getMultiTagsAutocompleteBehavior(false));
 		parentTagField.setTextFormatter(tagFormatter(' '));
 		
 		tagNameField.textProperty().addListener((obs, oldValue, newValue) ->
