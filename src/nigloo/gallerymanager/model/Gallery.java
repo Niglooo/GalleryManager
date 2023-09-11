@@ -126,7 +126,7 @@ public final class Gallery
 		}
 	}
 	
-	public boolean isValide()
+	public boolean isValid()
 	{
 		return validationError == null;
 	}

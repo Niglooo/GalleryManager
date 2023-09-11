@@ -1122,12 +1122,12 @@ public abstract class Downloader
 					String name = zipEntry.getName();
 					if (name.lastIndexOf('.') >= 0)
 						name = name.substring(0, name.lastIndexOf('.'));
-					
-					Map<String, Long> counts = name.chars()
+
+					Map<String, Long> counts = name.codePoints()
 					                               .mapToObj(Integer::valueOf)
 					                               .collect(Collectors.groupingBy(codepoint ->
 					                               {
-						                               UnicodeBlock block = UnicodeBlock.of(codepoint.intValue());
+						                               UnicodeBlock block = UnicodeBlock.of(codepoint);
 						                               if (block == UnicodeBlock.HIRAGANA
 						                                       || block == UnicodeBlock.KATAKANA
 						                                       || block == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS)
@@ -1194,7 +1194,7 @@ public abstract class Downloader
 	                                                                 .mapToObj(cp -> (int) cp)
 	                                                                 .collect(Collectors.toUnmodifiableSet());
 	
-	private static final Path makeSafe(String path)
+	private static Path makeSafe(String path)
 	{
 		int len = path.length();
 		StringBuilder safePath = new StringBuilder(len);
@@ -1822,7 +1822,7 @@ public abstract class Downloader
 						mapping.imageFileMapping.put(fileKey, ref);
 					else if (zipEntries != null)
 						mapping.zipMapping.put(new FileKey(postId, fileId), zipEntries);
-					else if (ref == null && zipEntries == null)
+					else
 						mapping.imageFileMapping.put(fileKey, null);
 				}
 			}

@@ -19,34 +19,21 @@
 <?import nigloo.gallerymanager.ui.util.VScrollablePane?>
 <?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<fx:root
-  height="800.0"
-  title="Gallery Manager"
-  type="Stage"
-  width="1200.0"
-  xmlns="http://javafx.com/javafx/17.0.2"
-  xmlns:fx="http://javafx.com/fxml/1">
+<fx:root height="800.0" title="Gallery Manager" type="Stage" width="1200.0" xmlns="http://javafx.com/javafx/17.0.2" xmlns:fx="http://javafx.com/fxml/1">
   <scene>
     <Scene>
       <VBox>
         <children>
           <MenuBar VBox.vgrow="NEVER">
             <menus>
-              <Menu
-                mnemonicParsing="false"
-                text="File">
+              <Menu mnemonicParsing="false" text="File">
                 <items>
-                  <MenuItem
-                    mnemonicParsing="false"
-                    onAction="#saveGallery"
-                    text="Save" />
+                  <MenuItem mnemonicParsing="false" onAction="#saveGallery" text="Save" />
                 </items>
               </Menu>
             </menus>
           </MenuBar>
-          <TabPane
-            tabClosingPolicy="UNAVAILABLE"
-            VBox.vgrow="ALWAYS">
+          <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
             <tabs>
               <Tab text="Gallery">
                 <content>
@@ -55,25 +42,16 @@
                       <VBox id="left_part">
                         <children>
                           <Label text="Scan result" />
-                          <AutoCompleteTextField
-                            fx:id="tagFilterField"
-                            styleClass="tag-filter-field" />
-                          <ScrollPane
-                            hbarPolicy="NEVER"
-                            styleClass="tag-list">
+                          <AutoCompleteTextField fx:id="tagFilterField" styleClass="tag-filter-field" />
+                          <ScrollPane hbarPolicy="NEVER" styleClass="tag-list">
                             <content>
                               <VBox fx:id="tagListView" />
                             </content>
                           </ScrollPane>
-                          <TreeView
-                            id="file_system_view"
-                            fx:id="fileSystemView"
-                            VBox.vgrow="ALWAYS" />
+                          <TreeView id="file_system_view" fx:id="fileSystemView" VBox.vgrow="ALWAYS" />
                         </children>
                       </VBox>
-                      <VScrollablePane
-                        id="thumbnails_view"
-                        fx:id="thumbnailsView" />
+                      <VScrollablePane id="thumbnails_view" fx:id="thumbnailsView" />
                     </items>
                   </SplitPane>
                 </content>
@@ -85,27 +63,16 @@
               </Tab>
               <Tab text="Scripts">
                 <content>
-                  <TabPane
-                    fx:id="scriptEditors"
-                    prefHeight="200.0"
-                    prefWidth="200.0"
-                    styleClass="script-pane-list"
-                    tabClosingPolicy="UNAVAILABLE" />
+                  <TabPane fx:id="scriptEditors" styleClass="script-pane-list" />
                 </content>
               </Tab>
             </tabs>
           </TabPane>
-          <HBox
-            id="status_bar"
-            VBox.vgrow="NEVER">
+          <HBox id="status_bar" VBox.vgrow="NEVER">
             <children>
               <Label fx:id="statusBarText" />
-              <Region
-                visible="false"
-                HBox.hgrow="ALWAYS" />
-              <FontIcon
-                fx:id="statusBarDownloadIndicator"
-                onMouseClicked="#showDownloadsProgress" />
+              <Region visible="false" HBox.hgrow="ALWAYS" />
+              <FontIcon fx:id="statusBarDownloadIndicator" onMouseClicked="#showDownloadsProgress" />
             </children>
           </HBox>
         </children>

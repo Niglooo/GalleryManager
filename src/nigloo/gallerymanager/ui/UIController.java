@@ -11,15 +11,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -27,7 +20,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javafx.scene.control.*;
+import lombok.RequiredArgsConstructor;
 import nigloo.gallerymanager.filter.ImageFilter;
+import nigloo.gallerymanager.model.*;
+import nigloo.gallerymanager.ui.util.UIUtils;
 import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -45,14 +42,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
-import javafx.scene.control.Hyperlink;
-import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
-import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -64,11 +54,7 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
-import nigloo.gallerymanager.model.Gallery;
-import nigloo.gallerymanager.model.Image;
-import nigloo.gallerymanager.model.Script;
 import nigloo.gallerymanager.model.Script.AutoExecution;
-import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
@@ -186,7 +172,7 @@ public class UIController extends Application
 		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior(true));
 		tagFilterField.setOnAction(e -> requestRefreshThumbnails());
 		
-		TreeItem<FileSystemElement> root = new TreeItem<FileSystemElement>(new FileSystemElement(gallery.getRootFolder(), Status.NOT_LOADED));
+		TreeItem<FileSystemElement> root = new TreeItem<>(new FileSystemElement(gallery.getRootFolder(), Status.NOT_LOADED));
 		root.setExpanded(true);
 		fileSystemView.setRoot(root);
 		
@@ -196,7 +182,8 @@ public class UIController extends Application
 		thumbnailsView.setContextMenu(new ThumbnailsContextMenu(thumbnailsView));
 		thumbnailsView.getTiles().addListener((Change<? extends Node> c) -> updateStatusBar());
 		thumbnailsView.getSelectionModel().getSelectedItems().addListener((Change<? extends Node> c) -> updateStatusBar());
-		
+
+		// ---- Tab "Scripts" ----
 		scriptEditors.setTabClosingPolicy(TabClosingPolicy.ALL_TABS);
 		for (Script script : gallery.getScripts())
 		{
@@ -301,7 +288,7 @@ public class UIController extends Application
 	}
 	
 	
-	private Collection<Image> getThumnailImages()
+	private Collection<Image> getThumbnailImages()
 	{
 		StopWatch timer = new StopWatch();
 		timer.start();
@@ -662,7 +649,7 @@ public class UIController extends Application
 	@FXML
 	public void saveGallery() throws IOException
 	{
-		if (!gallery.isValide()) {
+		if (!gallery.isValid()) {
 			LOGGER.error("Cannot save gallery because it's invalid", gallery.getValidationError());
 			return;
 		}
