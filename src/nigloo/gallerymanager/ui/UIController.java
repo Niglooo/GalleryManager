@@ -784,12 +784,17 @@ public class UIController extends Application
 			FXMLLoader fxmlLoader = new FXMLLoader(StandardCharsets.UTF_8);
 			fxmlLoader.setController(controller);
 			fxmlLoader.setRoot(root);
-			fxmlLoader.load(controller.getClass().getModule().getResourceAsStream("resources/fxml/" + filename));
+			fxmlLoader.setClassLoader(controller.getClass().getClassLoader());
+			fxmlLoader.load(getResourceAsStream(controller.getClass(), "resources/fxml/" + filename));
 		}
 		catch (IOException e)
 		{
 			throw new Error("Error while loading FXML for " + controller.getClass().getSimpleName()
 			        + " (resources/fxml/" + filename + ")", e);
 		}
+	}
+
+	private static InputStream getResourceAsStream(Class<?> clazz, String name) throws IOException {
+		return Injector.enabled() ? clazz.getModule().getResourceAsStream(name) : clazz.getClassLoader().getResourceAsStream(name);
 	}
 }
