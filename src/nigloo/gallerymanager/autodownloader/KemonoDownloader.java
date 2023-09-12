@@ -35,6 +35,9 @@ public abstract class KemonoDownloader extends Downloader {
             .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
             .appendLiteral(':')
             .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+            .optionalStart()
+            .appendLiteral('.')
+            .appendValue(ChronoField.NANO_OF_SECOND)
             .toFormatter();
 
         private final String originalProvider;
