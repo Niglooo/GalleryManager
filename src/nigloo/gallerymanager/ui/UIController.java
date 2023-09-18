@@ -756,7 +756,11 @@ public class UIController extends Application
 		Tab tab = new Tab();
 		tab.setContent(scriptEditor);
 		tab.textProperty().bind(scriptEditor.scriptTitleProperty().concat(Bindings.createStringBinding(() -> scriptEditor.changedProperty().get() ? "*" : "", scriptEditor.changedProperty())));
-		
+		tab.setOnCloseRequest(e -> {
+			scriptEditor.deleteScript();
+			e.consume();
+		});
+
 		return tab;
 	}
 	
