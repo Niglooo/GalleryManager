@@ -95,23 +95,24 @@ public final class Gallery
 			
 			for (Artist artist : artists)
 			{
-				for (Downloader autoDownloader : artist.getAutodownloaders())
+				if (artist.autodownloaders == null)
+					artist.autodownloaders = new ArrayList<>();
+
+				for (Downloader autoDownloader : artist.autodownloaders)
 				{
 					autoDownloader.setArtist(artist);
 					
 					ImagesConfiguration imageConfiguration = autoDownloader.getImageConfiguration();
-					if (imageConfiguration != null && imageConfiguration.getDownload() != null && imageConfiguration.getDownload() != DownloadImages.NO && 
-							Utils.isBlank(imageConfiguration.getPathPattern()))
-					{
+					if (imageConfiguration.getDownload() == null)
+						imageConfiguration.setDownload(DownloadImages.NO);
+					if (imageConfiguration.getDownload() != DownloadImages.NO && Utils.isBlank(imageConfiguration.getPathPattern()))
 						throw new IllegalStateException("Missing imageConfiguration.pathPattern for "+autoDownloader);
-					}
 					
 					FilesConfiguration fileConfiguration = autoDownloader.getFileConfiguration();
-					if (fileConfiguration != null && fileConfiguration.getDownload() != null && fileConfiguration.getDownload() != DownloadFiles.NO && 
-							Utils.isBlank(fileConfiguration.getPathPattern()))
-					{
+					if (fileConfiguration.getDownload() == null)
+						fileConfiguration.setDownload(DownloadFiles.NO);
+					if (fileConfiguration.getDownload() != DownloadFiles.NO &&  Utils.isBlank(fileConfiguration.getPathPattern()))
 						throw new IllegalStateException("Missing fileConfiguration.pathPattern for "+autoDownloader);
-					}
 				}
 			}
 			

@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.model;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -13,7 +14,7 @@ public class Artist
 	@Getter @Setter
 	private String name;
 
-	List<Downloader> autodownloaders;
+	ArrayList<Downloader> autodownloaders;
 	
 	public Artist()
 	{
