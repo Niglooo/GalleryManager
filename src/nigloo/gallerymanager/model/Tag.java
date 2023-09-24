@@ -133,7 +133,7 @@ public class Tag
 	
 	public static String normalize(String tagName)
 	{
-		return tagName == null ? null : tagName.trim().toLowerCase(Locale.ROOT)
+		return Utils.isBlank(tagName) ? null : tagName.trim().toLowerCase(Locale.ROOT)
 				.replace(' ', '_')
 				.replace('-', '_')
 				.replace("!", "")

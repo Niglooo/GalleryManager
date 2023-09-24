@@ -150,6 +150,24 @@ public final class Gallery
 		}
 	}
 
+	public Artist newArtist()
+	{
+		synchronized (artists)
+		{
+			Artist artist = new Artist();
+			artists.add(artist);
+			return artist;
+		}
+	}
+
+	public void deleteArtist(Artist artist)
+	{
+		synchronized (artists)
+		{
+			artists.remove(artist);
+		}
+	}
+
 	public Downloader newDownloader(Artist artist, DownloaderType type, String creatorId)
 	{
 		Objects.requireNonNull(artist, "artist");
@@ -166,12 +184,8 @@ public final class Gallery
 
 	public void deleteDownloader(Downloader downloader)
 	{
-		synchronized (artists)
-		{
-			for (Artist artist : artists) {
-				if (artist.autodownloaders.remove(downloader))
-					break;
-			}
+		if (downloader.getArtist() != null) {
+			downloader.getArtist().autodownloaders.remove(downloader);
 			downloader.setArtist(null);
 		}
 	}

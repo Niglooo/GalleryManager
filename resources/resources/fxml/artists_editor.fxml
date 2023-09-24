@@ -16,7 +16,16 @@
 
 <fx:root id="artists_editor" dividerPositions="0.2" type="SplitPane" xmlns="http://javafx.com/javafx/17.0.2" xmlns:fx="http://javafx.com/fxml/1">
    <items>
-      <ListView fx:id="artists" styleClass="artits-list" />
+      <VBox id="artist_list_part">
+         <children>
+            <HBox styleClass="artist-editor-button-bar">
+               <children>
+                  <Button mnemonicParsing="false" onAction="#newArtist" text="New artist" />
+               </children>
+            </HBox>
+            <ListView fx:id="artists" styleClass="artits-list" />
+         </children>
+      </VBox>
       <VBox fx:id="artistEditor" styleClass="artist-editor">
          <children>
             <GridPane id="loool">

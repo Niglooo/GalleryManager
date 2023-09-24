@@ -14,7 +14,7 @@ public class Artist
 	@Getter @Setter
 	private String name;
 
-	ArrayList<Downloader> autodownloaders;
+	ArrayList<Downloader> autodownloaders = new ArrayList<>();
 	
 	public Artist()
 	{
@@ -22,12 +22,17 @@ public class Artist
 	
 	public Tag getTag()
 	{
-		return tag.getTag();
+		return tag == null ? null : tag.getTag();
+	}
+
+	public String getTagName()
+	{
+		return tag == null ? null : tag.getTagName();
 	}
 	
 	public void setTag(Tag tag)
 	{
-		this.tag = new TagReference(tag);
+		this.tag = (tag == null) ? null : new TagReference(tag);
 	}
 
 	public List<Downloader> getAutodownloaders()

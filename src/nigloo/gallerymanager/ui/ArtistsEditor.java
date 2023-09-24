@@ -1,19 +1,21 @@
 package nigloo.gallerymanager.ui;
 
+import javafx.beans.Observable;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
-import javafx.beans.binding.StringBinding;
 import javafx.beans.binding.StringExpression;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TabPane.TabClosingPolicy;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import lombok.RequiredArgsConstructor;
 import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration;
@@ -21,12 +23,10 @@ import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoEx
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.DownloadFiles;
 import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration;
 import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration.DownloadImages;
-import nigloo.gallerymanager.autodownloader.DownloaderType;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.dialog.NewDownloaderDialog;
-import nigloo.gallerymanager.ui.dialog.NewDownloaderDialog.NewDownloaderInfo;
 import nigloo.gallerymanager.ui.util.UIUtils;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
@@ -68,7 +68,9 @@ public class ArtistsEditor extends SplitPane {
             SimpleStringProperty name,
             SimpleStringProperty tag,
             BooleanBinding changed,
-            List<Tab> downloaderEditorTabs)
+            ObservableList<Tab> downloaderEditorTabs,
+            ListChangeListener<Tab> listChangeListener
+    )
     { }
 
     public ArtistsEditor() {
@@ -110,37 +112,60 @@ public class ArtistsEditor extends SplitPane {
 
         for (Artist artist : gallery.getArtists())
         {
-            SimpleStringProperty name = new SimpleStringProperty(artist.getName());
-            SimpleStringProperty tag = new SimpleStringProperty(artist.getTag().getName());
-
-            List<Tab> downloaderTabs = new ArrayList<>();
-            for (Downloader downloader : artist.getAutodownloaders())
-            {
-                Tab tab = makeDownloaderEditorTab(downloader);
-                downloaderTabs.add(tab);
-            }
-
-            artists.getItems().add(new ArtistData(
-                    artist,
-                    name,
-                    tag,
-                    new BooleanBinding()
-                    {
-                        {
-                            bind(name, tag);
-                        }
-
-                        @Override
-                        protected boolean computeValue()
-                        {
-                            return !name.get().equals(artist.getName())
-                                    || !Tag.normalize(tag.get()).equals(artist.getTag().getName());
-                        }
-                    },
-                    downloaderTabs));
+            artists.getItems().add(makeArtistData(artist));
         }
 
         artistEditor.setDisable(true);
+    }
+
+    private ArtistData makeArtistData(Artist artist)
+    {
+        SimpleStringProperty name = new SimpleStringProperty(artist.getName());
+        SimpleStringProperty tag = new SimpleStringProperty(Objects.toString(artist.getTagName(), ""));
+
+        ObservableList<Tab> downloaderTabs = FXCollections.observableArrayList(tab -> new Observable[] {((DownloaderEditor) tab.getContent()).changed});
+        for (Downloader downloader : artist.getAutodownloaders())
+        {
+            Tab tab = makeDownloaderEditorTab(downloader);
+            downloaderTabs.add(tab);
+        }
+
+        return new ArtistData(
+                artist,
+                name,
+                tag,
+                new BooleanBinding()
+                {
+                    {
+                        bind(name, tag, downloaderTabs);
+                    }
+
+                    @Override
+                    protected boolean computeValue()
+                    {
+                        return !name.get().equals(artist.getName())
+                                || !Objects.equals(Tag.normalize(tag.get()), artist.getTagName())
+                                || downloaderTabs.stream()
+                                                 .map(Tab::getContent)
+                                                 .map(DownloaderEditor.class::cast)
+                                                 .anyMatch(de -> de.changed.get());
+                    }
+                },
+                downloaderTabs,
+                (Change<? extends Tab> c) ->
+                {
+                    while (c.next()) {
+                        if (c.wasRemoved())
+                        {
+                            downloaderTabs.removeAll(c.getRemoved());
+                        }
+                        if (c.wasAdded())
+                        {
+                            downloaderTabs.addAll(c.getFrom(), c.getAddedSubList());
+                        }
+                    }
+                }
+        );
     }
 
     private Tab makeDownloaderEditorTab(Downloader downloader)
@@ -176,6 +201,7 @@ public class ArtistsEditor extends SplitPane {
         {
             oldArtist.name.unbind();
             oldArtist.tag.unbind();
+            downloaders.getTabs().removeListener(oldArtist.listChangeListener);
         }
 
         downloaders.getTabs().subList(0, downloaders.getTabs().size() - 1).clear();
@@ -188,6 +214,7 @@ public class ArtistsEditor extends SplitPane {
             artistTag.setText(newArtist.tag.get());
             newArtist.tag.bind(artistTag.textProperty());
             downloaders.getTabs().addAll(0, newArtist.downloaderEditorTabs);
+            downloaders.getTabs().addListener(newArtist.listChangeListener);
             downloaders.getSelectionModel().selectFirst();
         }
         else
@@ -286,7 +313,7 @@ public class ArtistsEditor extends SplitPane {
         Artist artist = artistData.artist;
 
         artistName.setText(artist.getName());
-        artistTag.setText(artist.getTag().getName());
+        artistTag.setText(artist.getTagName());
 
         artistData.downloaderEditorTabs
                 .stream()
@@ -298,25 +325,46 @@ public class ArtistsEditor extends SplitPane {
     @FXML
     public void deleteArtist()
     {
-        //TODO deleteArtist
+        ArtistData artistData = artists.getSelectionModel().getSelectedItem();
+        if (artistData == null)
+            return;
+
+        Artist artist = artistData.artist;
+
+        AlertWithIcon warningPopup = new AlertWithIcon(AlertType.WARNING);
+        warningPopup.setTitle("Delete artist");
+        warningPopup.setHeaderText("Delete artist \"" + artist.getName() + "\"?");
+        warningPopup.setContentText("This action cannot be undone!");
+        warningPopup.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+        warningPopup.setDefaultButton(ButtonType.NO);
+
+        Optional<ButtonType> button = warningPopup.showAndWait();
+        if (button.isEmpty() || button.get() != ButtonType.YES)
+            return;
+
+        gallery.deleteArtist(artist);
+        artists.getItems().remove(artistData);
     }
 
     @FXML
     public void newArtist() //create temp artist and actualy add on saveArtist
     {
-        //TODO newArtist
-    }
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("New Artist");
+        dialog.setHeaderText(null);
+        dialog.setGraphic(null);
+        dialog.setContentText("Name");
 
-    @FXML
-    public void newDownloader()//(popup to select type) create temp dowloader and actualy add on saveArtist
-    {
-        //TODO newDownloader
-    }
+        Optional<String> result = dialog.showAndWait();
+        if (result.isPresent())
+        {
+            Artist artist = gallery.newArtist();
+            artist.setName(result.get());
 
-    @FXML
-    public void removeDownloader() // mark as toremove and actualy remove on saveArtist
-    {
-        //TODO removeDownloader
+            ArtistData artistData = makeArtistData(artist);
+            artists.getItems().add(artistData);
+            artists.getSelectionModel().select(artistData);
+        }
     }
 
     private class DownloaderEditor extends VBox

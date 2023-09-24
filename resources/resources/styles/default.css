@@ -135,6 +135,12 @@
     -fx-tile-alignment: TOP_CENTER;
 }
 
+#artist_list_part
+{
+    -fx-padding: 10px 0 0 0;
+    -fx-spacing: 10px;
+}
+
 .artist-editor
 {
     -fx-spacing: 5px;

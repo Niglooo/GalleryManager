@@ -1338,7 +1338,7 @@ public abstract class Downloader
 		Image image = gallery.getImage(path);
 		if (image.isNotSaved())
 		{
-			image.addTag(artist.getTag());
+			addArtistTag(image);
 			addTags(image, tags);
 			
 			gallery.saveImage(image);
@@ -1347,7 +1347,7 @@ public abstract class Downloader
 		else if (session.has(DownloadOption.UPDATE_IMAGES_ALREADY_DOWNLOADED))
 		{
 			image.getTags().forEach(image::removeTag);
-			image.addTag(artist.getTag());
+			addArtistTag(image);
 			addTags(image, tags);
 		}
 		
@@ -1370,6 +1370,12 @@ public abstract class Downloader
 			
 			image.addTag(tag);
 		}
+	}
+
+	private void addArtistTag(Image image) {
+		Tag tag = artist.getTag();
+		if (tag != null)
+			image.addTag(tag);
 	}
 	
 	private Function<HttpResponse<Path>, Path> fixExtension(StrongReference<String> contentType, String defaultExtention)
