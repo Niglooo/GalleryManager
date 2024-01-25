@@ -9,6 +9,8 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -54,12 +56,16 @@ public class ScriptEditor extends SplitPane
 	private Gallery gallery;
 	
 	private BooleanBinding changed;
+
+	private final BooleanProperty running;
 	
 	private final Script script;
 	
 	public ScriptEditor(Script script)
 	{
 		this.script = script;
+		// Need to be initialized early because loading the FXML will use the initial value.
+		running = new SimpleBooleanProperty(this, "running", false);
 		UIController.loadFXML(this, "script_editor.fxml");
 		Injector.init(this);
 		
@@ -71,6 +77,14 @@ public class ScriptEditor extends SplitPane
 		changed = new ScriptEditorChangedProperty();
 		
 		scriptOutput.textProperty().addListener((obs, oldValue, newValue) -> scriptOutput.setScrollTop(Double.MAX_VALUE));
+	}
+
+	public BooleanProperty runningProperty() {
+		return running;
+	}
+
+	public boolean isRunning() {
+		return runningProperty().get();
 	}
 	
 	private class ScriptEditorChangedProperty extends BooleanBinding
@@ -164,8 +178,11 @@ public class ScriptEditor extends SplitPane
 		
 		if (Utils.isBlank(scriptText.getText()))
 			return;
-		
-		CompletableFuture.runAsync(this::doRunScript, AsyncPools.SCRIPT_EXECUTION);
+
+		running.set(true);
+		CompletableFuture
+				.runAsync(this::doRunScript, AsyncPools.SCRIPT_EXECUTION)
+				.thenRunAsync(() -> running.set(false), AsyncPools.FX_APPLICATION);
 	}
 	
 	private void doRunScript()

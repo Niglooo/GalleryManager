@@ -19,20 +19,25 @@
   <items>
     <VBox styleClass="script-input-pane">
       <children>
-        <TextField fx:id="scriptTitle" />
+        <TextField
+          fx:id="scriptTitle"
+          disable="${controller.running}"/>
         <ChoiceBox
           fx:id="scriptAutoExecution"
-          prefWidth="150.0" />
+          prefWidth="150.0"
+          disable="${controller.running}"/>
         <TextArea
           fx:id="scriptText"
           styleClass="script-text-input"
-          VBox.vgrow="ALWAYS" />
+          VBox.vgrow="ALWAYS"
+          editable="${!controller.running}"/>
         <HBox styleClass="script-button-bar">
           <children>
             <Button
               mnemonicParsing="false"
               onAction="#saveScript"
-              text="Save">
+              text="Save"
+              disable="${controller.running}">
               <graphic>
                 <FontIcon styleClass="save-icon" />
               </graphic>
@@ -40,7 +45,8 @@
             <Button
               mnemonicParsing="false"
               onAction="#reloadScript"
-              text="Reload">
+              text="Reload"
+              disable="${controller.running}">
               <graphic>
                 <FontIcon styleClass="reload-icon" />
               </graphic>
@@ -48,7 +54,8 @@
             <Button
               mnemonicParsing="false"
               onAction="#deleteScript"
-              text="Delete">
+              text="Delete"
+              disable="${controller.running}">
               <graphic>
                 <FontIcon styleClass="delete-icon" />
               </graphic>
@@ -56,7 +63,8 @@
             <Button
               mnemonicParsing="false"
               onAction="#runScript"
-              text="Run">
+              text="Run"
+              disable="${controller.running}">
               <graphic>
                 <FontIcon styleClass="run-icon" />
               </graphic>
