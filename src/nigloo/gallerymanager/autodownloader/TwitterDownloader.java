@@ -140,7 +140,11 @@ public class TwitterDownloader extends Downloader
 				                                 .headers(session.getExtraInfo(HEADERS_KEY))
 				                                 .build();
 				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
-				
+
+				if ("UserUnavailable".equals(JsonHelper.followPath(response, "data.user.result.__typename"))) {
+					throw new IllegalStateException("Suspended Account");
+				}
+
 				postsIt = JsonHelper.followPath(response,
 				                                "data.user.result.timeline.timeline.instructions[0].entries",
 				                                JsonArray.class)
