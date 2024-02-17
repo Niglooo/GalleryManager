@@ -22,8 +22,6 @@ public class ThumbnailsContextMenu extends ContextMenu
 {
 	@Inject
 	private UIController uiController;
-	@Inject
-	private Gallery gallery;
 	
 	@FXML
 	private MenuItem openItem;
