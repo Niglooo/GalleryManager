@@ -133,7 +133,11 @@ public class Tag
 	
 	public static String normalize(String tagName)
 	{
-		return Utils.isBlank(tagName) ? null : tagName.trim().toLowerCase(Locale.ROOT)
+		if (tagName == null)
+			return null;
+
+		tagName = tagName
+				.toLowerCase(Locale.ROOT)
 				.replace(' ', '_')
 				.replace('-', '_')
 				.replace("!", "")
@@ -143,6 +147,9 @@ public class Tag
 				.replace("[", "(")
 				.replace("]", ")")
 				.replace("\"", "")
-				.replace(":", "");
+				.replace(":", "")
+				.trim();
+
+		return tagName.isEmpty() ? null : tagName;
 	}
 }

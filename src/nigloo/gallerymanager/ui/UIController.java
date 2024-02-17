@@ -471,6 +471,8 @@ public class UIController extends Application
 	public List<String> autocompleteTags(String tagSearch)
 	{
 		tagSearch = Tag.normalize(tagSearch);
+		if (tagSearch == null)
+			tagSearch = "";
 		
 		List<String> matchingTags = new ArrayList<>();
 		Map<String, Integer> matchingTagPos = new HashMap<>();
