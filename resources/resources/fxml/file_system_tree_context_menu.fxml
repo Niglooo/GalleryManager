@@ -53,6 +53,15 @@
           <SortBy fx:value="DATE" />
         </userData>
       </RadioMenuItem>
+      <RadioMenuItem
+        mnemonicParsing="false"
+        toggleGroup="$sortByGroup"
+        onAction="#updateSortBy"
+        text="Deilan">
+        <userData>
+          <SortBy fx:value="DEILAN_ORDER" />
+        </userData>
+      </RadioMenuItem>
       <SeparatorMenuItem />
       <fx:define>
         <ToggleGroup fx:id="folderPositionGroup" />
@@ -126,6 +135,15 @@
         text="Date">
         <userData>
           <SortBy fx:value="DATE" />
+        </userData>
+      </RadioMenuItem>
+      <RadioMenuItem
+        mnemonicParsing="false"
+        toggleGroup="$childrenSortByGroup"
+        onAction="#updateChildrenSortBy"
+        text="Deilan">
+        <userData>
+          <SortBy fx:value="DEILAN_ORDER" />
         </userData>
       </RadioMenuItem>
       <SeparatorMenuItem />
