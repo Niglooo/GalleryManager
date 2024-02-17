@@ -339,6 +339,49 @@ public final class Gallery
 	{
 		return Collections.unmodifiableList(tags);
 	}
+
+	public boolean renameTag(String sourceTagName, String targetTagName) {
+		Objects.requireNonNull(sourceTagName, "sourceTagName");
+		Objects.requireNonNull(targetTagName, "targetTagName");
+
+		synchronized (tags)
+		{
+			Tag sourceTag = findTag(sourceTagName);
+			if (sourceTag == null)
+				throw new IllegalArgumentException("tag " + sourceTagName + " not found");
+
+			Tag targetTag = findTag(targetTagName);
+			if (targetTag == null)
+			{
+				allTagReferences.forEach(TagReference::getTag);
+				sourceTag.name = Tag.normalize(targetTagName);
+
+				return false;
+			}
+			else // Merge
+			{
+				Tag unchecked = getTag("unchecked_tag");
+
+				for (TagReference tagRef : allTagReferences)
+				{
+					if (tagRef.getTag() == sourceTag)
+					{
+						boolean removeUnchecked =
+								sourceTag.getParents().contains(unchecked) &&
+								!targetTag.getParents().contains(unchecked);
+
+						HashSet<Tag> newParents = new HashSet<>();
+						newParents.addAll(sourceTag.getParents());
+						newParents.addAll(targetTag.getParents());
+						if (removeUnchecked)
+							newParents.remove(unchecked);
+						targetTag.setParents(newParents);
+					}
+				}
+				return true;
+			}
+		}
+	}
 	
 	public FileFolderOrder getDefaultSortOrder()
 	{

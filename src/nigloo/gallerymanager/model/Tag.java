@@ -23,7 +23,7 @@ public class Tag
 	                                                            .mapToObj(c -> (char) c)
 	                                                            .collect(Collectors.toUnmodifiableSet());
 	@Getter
-	private String name;
+	String name;
 	private HashSet<TagReference> parents;
 	@Setter
 	@JsonAdapter(ColorTypeAdapter.class)
