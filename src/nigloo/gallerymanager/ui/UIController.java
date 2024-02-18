@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -229,7 +230,6 @@ public class UIController extends Application
 		
 		private long lastUpdate = 0;
 		private volatile boolean updateRequested = false;
-		private volatile boolean isUpdating = false;
 		
 		public ThumbnailUpdaterThread(long updateInterval)
 		{
@@ -252,25 +252,27 @@ public class UIController extends Application
 				while (true)
 				{
 					SafeThread.checkThreadState();
-					
-					if (updateRequested && !isUpdating)
+
+					if (updateRequested)
 					{
 						long waitFor = lastUpdate + UPDATE_INTERVAL - System.currentTimeMillis();
 						
 						if (waitFor <= 0)
 						{
-							isUpdating = true;
-							
-							CompletableFuture.supplyAsync(UIController.this::getThumnailImages, AsyncPools.FX_APPLICATION)
-							                 .thenCompose(UIController.this::cancelIfNoChange)
-							                 .thenCompose(fileSystemTreeManager::refreshAndGetInOrder)
-							                 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
-							                 .whenComplete((v, e) ->
-							                 {
-								                 lastUpdate = System.currentTimeMillis();
-								                 updateRequested = false;
-								                 isUpdating = false;
-							                 });
+							try {
+								updateRequested = false;
+								CompletableFuture.supplyAsync(UIController.this::getThumbnailImages, AsyncPools.FX_APPLICATION)
+										.thenCompose(UIController.this::cancelIfNoChange)
+										.thenCompose(fileSystemTreeManager::refreshAndGetInOrder)
+										.thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
+										.join();
+							}
+							catch (CancellationException ignored) {}
+							catch (CompletionException e) {
+								if (!(e.getCause() instanceof CancellationException))
+									AsyncPools.FX_APPLICATION.execute(() -> new ExceptionDialog(e, "Error while refreshing thumbnails").show());
+							}
+							lastUpdate = System.currentTimeMillis();
 						}
 						else
 						{
