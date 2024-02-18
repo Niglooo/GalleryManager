@@ -1,6 +1,45 @@
 package nigloo.gallerymanager.ui.dialog;
 
-import java.awt.Desktop;
+import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableObjectValue;
+import javafx.beans.value.ObservableValue;
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableCell;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
+import javafx.scene.control.TreeTableView;
+import javafx.scene.input.MouseButton;
+import javafx.scene.layout.StackPane;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+import javafx.util.Callback;
+import nigloo.gallerymanager.autodownloader.Downloader;
+import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.ui.UIController;
+import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ColumnStatusData.ProgressData;
+import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.DLStatus;
+import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.ItemType;
+import nigloo.tool.MetronomeTimer;
+import nigloo.tool.injection.annotation.Singleton;
+import nigloo.tool.javafx.component.dialog.ExceptionDialog;
+import nigloo.tool.thread.SafeThread;
+import nigloo.tool.thread.ThreadStopException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.awt.*;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,44 +56,6 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.kordamp.ikonli.javafx.FontIcon;
-
-import javafx.application.Platform;
-import javafx.beans.InvalidationListener;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanWrapper;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableObjectValue;
-import javafx.beans.value.ObservableValue;
-import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeTableCell;
-import javafx.scene.control.TreeTableColumn;
-import javafx.scene.control.TreeTableRow;
-import javafx.scene.control.TreeTableView;
-import javafx.scene.input.MouseButton;
-import javafx.scene.layout.StackPane;
-import javafx.stage.Stage;
-import javafx.util.Callback;
-import nigloo.gallerymanager.autodownloader.Downloader;
-import nigloo.gallerymanager.model.Image;
-import nigloo.gallerymanager.ui.UIController;
-import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ColumnStatusData.ProgressData;
-import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.DLStatus;
-import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog.ItemInfo.ItemType;
-import nigloo.tool.MetronomeTimer;
-import nigloo.tool.injection.annotation.Singleton;
-import nigloo.tool.javafx.component.dialog.ExceptionDialog;
-import nigloo.tool.thread.SafeThread;
-import nigloo.tool.thread.ThreadStopException;
 
 @Singleton
 public class DownloadsProgressViewDialog extends Stage
@@ -702,6 +703,7 @@ public class DownloadsProgressViewDialog extends Stage
 		private final StackPane progressStackPane;
 		private final ProgressBar progressBar;
 		private final Label progressLabel;
+		private final Tooltip tooltip;
 		
 		public StatusCell()
 		{
@@ -711,13 +713,16 @@ public class DownloadsProgressViewDialog extends Stage
 			this.progressBar.setMaxWidth(Double.MAX_VALUE);
 			this.progressLabel = new Label("lol");
 			this.progressStackPane = new StackPane(progressBar, progressLabel);
+			this.tooltip = new Tooltip();
+			this.tooltip.setFont(Font.getDefault()); // Explicitly set the font to default or it will inherit the FontIcon's font
 		}
 		
 		@Override
 		protected void updateItem(ColumnStatusData statusData, boolean empty)
 		{
 			super.updateItem(statusData, empty);
-			
+			Tooltip.uninstall(icon, tooltip);
+
 			if (empty || statusData == null)
 			{
 				setGraphic(null);
@@ -790,6 +795,9 @@ public class DownloadsProgressViewDialog extends Stage
 							new ExceptionDialog(statusData.error(), "Error").show();
 							event.consume();
 						});
+
+						tooltip.setText(statusData.error().getLocalizedMessage());
+						Tooltip.install(icon, tooltip);
 					}
 				}
 			}

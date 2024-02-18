@@ -276,6 +276,7 @@
 {
     -fx-icon-code: bi-x;
     -fx-icon-color: RED;
+    -fx-cursor: hand;
 }
 
 .download-status-cell .ikonli-font-icon
