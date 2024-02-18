@@ -388,6 +388,16 @@ public class DownloadsProgressViewDialog extends Stage
 			}
 			
 			postItem.getValue().setComplete(error);
+			boolean allFilesInPostAlreadyExist = postItem
+					.getChildren()
+					.stream()
+					.map(TreeItem::getValue)
+					.map(FileInfo.class::cast)
+					.allMatch(FileInfo::alreadyExists);
+			if (allFilesInPostAlreadyExist)
+			{
+				postItem.setExpanded(false);
+			}
 		});
 	}
 	
@@ -582,11 +592,13 @@ public class DownloadsProgressViewDialog extends Stage
 	private static class FileInfo extends ItemInfo
 	{
 		private Path path;
+		private final boolean alreadyExists;
 		
 		public FileInfo(ItemType type, String fileId, Path path, String pathInZip, boolean alreadyExist)
 		{
 			super(type, fileId, path.getFileName().toString(), List.of(alreadyExist ? "already-exist" : "new"), null);
 			this.path = path;
+			this.alreadyExists = alreadyExist;
 		}
 		
 		public void updatePath(Path newFilePath)
@@ -609,6 +621,10 @@ public class DownloadsProgressViewDialog extends Stage
 			double progress = nbBytesTotal.isEmpty() ? ProgressBar.INDETERMINATE_PROGRESS
 			        : ((double) nbBytesDownloaded) / nbBytesTotal.getAsLong();
 			this.progress.set(new ProgressData(progress, OptionalLong.of(nbBytesDownloaded), nbBytesTotal));
+		}
+
+		public boolean alreadyExists() {
+			return alreadyExists;
 		}
 	}
 	
