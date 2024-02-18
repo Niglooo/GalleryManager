@@ -2,8 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.io.IOException;
 import java.lang.Character.UnicodeBlock;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.net.HttpCookie;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -11,6 +10,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
+import java.net.http.HttpClient.Version;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
@@ -626,8 +626,10 @@ public abstract class Downloader
 		                                                .followRedirects(Redirect.NORMAL)
 		                                                .executor(AsyncPools.HTTP_REQUEST)
 		                                                .build();
-		// TODO init with max_concurrent_streams from http2
-		private final Semaphore maxConcurrentStreams = new Semaphore(10);
+
+		static private final int MAX_CONCURRENT_STREAMS_FALLBACK = 10;
+		// Only 1 connection initially, then max_concurrent_streams from http2 or MAX_CONCURRENT_STREAMS_FALLBACK
+		private final Semaphore maxConcurrentStreams = new Semaphore(1);
 		private final MetronomeTimer requestLimiter = (minDelayBetweenRequests > 0) ? new MetronomeTimer(minDelayBetweenRequests) : null;
 		private final Map<Post, PostDownloadResult> postDownloadResult = Collections.synchronizedMap(new IdentityHashMap<>());
 		
@@ -701,7 +703,7 @@ public abstract class Downloader
 			}
 			finally
 			{
-				maxConcurrentStreams.release();
+				releaseMaxConcurrentStreamsAndTrySetHTTP2Value();
 			}
 			logResponse(response);
 			
@@ -730,7 +732,7 @@ public abstract class Downloader
 				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
 				                     (response, error) ->
 				                     {
-					                     maxConcurrentStreams.release();
+										 releaseMaxConcurrentStreamsAndTrySetHTTP2Value();
 					                     if (error == null)
 						                     logResponse(response);
 				                     })
@@ -738,8 +740,89 @@ public abstract class Downloader
 				                    ? CompletableFuture.failedFuture(new HttpException(response))
 				                    : CompletableFuture.completedFuture(response));
 			} catch (Exception e) {
-				maxConcurrentStreams.release();
+				releaseMaxConcurrentStreamsAndTrySetHTTP2Value();
 				throw e;
+			}
+		}
+
+		private record MaxConcurrentStreamsRefect (
+				boolean OK,
+				Field implF,
+				Field client2F,
+				Field connectionsF,
+				Field serverSettingsF,
+				Field clientSettingsF,
+				Method getParameter,
+				int MAX_CONCURRENT_STREAMS
+		) {}
+
+		private boolean firstRequest = true;
+		// We don't care about concurrent access. Wort case, this gets initialised several times, but always with the same value.
+		private static MaxConcurrentStreamsRefect mcsCache = null;
+
+		private void releaseMaxConcurrentStreamsAndTrySetHTTP2Value() {
+			if (firstRequest) {
+				if (httpClient.version() == Version.HTTP_2) {
+
+					if (mcsCache == null) {
+						try
+						{
+							Field implF = httpClient.getClass().getDeclaredField("impl");
+							implF.setAccessible(true);
+							Field client2F = implF.getType().getDeclaredField("client2");
+							client2F.setAccessible(true);
+							Field connectionsF = client2F.getType().getDeclaredField("connections");
+							connectionsF.setAccessible(true);
+							Class<?> Http2ConnectionClass = (Class<?>) ((ParameterizedType)connectionsF.getGenericType()).getActualTypeArguments()[1];
+							Field serverSettingsF = Http2ConnectionClass.getDeclaredField("serverSettings");
+							serverSettingsF.setAccessible(true);
+							Field clientSettingsF = Http2ConnectionClass.getDeclaredField("clientSettings");
+							clientSettingsF.setAccessible(true);
+							Class<?> SettingsFrameClass = serverSettingsF.getType();
+							Method getParameter = SettingsFrameClass.getMethod("getParameter", int.class);
+							int MAX_CONCURRENT_STREAMS = SettingsFrameClass.getDeclaredField("MAX_CONCURRENT_STREAMS").getInt(null);
+
+							mcsCache = new MaxConcurrentStreamsRefect(true, implF, client2F, connectionsF, serverSettingsF, clientSettingsF, getParameter, MAX_CONCURRENT_STREAMS);
+						}
+						catch (Exception e) {
+							LOGGER.warn("Cannot read MAX_CONCURRENT_STREAMS", e);
+							mcsCache = new MaxConcurrentStreamsRefect(false, null, null, null, null, null, null, 0);
+						}
+					}
+
+					int maxStream;
+					if (mcsCache.OK) {
+						try
+						{
+							Object impl = mcsCache.implF.get(httpClient);
+							Object client2 = mcsCache.client2F.get(impl);
+							Map<?,?> connections = (Map<?, ?>) mcsCache.connectionsF.get(client2);
+							Object connection = connections.values().iterator().next();
+
+							Object serverSettings = mcsCache.serverSettingsF.get(connection);
+							int maxServer = (int) mcsCache.getParameter.invoke(serverSettings, mcsCache.MAX_CONCURRENT_STREAMS);
+
+							Object clientSettings = mcsCache.clientSettingsF.get(connection);
+							int maxClient = (int) mcsCache.getParameter.invoke(clientSettings, mcsCache.MAX_CONCURRENT_STREAMS);
+
+							maxStream = Math.min(maxServer, maxClient);
+						}
+						catch (Exception e) {
+							LOGGER.warn("Cannot read MAX_CONCURRENT_STREAMS", e);
+							maxStream = MAX_CONCURRENT_STREAMS_FALLBACK;
+						}
+					}
+					else {
+						maxStream = MAX_CONCURRENT_STREAMS_FALLBACK;
+					}
+
+					maxConcurrentStreams.release(maxStream);
+				}
+
+				firstRequest = false;
+			}
+			else {
+				maxConcurrentStreams.release();
 			}
 		}
 		
