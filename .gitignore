@@ -3,3 +3,4 @@
 .gitignore
 /config.properties
 /logs/
+dependency-reduced-pom.xml
