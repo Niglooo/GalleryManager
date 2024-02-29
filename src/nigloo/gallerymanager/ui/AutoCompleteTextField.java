@@ -169,6 +169,8 @@ public class AutoCompleteTextField extends TextField
 				hl.getStyleClass().add("suggestion-item");// customize "focused" effet in CSS
 				hl.setGraphic(textFlow);
 				hl.setMaxWidth(Double.POSITIVE_INFINITY);
+				//FIXME Somehow the USE_COMPUTED_SIZE of prefHeight is fucked up so we set it to 0
+				hl.setPrefHeight(0);
 				// if any suggestion is select set it into text and close popup
 				hl.setOnAction(actionEvent ->
 				{
@@ -203,10 +205,8 @@ public class AutoCompleteTextField extends TextField
 		TextFlow textFlow = new TextFlow(getColoredTexts(text,
 		                                                 text.toLowerCase(Locale.ROOT),
 		                                                 0,
-		                                                 searchText == null ? null
+		                                                 searchText == null ? ""
 		                                                         : searchText.toLowerCase(Locale.ROOT)).toArray(Text[]::new));
-		// Somehow the USE_COMPUTED_SIZE of prefHeight is fucked up so we set it to 0
-		textFlow.setPrefHeight(0);
 		return textFlow;
 	}
 
