@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -154,7 +155,15 @@ public class Image
 		
 		return sb.toString();
 	}
-	
+
+	public static Collection<String> IMAGE_EXT = List.of(
+			"jpg",
+			"jpeg",
+			"jfif",
+			"png",
+			"gif"
+	);
+
 	public static boolean isImage(Path file)
 	{
 		String filename = file.getFileName().toString();
@@ -162,10 +171,13 @@ public class Image
 		if (posExt == -1)
 			return false;
 		
-		String extention = filename.substring(posExt + 1).toLowerCase(Locale.ROOT);
-		return extention.equals("jpg") || extention.equals("jpeg") || extention.equals("jfif")
-		        || extention.equals("png") || extention.equals("gif") || isActuallyVideo(file);
+		String extension = filename.substring(posExt + 1).toLowerCase(Locale.ROOT);
+		return IMAGE_EXT.stream().anyMatch(extension::equals) || isActuallyVideo(file);
 	}
+
+	public static Collection<String> VIDEO_EXT = List.of(
+			"mp4"
+	);
 	
 	public static boolean isActuallyVideo(Path file)
 	{
@@ -174,8 +186,8 @@ public class Image
 		if (posExt == -1)
 			return false;
 		
-		String extention = filename.substring(posExt + 1).toLowerCase(Locale.ROOT);
-		return extention.equals("mp4");
+		String extension = filename.substring(posExt + 1).toLowerCase(Locale.ROOT);
+		return VIDEO_EXT.stream().anyMatch(extension::equals);
 	}
 	
 	public boolean isActuallyVideo()
