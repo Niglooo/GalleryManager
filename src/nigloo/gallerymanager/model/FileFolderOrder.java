@@ -3,9 +3,15 @@ package nigloo.gallerymanager.model;
 import java.util.Comparator;
 import java.util.Objects;
 
+import com.google.gson.annotations.JsonAdapter;
+import nigloo.gallerymanager.model.SortBy.SortByReferenceTypeAdapter;
 import nigloo.gallerymanager.ui.FileSystemElement;
 
-public record FileFolderOrder(SortBy sortBy, int directoryWeight, boolean ascending)
+public record FileFolderOrder(
+		@JsonAdapter(SortByReferenceTypeAdapter.class)
+		SortBy sortBy,
+		int directoryWeight,
+		boolean ascending)
         implements Comparator<FileSystemElement>
 {
 	public FileFolderOrder
@@ -22,6 +28,6 @@ public record FileFolderOrder(SortBy sortBy, int directoryWeight, boolean ascend
 		if (w1 != w2)
 			return w1 - w2;
 		
-		return ascending ? sortBy.comparator.compare(e1, e2) : sortBy.comparator.compare(e2, e1);
+		return ascending ? sortBy.compare(e1, e2) : sortBy.compare(e2, e1);
 	}
 }

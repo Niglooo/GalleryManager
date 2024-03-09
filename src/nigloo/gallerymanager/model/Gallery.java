@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import nigloo.gallerymanager.autodownloader.DownloaderType;
+import nigloo.gallerymanager.model.SortBy.CustomSortByMapSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -44,6 +45,8 @@ public final class Gallery
 	private FileFolderOrder defaultSortOrder;
 	@JsonAdapter(SortOrderSerializer.class)
 	private HashMap<Path, FileFolderOrder> sortOrder;
+	@JsonAdapter(CustomSortByMapSerializer.class)
+	private HashMap<String, SortBy> customSortBy;
 	@Getter
 	private SlideShowParameters slideShowParameter;
 	private ArrayList<Script> scripts;
@@ -79,6 +82,8 @@ public final class Gallery
 				slideShowParameter.setVideos(new SlideShowParameters.VideoParameters());
 			if (scripts == null)
 				scripts = new ArrayList<>();
+
+			SortBy.setCustomInstances(customSortBy);
 			
 			// Validation
 			if (rootFolder == null)
@@ -564,7 +569,7 @@ public final class Gallery
 	}
 	
 	static private class SortOrderSerializer
-	        implements JsonSerializer<Map<Path, FileFolderOrder>>, JsonDeserializer<Map<Path, FileFolderOrder>>
+	        implements JsonSerializer<HashMap<Path, FileFolderOrder>>, JsonDeserializer<HashMap<Path, FileFolderOrder>>
 	{
 		//@formatter:off
 		private static final String JSON_PATH_WILDCARD = "*";
@@ -572,7 +577,7 @@ public final class Gallery
 		//@formatter:on
 		
 		@Override
-		public JsonElement serialize(Map<Path, FileFolderOrder> map, Type typeOfSrc, JsonSerializationContext context)
+		public JsonElement serialize(HashMap<Path, FileFolderOrder> map, Type typeOfSrc, JsonSerializationContext context)
 		{
 			if (map == null)
 				return context.serialize(Map.of());
@@ -594,7 +599,7 @@ public final class Gallery
 		}
 		
 		@Override
-		public Map<Path, FileFolderOrder> deserialize(JsonElement json,
+		public HashMap<Path, FileFolderOrder> deserialize(JsonElement json,
 		                                              Type typeOfT,
 		                                              JsonDeserializationContext context)
 		        throws JsonParseException
