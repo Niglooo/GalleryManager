@@ -3,14 +3,18 @@ package nigloo.gallerymanager.ui;
 import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.TreeItem;
@@ -31,6 +35,8 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	private CheckMenuItem inheritedOrderItem;
 	@FXML
+	private SeparatorMenuItem sortBySeparator;
+	@FXML
 	private ToggleGroup sortByGroup;
 	@FXML
 	private ToggleGroup folderPositionGroup;
@@ -39,6 +45,8 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	
 	@FXML
 	private CheckMenuItem childrenInheritedOrderItem;
+	@FXML
+	private SeparatorMenuItem childrenSortBySeparator;
 	@FXML
 	private ToggleGroup childrenSortByGroup;
 	@FXML
@@ -59,7 +67,38 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		this.treeView = treeView;
 		UIController.loadFXML(this, "file_system_tree_context_menu.fxml");
 		Injector.init(this);
-		
+
+		List<SortBy> allSortBy = new ArrayList<>();
+		allSortBy.add(SortBy.NAME);
+		allSortBy.add(SortBy.DATE);
+		allSortBy.addAll(gallery.getCustomSortBy());
+
+		List<MenuItem> sortByItems = sortBySeparator.getParentMenu().getItems();
+		int sortByPos = sortByItems.indexOf(sortBySeparator) + 1;
+
+		List<MenuItem> childrenSortByItems = childrenSortBySeparator.getParentMenu().getItems();
+		int childrenSortByPos = childrenSortByItems.indexOf(childrenSortBySeparator) + 1;
+
+		for (int i = 0 ; i < allSortBy.size() ; i++)
+		{
+			SortBy sortBy = allSortBy.get(i);
+			RadioMenuItem item;
+
+			item = new RadioMenuItem();
+			item.setText(sortBy.name().substring(0, 1).toUpperCase(Locale.ROOT) + sortBy.name().substring(1).toLowerCase(Locale.ROOT));
+			item.setOnAction(this::updateSortBy);
+			item.setToggleGroup(sortByGroup);
+			item.setUserData(sortBy);
+			sortByItems.add(sortByPos + i, item);
+
+			item = new RadioMenuItem();
+			item.setText(sortBy.name().substring(0, 1).toUpperCase(Locale.ROOT) + sortBy.name().substring(1).toLowerCase(Locale.ROOT));
+			item.setOnAction(this::updateChildrenSortBy);
+			item.setToggleGroup(childrenSortByGroup);
+			item.setUserData(sortBy);
+			childrenSortByItems.add(childrenSortByPos + i, item);
+		}
+
 		setOnShowing(e -> {
 			updateSortOrderItems();
 			updateChildrenSortOrderItems();
@@ -84,7 +123,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		inheritedOrderItem.setSelected(gallery.isOrderInherited(path));
 		
 		FileFolderOrder order = gallery.getSortOrder(path);
-		sortByGroup.getToggles().forEach(t -> t.setSelected(t.getUserData() == order.sortBy()));
+		sortByGroup.getToggles().forEach(t -> t.setSelected(t.getUserData().equals(order.sortBy())));
 		folderPositionGroup.getToggles()
 		                   .forEach(t -> t.setSelected((Integer) t.getUserData() == order.directoryWeight()));
 		ascendingGroup.getToggles().forEach(t -> t.setSelected((Boolean) t.getUserData() == order.ascending()));
@@ -107,7 +146,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		childrenInheritedOrderItem.setSelected(gallery.isSubDirectoriesOrderInherited(path));
 		
 		FileFolderOrder childrenOrder = gallery.getSubDirectoriesSortOrder(path);
-		childrenSortByGroup.getToggles().forEach(t -> t.setSelected(t.getUserData() == childrenOrder.sortBy()));
+		childrenSortByGroup.getToggles().forEach(t -> t.setSelected(t.getUserData().equals(childrenOrder.sortBy())));
 		childrenFolderPositionGroup.getToggles()
 		                           .forEach(t -> t.setSelected((Integer) t.getUserData() == childrenOrder.directoryWeight()));
 		childrenAscendingGroup.getToggles()
@@ -156,7 +195,6 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		}
 		else
 		{
-			order = gallery.getSortOrder(path);
 			if (folderPositionGroup.getToggles().contains(event.getSource())
 			        && folderPositionGroup.getSelectedToggle() == folderPositionSelected)
 				folderPositionGroup.selectToggle(null);
@@ -198,7 +236,6 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		}
 		else
 		{
-			order = gallery.getSubDirectoriesSortOrder(path);
 			if (childrenFolderPositionGroup.getToggles().contains(event.getSource())
 			        && childrenFolderPositionGroup.getSelectedToggle() == childrenFolderPositionSelected)
 				childrenFolderPositionGroup.selectToggle(null);

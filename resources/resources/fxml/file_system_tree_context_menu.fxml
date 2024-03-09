@@ -31,37 +31,11 @@
         mnemonicParsing="false"
         onAction="#updateSortBy"
         text="Inherited" />
-      <SeparatorMenuItem />
+      <SeparatorMenuItem
+        fx:id="sortBySeparator" />
       <fx:define>
         <ToggleGroup fx:id="sortByGroup" />
       </fx:define>
-      <RadioMenuItem
-        mnemonicParsing="false"
-        toggleGroup="$sortByGroup"
-        onAction="#updateSortBy"
-        text="Name">
-        <userData>
-          <SortBy fx:value="NAME" />
-        </userData>
-      </RadioMenuItem>
-      <RadioMenuItem
-        mnemonicParsing="false"
-        toggleGroup="$sortByGroup"
-        onAction="#updateSortBy"
-        text="Date">
-        <userData>
-          <SortBy fx:value="DATE" />
-        </userData>
-      </RadioMenuItem>
-      <RadioMenuItem
-        mnemonicParsing="false"
-        toggleGroup="$sortByGroup"
-        onAction="#updateSortBy"
-        text="Deilan">
-        <userData>
-          <SortBy fx:value="DEILAN_ORDER" />
-        </userData>
-      </RadioMenuItem>
       <SeparatorMenuItem />
       <fx:define>
         <ToggleGroup fx:id="folderPositionGroup" />
@@ -115,37 +89,11 @@
         mnemonicParsing="false"
         onAction="#updateChildrenSortBy"
         text="Inherited" />
-      <SeparatorMenuItem />
+      <SeparatorMenuItem
+        fx:id="childrenSortBySeparator" />
       <fx:define>
         <ToggleGroup fx:id="childrenSortByGroup" />
       </fx:define>
-      <RadioMenuItem
-        mnemonicParsing="false"
-        toggleGroup="$childrenSortByGroup"
-        onAction="#updateChildrenSortBy"
-        text="Name">
-        <userData>
-          <SortBy fx:value="NAME" />
-        </userData>
-      </RadioMenuItem>
-      <RadioMenuItem
-        mnemonicParsing="false"
-        toggleGroup="$childrenSortByGroup"
-        onAction="#updateChildrenSortBy"
-        text="Date">
-        <userData>
-          <SortBy fx:value="DATE" />
-        </userData>
-      </RadioMenuItem>
-      <RadioMenuItem
-        mnemonicParsing="false"
-        toggleGroup="$childrenSortByGroup"
-        onAction="#updateChildrenSortBy"
-        text="Deilan">
-        <userData>
-          <SortBy fx:value="DEILAN_ORDER" />
-        </userData>
-      </RadioMenuItem>
       <SeparatorMenuItem />
       <fx:define>
         <ToggleGroup fx:id="childrenFolderPositionGroup" />
