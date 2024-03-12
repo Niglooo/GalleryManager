@@ -208,14 +208,25 @@ public class ScriptEditor extends SplitPane
 			LOGGER.info("Start executing script \"{}\"", scriptTitle.getText());
 			output.println("Executing script...");
 			output.println();
-			long begin = System.currentTimeMillis();
 
-			engine.eval(scriptText.getText());
+			CompletableFuture.runAsync(() -> {
+					try
+					{
+						long begin = System.currentTimeMillis();
 
-			long duration = System.currentTimeMillis() - begin;
-			output.println();
-			output.println("Finished in " + duration + "ms");
-			LOGGER.info("Finished executing script \"{}\" in {} ms", scriptTitle.getText(), duration);
+						engine.eval(scriptText.getText());
+
+						long duration = System.currentTimeMillis() - begin;
+						output.println();
+						output.println("Finished in " + duration + "ms");
+						LOGGER.info("Finished executing script \"{}\" in {} ms", scriptTitle.getText(), duration);
+					}
+					catch (Exception e) {
+						throw Utils.asRunTimeException(e);
+					}
+				},
+				scriptApi.getAsyncExecutor()
+			).join();
 		}
 		catch (Exception e)
 		{
