@@ -6,6 +6,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 import org.apache.logging.log4j.Level;
 
@@ -22,10 +25,19 @@ public class ScriptAPI implements AutoCloseable
 	private Gallery gallery;
 	
 	private final PrintWriter output;
+
+	private static final ThreadFactory SCRIPT_MAIN_THREAD_FACTORY = Thread
+			.ofPlatform()
+			.name("Script-", 1)
+			.daemon()
+			.factory();
+
+	private final ScriptAsyncExecutor asyncExecutor;
 	
 	public ScriptAPI(PrintWriter output)
 	{
 		this.output = output;
+		this.asyncExecutor = new ScriptAsyncExecutor(Executors.newSingleThreadExecutor(SCRIPT_MAIN_THREAD_FACTORY));
 		Injector.init(this);
 	}
 	
@@ -53,7 +65,17 @@ public class ScriptAPI implements AutoCloseable
 	{
 		return uiController.delete(toAbsolute(paths), deleteOnDisk);
 	}
-	
+
+	public Executor getAsyncExecutor()
+	{
+		return asyncExecutor;
+	}
+
+	public void join(CompletableFuture<?> cf)
+	{
+		asyncExecutor.join(cf);
+	}
+
 	public void printStackTrace(Throwable t)
 	{
 		if (t != null)
