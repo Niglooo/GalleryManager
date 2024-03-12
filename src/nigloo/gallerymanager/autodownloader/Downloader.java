@@ -186,6 +186,13 @@ public abstract class Downloader
 	
 	public final CompletableFuture<?> download(Properties secrets, DownloadOption... options)
 	{
+		return CompletableFuture
+				.supplyAsync(() -> doDownload(secrets, options), AsyncPools.HTTP_REQUEST)
+				.thenCompose(f -> f);
+	}
+
+	private CompletableFuture<?> doDownload(Properties secrets, DownloadOption... options)
+	{
 		LOGGER.info("Download for {} with pattern {}",
 		            this,
 		            Optional.ofNullable(imageConfiguration)
