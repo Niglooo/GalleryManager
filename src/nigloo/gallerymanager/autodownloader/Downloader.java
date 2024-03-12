@@ -53,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -101,7 +102,6 @@ import nigloo.gallerymanager.model.ImageReference;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
 import nigloo.tool.MetronomeTimer;
-import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.http.DownloadListener;
 import nigloo.tool.http.MonitorBodyHandler;
@@ -996,8 +996,8 @@ public abstract class Downloader
 		
 		try {
 			Files.createDirectories(imageDest.getParent());
-			
-			StrongReference<String> contentType = new StrongReference<>();
+
+			AtomicReference<String> contentType = new AtomicReference<>();
 
 			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(new URI(postImage.url())).GET(), getHeadersForImageDownload(session, postImage)).build();
 			return session.sendAsync(request, new MonitorBodyHandler<>(BodyHandlers.ofFile(imageDest), new DownloadListener()
@@ -1113,8 +1113,8 @@ public abstract class Downloader
 				return CompletableFuture.completedFuture(null);
 			
 			Files.createDirectories(fileDest.getParent());
-			
-			StrongReference<String> contentType = new StrongReference<>();
+
+			AtomicReference<String> contentType = new AtomicReference<>();
 			
 			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(new URI(file.url())).GET(),
 			                                 getHeadersForFileDownload(session, file))
@@ -1461,7 +1461,7 @@ public abstract class Downloader
 			image.addTag(tag);
 	}
 	
-	private Function<HttpResponse<Path>, Path> fixExtension(StrongReference<String> contentType, String defaultExtention)
+	private Function<HttpResponse<Path>, Path> fixExtension(AtomicReference<String> contentType, String defaultExtention)
 	{
 		return response -> {
 			Path path = response.body();

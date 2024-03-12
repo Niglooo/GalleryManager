@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -64,7 +65,6 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.SlideShowParameters.VideoParameters;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.util.ImageCache;
-import nigloo.tool.StrongReference;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.FXUtils;
@@ -309,7 +309,7 @@ public class SlideShowStage extends Stage
 					
 					// Calling just Platform.runLater doesn't work...
 					// My guess is that robot.mouseMove is called too early when the cursor still isn't visible, and so does nothing
-					StrongReference<Runnable> r = new StrongReference<>();
+					AtomicReference<Runnable> r = new AtomicReference<>();
 					r.set(() -> {
 						Platform.runLater(() -> robot.mouseMove(x, y));
 						getScene().removePostLayoutPulseListener(r.get());
@@ -563,7 +563,7 @@ public class SlideShowStage extends Stage
 		}
 	}
 	
-	private StrongReference<FXImageVideoWrapper> fxImageVideoCurrentlyVisible = new StrongReference<>(null);
+	private final AtomicReference<FXImageVideoWrapper> fxImageVideoCurrentlyVisible = new AtomicReference<>(null);
 	
 	private void setFXImageVideo(FXImageVideoWrapper fxImageVideo)
 	{
