@@ -1,32 +1,5 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
-import java.util.stream.Stream;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Marker;
-import org.kordamp.ikonli.javafx.FontIcon;
-
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -56,12 +29,39 @@ import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import nigloo.tool.StopWatch;
-import nigloo.tool.StrongReference;
 import nigloo.tool.Utils;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.component.dialog.AlertWithIcon;
 import nigloo.tool.javafx.component.dialog.ExceptionDialog;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 public class FileSystemTreeManager
 {
@@ -92,7 +92,7 @@ public class FileSystemTreeManager
 		        .getSelectedItems()
 		        .addListener((Change<? extends TreeItem<FileSystemElement>> c) -> uiController.requestRefreshThumbnails());
 		
-		StrongReference<List<File>> oldContentRef = new StrongReference<>();
+		AtomicReference<List<File>> oldContentRef = new AtomicReference<>();
 		Timeline clipboardObserver = new Timeline(new KeyFrame(Duration.millis(200), e ->
 		{
 			List<File> oldContent = oldContentRef.get();
@@ -551,7 +551,7 @@ public class FileSystemTreeManager
 		
 		return CompletableFuture.runAsync(() ->
 		{
-			StrongReference<Boolean> refreshThumbnails = new StrongReference<>(false);
+			AtomicBoolean refreshThumbnails = new AtomicBoolean(false);
 			
 			for (Path path : (deep ? withoutChildren(paths) : paths))
 			{
@@ -583,7 +583,7 @@ public class FileSystemTreeManager
 	 */
 	private boolean doSynchronize(TreeItem<FileSystemElement> item,
 	                              boolean deep,
-	                              StrongReference<Boolean> refreshThumbnails)
+								  AtomicBoolean refreshThumbnails)
 	{
 		FileSystemElement element = item.getValue();
 		
