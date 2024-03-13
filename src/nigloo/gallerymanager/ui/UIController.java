@@ -65,7 +65,6 @@ import nigloo.tool.gson.DateTimeAdapter;
 import nigloo.tool.gson.InjectionInstanceCreator;
 import nigloo.tool.gson.PathTypeAdapter;
 import nigloo.tool.gson.PatternTypeAdapter;
-import nigloo.tool.gson.RecordsTypeAdapterFactory;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.injection.annotation.Singleton;
@@ -699,7 +698,6 @@ public class UIController extends Application
 			                        .registerTypeAdapter(Pattern.class, new PatternTypeAdapter())
 			                        .registerTypeAdapter(ZonedDateTime.class, new DateTimeAdapter())
 			                        .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
-			                        .registerTypeAdapterFactory(new RecordsTypeAdapterFactory())
 			                        .disableHtmlEscaping()
 			                        .setPrettyPrinting()
 			                        .create();
