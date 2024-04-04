@@ -673,16 +673,8 @@ public class SlideShowStage extends Stage
 			
 			if (fxImageVideo.getProgressProperty().get() >= 1)
 			{
-				if (fxImageVideo.isVideo())
-				{
-					width = fxImageVideo.getAsFxVideo().getMedia().getWidth();
-					height = fxImageVideo.getAsFxVideo().getMedia().getHeight();
-				}
-				else
-				{
-					width = (int) fxImageVideo.getAsFxImage().getWidth();
-					height = (int) fxImageVideo.getAsFxImage().getHeight();
-				}
+				width = fxImageVideo.getOriginalWidth();
+				height = fxImageVideo.getOriginalHeight();
 			}
 			
 			String w = width > 0 ? "%d".formatted(width) : "???";
