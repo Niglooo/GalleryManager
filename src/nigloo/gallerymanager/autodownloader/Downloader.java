@@ -1220,7 +1220,8 @@ public abstract class Downloader
 						                               UnicodeBlock block = UnicodeBlock.of(codepoint);
 						                               if (block == UnicodeBlock.HIRAGANA
 						                                       || block == UnicodeBlock.KATAKANA
-						                                       || block == UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS)
+															   || block == UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS
+						                                       || block.toString().contains("CJK_") /*Chinese/Japanese/Korean*/)
 							                               return "japanese";
 						                               else if (block == UnicodeBlock.BASIC_LATIN)
 							                               return "basic-latin";
