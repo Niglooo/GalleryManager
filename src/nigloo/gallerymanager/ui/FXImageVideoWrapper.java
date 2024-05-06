@@ -190,6 +190,7 @@ public class FXImageVideoWrapper
 		};
 	}
 
+	// Get an image dimensions without fully loading it
 	// From https://stackoverflow.com/a/2911772
 	private static int[] getImageDim(Path path)
 	{
@@ -220,8 +221,8 @@ public class FXImageVideoWrapper
 		}
 		else
 		{
-			LOGGER.warn("No reader found for given format: " + (ext.isEmpty() ? "(no extention)" : ext));
+			LOGGER.warn("No reader found for given format: " + (ext.isEmpty() ? "(no extention)" : ext) + " of image " + path);
 		}
-        return new int[0];
+        return new int[] {0, 0};
     }
 }
