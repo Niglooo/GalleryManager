@@ -1,5 +1,7 @@
 package nigloo.gallerymanager.filter;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.tool.Utils;
@@ -8,8 +10,12 @@ import nigloo.tool.parser.grammar.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 class ImageFilterGrammar {
     public static final CompiledGrammar<TokenType, ImageFilter> COMPILED_GRAMMAR;
@@ -106,7 +112,7 @@ class ImageFilterGrammar {
         return (List<?> evaluatedTokens) -> (ImageFilter) evaluatedTokens.get(index);
     }
 
-    private static Function<List<?>, ImageFilter> biOperator(int leftIndex, int rightIndex, BiFunction<ImageFilter, ImageFilter, ImageFilter> biOperatorFilter) {
+    private static Function<List<?>, ImageFilter> biOperator(int leftIndex, int rightIndex, BinaryOperator<ImageFilter> biOperatorFilter) {
         return (List<?> evaluatedTokens) -> {
             ImageFilter leftFilter = (ImageFilter) evaluatedTokens.get(leftIndex);
             ImageFilter rightFilter = (ImageFilter) evaluatedTokens.get(rightIndex);
@@ -123,6 +129,11 @@ class ImageFilterGrammar {
         public boolean test(Image image) {
             return image.getImplicitTags().contains(normalizedTag);
         }
+
+        @Override
+        public String toString() {
+            return normalizedTag;
+        }
     }
 
     private record PathFilter(String normalizedPath) implements ImageFilter {
@@ -134,6 +145,11 @@ class ImageFilterGrammar {
         static String normalizePath(String path) {
             return Utils.stripAccents(path).toLowerCase(Locale.ROOT);
         }
+
+        @Override
+        public String toString() {
+            return META_TAG_TYPE_PATH + META_TAG_SEPARATOR + META_TAG_QUOTE + normalizedPath + META_TAG_QUOTE;
+        }
     }
 
     private record NegateFilter(ImageFilter filter) implements ImageFilter {
@@ -141,19 +157,67 @@ class ImageFilterGrammar {
         public boolean test(Image image) {
             return !filter.test(image);
         }
-    }
 
-    private record AndFilter(ImageFilter leftFilter, ImageFilter rightFilter) implements ImageFilter {
         @Override
-        public boolean test(Image image) {
-            return leftFilter.test(image) && rightFilter.test(image);
+        public ImageFilter optimize() {
+            ImageFilter optimized = filter.optimize();
+            return (optimized instanceof NegateFilter negateFilter) ? negateFilter.filter : new NegateFilter(optimized);
+        }
+
+        @Override
+        public String toString() {
+            return "-" + filter;
         }
     }
 
-    private record OrFilter(ImageFilter leftFilter, ImageFilter rightFilter) implements ImageFilter {
+    @AllArgsConstructor(access = AccessLevel.PACKAGE)
+    private static abstract class OrAndFilter implements ImageFilter {
+        private final List<ImageFilter> operands;
+        private final BiPredicate<Stream<ImageFilter>, Predicate<ImageFilter>> reduce;
+        private final Function<List<ImageFilter>, ? extends OrAndFilter> newFromList;
+        private final String operatorStr;
+
         @Override
         public boolean test(Image image) {
-            return leftFilter.test(image) || rightFilter.test(image);
+            return reduce.test(operands.stream(), operands -> operands.test(image));
+        }
+
+        @Override
+        public ImageFilter optimize() {
+            return newFromList.apply(optimizeImpl().toList());
+        }
+
+        private Stream<ImageFilter> optimizeImpl() {
+            return operands
+                    .stream()
+                    .flatMap(operand -> (operand instanceof OrAndFilter orAndFilter && orAndFilter.getClass() == getClass())
+                                        ? orAndFilter.optimizeImpl()
+                                        : Stream.of(operand.optimize()));
+        }
+
+        @Override
+        public String toString() {
+            return operands.stream().map(Object::toString).collect(Collectors.joining(" " + operatorStr + " ", "[", "]"));
+        }
+    }
+
+    private static class AndFilter extends OrAndFilter {
+        AndFilter(ImageFilter leftFilter, ImageFilter rightFilter) {
+            this(List.of(leftFilter, rightFilter));
+        }
+
+        AndFilter(List<ImageFilter> operands) {
+            super(operands, Stream::allMatch, AndFilter::new, "&");
+        }
+    }
+
+    private static class OrFilter extends OrAndFilter {
+        OrFilter(ImageFilter leftFilter, ImageFilter rightFilter) {
+            this(List.of(leftFilter, rightFilter));
+        }
+
+        OrFilter(List<ImageFilter> operands) {
+            super(operands, Stream::anyMatch, OrFilter::new, "|");
         }
     }
 }
