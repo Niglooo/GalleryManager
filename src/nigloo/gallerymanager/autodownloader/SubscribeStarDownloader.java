@@ -141,6 +141,10 @@ public class SubscribeStarDownloader extends Downloader
                     String imageId = JsonHelper.followPath(imageData, "id");
                     String imageFilename = JsonHelper.followPath(imageData, "original_filename");
                     String url = JsonHelper.followPath(imageData, "url");
+                    if (url != null && url.startsWith("/"))
+                    {
+                        url = buildUrl(url);
+                    }
 
                     return PostImage.create(imageId, imageFilename, url, null);
                 })
