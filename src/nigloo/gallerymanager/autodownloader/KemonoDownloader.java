@@ -137,7 +137,7 @@ public abstract class KemonoDownloader extends Downloader {
             Document htmlPost = Jsoup.parseBodyFragment(r.body());
 
             // Regular post
-            Elements filesElements = htmlPost.select(".post__attachment > a");
+            Elements filesElements = htmlPost.select(".post__attachment > a.post__attachment-link");
             return filesElements.stream().map(fileElement ->
             {
                 String url = fileElement.attr("href");
