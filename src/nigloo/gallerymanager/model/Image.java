@@ -159,6 +159,7 @@ public class Image
 	public static Collection<String> IMAGE_EXT = List.of(
 			"jpg",
 			"jpeg",
+			"jpe",
 			"jfif",
 			"png",
 			"gif"

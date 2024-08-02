@@ -94,7 +94,9 @@ public class VScrollablePane extends Region
 			requestLayout();
 		});
 		getChildren().add(vScrollBar);
-		
+		//TODO try optimize. tiles should be a standalone list and its chancge listened.
+		// this. children contained a limited amount of TileWrapper (all visible) and is their content which change
+		// only visible tilewapper should exists. other node shoul be kept unwrapped (and tilewrapped recycled??)
 		tiles = new OffsetMapList<Node, Node>(getChildren(), TILE_LIST_OFFSET)
 		{
 			@Override
@@ -111,13 +113,26 @@ public class VScrollablePane extends Region
 			
 			@Override
 			public boolean setAll(Collection<? extends Node> col)
-			{
+			{ 	long start,end;
+				start=System.currentTimeMillis();
 				ObservableList<Node> source = Utils.cast(getSource());
+				end=System.currentTimeMillis();
+				System.out.println("getSource: "+(end-start)+" ms");
+				start=end;
 				
 				ArrayList<Node> allNodes = new ArrayList<>(offset + col.size());
 				allNodes.addAll(source.subList(0, offset));
+				end=System.currentTimeMillis();
+				System.out.println("addAll: "+(end-start)+" ms");
+				start=end;
 				col.stream().map(this::toSource).forEachOrdered(allNodes::add);
+				end=System.currentTimeMillis();
+				System.out.println("add: "+(end-start)+" ms");
+				start=end;
 				source.setAll(allNodes);
+				end=System.currentTimeMillis();
+				System.out.println("setAll: "+(end-start)+" ms");
+				start=end;
 				
 				return true;
 			}

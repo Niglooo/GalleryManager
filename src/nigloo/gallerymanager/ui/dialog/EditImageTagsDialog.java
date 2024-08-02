@@ -7,14 +7,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.paint.Color;
@@ -29,14 +26,13 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.AutoCompleteTextField;
 import nigloo.gallerymanager.ui.UIController;
+import nigloo.gallerymanager.ui.util.AutoCompleteTag;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.FXUtils;
 
 public class EditImageTagsDialog extends Stage
 {
-	@Inject
-	private UIController uiController;
 	@Inject
 	private Gallery gallery;
 	
@@ -66,12 +62,9 @@ public class EditImageTagsDialog extends Stage
 		Injector.init(this);
 		
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
-		
-		tagNameField.setAutoCompletionBehavior((field, searchText) -> uiController.autocompleteTags(searchText));
-		tagNameField.setTextFormatter(tagFormatter());
-		
-		parentTagField.setAutoCompletionBehavior(uiController.getMultiTagsAutocompleteBehavior(false));
-		parentTagField.setTextFormatter(tagFormatter(' '));
+
+		AutoCompleteTag.singleTag(gallery, tagNameField);
+		AutoCompleteTag.multipleTags(gallery, parentTagField);
 		
 		tagNameField.textProperty().addListener((obs, oldValue, newValue) ->
 		{
@@ -88,31 +81,7 @@ public class EditImageTagsDialog extends Stage
 		setOnShowing(e -> updateTags());
 	}
 	
-	private static TextFormatter<?> tagFormatter(Character... extraChars)
-	{
-		Set<Character> extraCharsSet = Set.of(extraChars);
-		
-		return new TextFormatter<>(new UnaryOperator<TextFormatter.Change>()
-		{
-			@Override
-			public TextFormatter.Change apply(TextFormatter.Change change)
-			{
-				String newValue = change.getControlNewText();
-				
-				if (newValue == null || newValue.isEmpty())
-					return change;
-				
-				for (int i = 0 ; i < newValue.length() ; i++)
-				{
-					char c = newValue.charAt(i);
-					if (!Tag.isCharacterAllowed(c) && !extraCharsSet.contains(c))
-						return null;
-				}
-				
-				return change;
-			}
-		});
-	}
+
 	
 	private void hideMessage()
 	{

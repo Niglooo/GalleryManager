@@ -478,6 +478,53 @@ public abstract class Downloader
 								zipEntry.setValue(null);
 			}
 		}
+
+		public void remove(Image image)
+		{
+			Long imageId = image.getId();
+
+			synchronized (imageMapping)
+			{
+				Iterator<Entry<ImageKey, ImageReference>> it = imageMapping.entrySet().iterator();
+				while (it.hasNext()) {
+					Entry<ImageKey, ImageReference> entry = it.next();
+					if (entry.getValue() != null && imageId.equals(entry.getValue().getImageId())) {
+						it.remove();
+					}
+				}
+			}
+			synchronized (imageFileMapping)
+			{
+				Iterator<Entry<FileKey, ImageReference>> it = imageFileMapping.entrySet().iterator();
+				while (it.hasNext()){
+					Entry<FileKey, ImageReference> entry = it.next();
+					if (entry.getValue() != null && imageId.equals(entry.getValue().getImageId())) {
+						it.remove();
+					}
+				}
+			}
+			synchronized (zipMapping)
+			{
+				Iterator<Entry<FileKey, Map<String, ImageReference>>> it = zipMapping.entrySet().iterator();
+				while (it.hasNext())
+				{
+					Entry<FileKey, Map<String, ImageReference>> entry = it.next();
+					if (entry.getValue() != null)
+					{
+						Iterator<Entry<String, ImageReference>> it2 = entry.getValue().entrySet().iterator();
+						while (it2.hasNext()) {
+							Entry<String, ImageReference> zipEntry = it2.next();
+							if (zipEntry.getValue() != null && imageId.equals(zipEntry.getValue().getImageId())) {
+								it2.remove();
+							}
+						}
+						if (entry.getValue().isEmpty()) {
+							it.remove();
+						}
+					}
+				}
+			}
+		}
 	}
 
 	@Getter
@@ -519,11 +566,17 @@ public abstract class Downloader
 	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
 		public static Post create(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
 			if (Utils.isBlank(id))
+			{
 				throw new IllegalArgumentException("id cannot be empty");
+			}
 			if (Utils.isBlank(title))
+			{
 				title = "";
+			}
 			if (publishedDatetime == null)
+			{
 				throw new IllegalArgumentException("publishedDatetime cannot be null");
+			}
 			
 			return new Post(id, title, publishedDatetime, extraInfo);
 		}
@@ -543,7 +596,9 @@ public abstract class Downloader
 	
 	static private String validate(String id, String filename, String url, Collection<String> tags) {
 		if (Utils.isBlank(id))
+		{
 			throw new IllegalArgumentException("Id cannot be empty");
+		}
 		
 		URL parsedURL;
 		try {
@@ -567,7 +622,7 @@ public abstract class Downloader
 	}
 	
 	protected void onStartDownload(DownloadSession session) throws Exception {}
-	
+	//TODO throw on session expired for all implementation (create a specific expetion?)
 	protected abstract Iterator<Post> listPosts(DownloadSession session) throws Exception;
 	
 	protected abstract CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception;
@@ -604,7 +659,16 @@ public abstract class Downloader
 			headers = response.headers();
 			body = response.body();
 		}
-		
+
+		private HttpException(URI url, ResponseInfo responseInfo)
+		{
+			super("Error "+responseInfo.statusCode()+" from "+url);
+			requestUri = url;
+			statusCode = responseInfo.statusCode();
+			headers = responseInfo.headers();
+			body = null;
+		}
+
 		public String getPrettyBody()
 		{
 			if (prettyBody == null)
@@ -1006,7 +1070,8 @@ public abstract class Downloader
 
 			AtomicReference<String> contentType = new AtomicReference<>();
 
-			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(new URI(postImage.url())).GET(), getHeadersForImageDownload(session, postImage)).build();
+			URI url = new URI(postImage.url());
+			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(url).GET(), getHeadersForImageDownload(session, postImage)).build();
 			return session.sendAsync(request, new MonitorBodyHandler<>(BodyHandlers.ofFile(imageDest), new DownloadListener()
 			{
 				@Override
@@ -1014,6 +1079,11 @@ public abstract class Downloader
 				{
 					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
 					downloadsProgressView.newImage(session.id(), post.id(), postImage.id(), imageDest);
+					if (responseInfo.statusCode() != 200) {
+						HttpException ex = new HttpException(url, responseInfo);
+						downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), ex);
+						throw ex;
+					}
 				}
 				
 				@Override
@@ -1118,12 +1188,20 @@ public abstract class Downloader
 			// If the file is a zip and has a mapping (deleted or not), don't download it
 			if (isZip && mapping.contains(fileKey))
 				return CompletableFuture.completedFuture(null);
-			
+
+			// If the file already exist
+			if (Files.exists(fileDest))
+			{
+				downloadsProgressView.newExistingOtherFile(session.id(), post.id(), file.id(), fileDest);
+				return CompletableFuture.completedFuture(null);
+			}
+
 			Files.createDirectories(fileDest.getParent());
 
 			AtomicReference<String> contentType = new AtomicReference<>();
-			
-			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(new URI(file.url())).GET(),
+
+			URI url = new URI(file.url());
+			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(url).GET(),
 			                                 getHeadersForFileDownload(session, file))
 			                                 .build();
 			return session.sendAsync(request, BodyHandlers.ofFile(fileDest), new DownloadListener()
@@ -1135,6 +1213,12 @@ public abstract class Downloader
 						downloadsProgressView.newZip(session.id(), post.id(), file.id(), fileDest);
 					else
 						downloadsProgressView.newOtherFile(session.id(), post.id(), file.id(), fileDest);
+
+					if (responseInfo.statusCode() != 200) {
+						HttpException ex = new HttpException(url, responseInfo);
+						downloadsProgressView.endDownload(session.id(), post.id(), file.id(), ex);
+						throw ex;
+					}
 				}
 				
 				@Override
@@ -1198,7 +1282,7 @@ public abstract class Downloader
 			};
 		
 			Files.createDirectories(targetDirectory);
-			
+			//TODO support rar (https://mvnrepository.com/artifact/com.github.junrar/junrar)
 			ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));
 			ZipEntry zipEntry;
 			try {
@@ -1938,6 +2022,11 @@ public abstract class Downloader
 	public final void markDeleted(Collection<Image> images)
 	{
 		mapping.markDeleted(images);
+	}
+
+	public final void removeMapping(Image image)
+	{
+		mapping.remove(image);
 	}
 
 	public void setCreatorId(String creatorId)

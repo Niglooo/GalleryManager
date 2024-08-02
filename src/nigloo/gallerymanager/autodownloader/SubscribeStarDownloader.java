@@ -96,6 +96,8 @@ public class SubscribeStarDownloader extends Downloader
             if (response.headers().firstValue("Content-Type").get().contains("text/html"))
             {
                 postElements = Jsoup.parseBodyFragment(response.body());
+                if (postElements.selectFirst(".top_bar-user-menu_wrapper") == null)
+                    throw new DownloaderSessionExpiredException();
             }
             else
             {

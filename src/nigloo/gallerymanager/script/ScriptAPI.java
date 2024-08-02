@@ -3,6 +3,7 @@ package nigloo.gallerymanager.script;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -10,6 +11,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
+import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.ui.FileSystemElement;
+import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import org.apache.logging.log4j.Level;
 
 import nigloo.gallerymanager.model.Gallery;
@@ -39,6 +43,10 @@ public class ScriptAPI implements AutoCloseable
 		this.output = output;
 		this.asyncExecutor = new ScriptAsyncExecutor(Executors.newSingleThreadExecutor(SCRIPT_MAIN_THREAD_FACTORY));
 		Injector.init(this);
+	}
+
+	public ScriptAPIUtils util() {
+		return ScriptAPIUtils.INSTANCE;
 	}
 	
 	public Gallery getGallery()
@@ -103,5 +111,17 @@ public class ScriptAPI implements AutoCloseable
 			absPaths.add(gallery.toAbsolutePath(path));
 		
 		return absPaths;
+	}
+
+	public interface APIFileSystemElement {
+		Path getPath();
+		boolean isDirectory();
+		boolean isImage();
+		Image getImage();
+		long getLastModified();
+	}
+
+	public APIFileSystemElement getFileSystemElement(String path) {
+		return new FileSystemElement(Paths.get(path), Status.SYNC);
 	}
 }

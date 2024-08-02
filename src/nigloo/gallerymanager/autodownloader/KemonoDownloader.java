@@ -40,8 +40,8 @@ public abstract class KemonoDownloader extends Downloader {
             .appendValue(ChronoField.NANO_OF_SECOND)
             .toFormatter();
 
-        private final String originalProvider;
-        private final boolean skipFirstImage;
+        private final transient String originalProvider;
+        private final transient boolean skipFirstImage;
 
     protected KemonoDownloader(String originalProvider, boolean skipFirstImage) {
         this.originalProvider = originalProvider;
@@ -112,7 +112,7 @@ public abstract class KemonoDownloader extends Downloader {
             Document htmlPost = Jsoup.parseBodyFragment(r.body());
 
             // Regular post
-            Elements imagesElements = htmlPost.select(".post__thumbnail > a");
+            Elements imagesElements = htmlPost.select(".post__thumbnail a");
             return imagesElements.stream().skip(skipFirstImage ? 1 : 0).map(imageElement ->
             {
                 String url = imageElement.attr("href");

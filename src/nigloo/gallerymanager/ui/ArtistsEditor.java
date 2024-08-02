@@ -379,7 +379,7 @@ public class ArtistsEditor extends SplitPane {
         private TitledPane imagesConfigurationPane;
         @FXML
         private ComboBox<DownloadImages> imageDownload;
-        @FXML
+        @FXML//TODO change to AutoCompleteTextField (idem for filePathPattern)
         private TextField imagePathPattern;
         @FXML
         private TitledPane filesConfigurationPane;
@@ -395,6 +395,7 @@ public class ArtistsEditor extends SplitPane {
         private EditableIntegerSpinner minDelayBetweenRequests;
         @FXML
         private TextField titleFilterRegex;
+        //TODO add a "run" button
 
         private final BooleanBinding changed;
         private final StringExpression title;

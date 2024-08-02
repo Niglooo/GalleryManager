@@ -197,6 +197,8 @@ public class FXImageVideoWrapper
 		String filename = path.getFileName().toString();
 		int posExt = filename.lastIndexOf('.');
 		String ext = posExt >= 0 ? filename.substring(posExt + 1) : "";
+		if (ext.equals("jpe"))
+			ext = "jpg";
 		Iterator<ImageReader> iter = ImageIO.getImageReadersBySuffix(ext);
 
 		if (iter.hasNext())

@@ -12,6 +12,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import javafx.scene.Node;
+import nigloo.gallerymanager.ui.util.AutoCompleteTag;
+import nigloo.gallerymanager.ui.util.UIUtils;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import javafx.animation.FadeTransition;
@@ -36,6 +39,7 @@ import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.image.ImageView;
@@ -70,12 +74,25 @@ import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.javafx.FXUtils;
 import nigloo.tool.thread.SafeThread;
 import nigloo.tool.thread.ThreadStopException;
+import org.kordamp.ikonli.javafx.FontIcon;
+
+import java.nio.file.Path;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 public class SlideShowStage extends Stage
 {
 	private static final int NO_CURRENT_IMAGE_INDEX = -1;
 	
-	private static Rectangle2D screenSize = Screen.getPrimary().getBounds();
+	private static final Rectangle2D screenSize = Screen.getPrimary().getBounds();
 	
 	@Inject
 	private Gallery gallery;
@@ -96,7 +113,7 @@ public class SlideShowStage extends Stage
 	private final Label notificationLabel;
 	private final FadeTransition notificationLabelEffectTL;
 	
-	private final SimpleBooleanProperty altDown;
+	private final SimpleBooleanProperty showInfoZone;
 	private final SimpleBooleanProperty keyBoardControlVideo;
 	
 	private final VideoParameters parametersPreviousVideo;
@@ -157,8 +174,7 @@ public class SlideShowStage extends Stage
 		setScene(new Scene(contentRoot));
 		getScene().getStylesheets().add(UIController.STYLESHEET_DEFAULT);
 		
-		infoZone = new InfoZone();
-		infoZone.setVisible(false);
+		infoZone = new InfoZone(gallery);
 		contentRoot.getChildren().add(infoZone);
 		StackPane.setAlignment(infoZone, Pos.TOP_LEFT);
 		StackPane.setMargin(infoZone, new Insets(10));
@@ -183,15 +199,15 @@ public class SlideShowStage extends Stage
 		
 		SlideShowContextMenu contextMenu = new SlideShowContextMenu(this);
 		contextMenu.setHideOnEscape(true);
-		
-		altDown = new SimpleBooleanProperty(false);
+
+		showInfoZone = new SimpleBooleanProperty(false);
 		keyBoardControlVideo = new SimpleBooleanProperty(false);
 		keyBoardControlVideo.addListener((obs, oldValue, newValue) -> showNotification("Keyboard Control Video "+(newValue ? "ON" : "OFF")));
 		contentRoot.cursorProperty().bind(new ObjectBinding<Cursor>() {{
-				bind(altDown, contextMenu.showingProperty());
+				bind(showInfoZone, contextMenu.showingProperty());
 			}
 			@Override protected Cursor computeValue() {
-				return altDown.get() || contextMenu.isShowing() ? null : Cursor.NONE;
+				return showInfoZone.get() || contextMenu.isShowing() ? null : Cursor.NONE;
 			}
 		});
 		
@@ -208,23 +224,23 @@ public class SlideShowStage extends Stage
 				keyBoardControlVideo.set(false);
 		});
 		
-		infoZone.visibleProperty().bind(altDown);
+		infoZone.visibleProperty().bind(showInfoZone);
 		videoControl.visibleProperty().bind(new BooleanBinding() {{
-				bind(altDown, videoActuallyVisible);
+				bind(showInfoZone, videoActuallyVisible);
 			}
 			@Override protected boolean computeValue() {
-				return altDown.get() && videoActuallyVisible.get();
+				return showInfoZone.get() && videoActuallyVisible.get();
 			}
 		});
 		
 		addEventHandler(KeyEvent.KEY_PRESSED, event ->
 		{
-			altDown.set(event.isAltDown());
-			
 			boolean consumed = true;
 			
 			if (event.getCode() == KeyCode.ALT)
 			{
+				showInfoZone.set(!showInfoZone.get());
+
 				if (keyBoardControlVideo.get())
 					keyBoardControlVideo.set(false);
 				else if (currentImageProperty().get().isActuallyVideo())
@@ -294,7 +310,6 @@ public class SlideShowStage extends Stage
 			if (consumed)
 				event.consume();
 		});
-		addEventHandler(KeyEvent.KEY_RELEASED, event -> altDown.set(event.isAltDown()));
 		Robot robot = new Robot();
 		addEventHandler(MouseEvent.MOUSE_RELEASED, event ->
 		{
@@ -328,10 +343,16 @@ public class SlideShowStage extends Stage
 		addEventHandler(MouseEvent.MOUSE_PRESSED, event ->
 		{
 			if (event.getButton() == MouseButton.PRIMARY || event.getButton() == MouseButton.SECONDARY)
+			{
 				contextMenu.hide();
+				contentRoot.requestFocus();
+			}
 		});
 		
-		addEventHandler(WindowEvent.WINDOW_SHOWN, event -> fullImageUpdatingThread.start());
+		addEventHandler(WindowEvent.WINDOW_SHOWN, event -> {
+			fullImageUpdatingThread.start();
+			contentRoot.requestFocus();
+		});
 		addEventHandler(WindowEvent.WINDOW_HIDDEN, event -> {
 			fullImageUpdatingThread.safeStop();
 			autoplay.stop();
@@ -629,12 +650,26 @@ public class SlideShowStage extends Stage
 	
 	private static class InfoZone extends VBox
 	{
+		private final int MAX_FAVOURITE = 10;
+
+		private final Gallery gallery;
+
+		private Image currentImage;
+
 		private final Text imagePath;
 		private final Text imageSize;
 		private final VBox imageTags;
+
+		private final VBox favouriteTags;
+
+		private final CheckBox lastTagFavourite;
+		private final AutoCompleteTextField lastTag;
+
 		
-		public InfoZone()
+		public InfoZone(Gallery gallery)
 		{
+			this.gallery = gallery;
+
 			getStyleClass().add("info-zone");
 			
 			imagePath = new Text();
@@ -645,12 +680,43 @@ public class SlideShowStage extends Stage
 			
 			imageTags = new VBox();
 			imageTags.getStyleClass().add("tag-list");
-			
-			getChildren().setAll(imagePath, imageSize, imageTags);
+
+			favouriteTags = new VBox();
+			favouriteTags.getStyleClass().addAll("tag-list", "favourite-tags");
+
+			lastTagFavourite = new CheckBox();
+			allowClickWithAltDown(lastTagFavourite);
+			lastTag = new AutoCompleteTextField();
+			AutoCompleteTag.singleTag(gallery, lastTag);
+			lastTag.setOnAction(e -> toggleTag(lastTag.getText()));
+			HBox lastTagContainer = new HBox(lastTagFavourite, lastTag);
+			lastTagContainer.getStyleClass().add("last-tag-container");
+			lastTagContainer.setAlignment(Pos.BASELINE_LEFT);
+
+			lastTagFavourite.disableProperty().bind(lastTag.textProperty().isNotEmpty().and(new BooleanBinding()
+			{
+				{
+					bind(favouriteTags.getChildren());
+				}
+				@Override
+				protected boolean computeValue()
+				{
+					return favouriteTags.getChildren().size() >= MAX_FAVOURITE;
+				}
+			}));
+			lastTagFavourite.setOnAction(e -> {
+				if (lastTagFavourite.isSelected()) {
+					lastTagFavourite.setSelected(false);
+					addFavourite(lastTag.getText());
+				}
+			});
+
+			getChildren().setAll(imagePath, imageSize, imageTags, favouriteTags, lastTagContainer);
 		}
 		
 		public void setImage(Image image)
 		{
+			currentImage = image;
 			imagePath.setText(image.getPath().toString());
 			imageTags.getChildren().clear();
 			image.getTags().stream().sorted(Comparator.comparing(Tag::getName)).forEachOrdered(tag ->
@@ -664,6 +730,12 @@ public class SlideShowStage extends Stage
 				
 				imageTags.getChildren().add(tagText);
 			});
+
+			for (Node node : favouriteTags.getChildren())
+			{
+				FavouriteTag favouriteTag = (FavouriteTag) node;
+				favouriteTag.setImage(image);
+			}
 		}
 		
 		public void updateImageLoadingInfo(FXImageVideoWrapper fxImageVideo)
@@ -681,6 +753,66 @@ public class SlideShowStage extends Stage
 			String h = height > 0 ? "%d".formatted(height) : "???";
 			
 			imageSize.setText(w + "x" + h);
+		}
+
+		private void addFavourite(String tagName)
+		{
+			favouriteTags.getChildren().add(new FavouriteTag(gallery, currentImage, tagName));
+		}
+
+		private void toggleTag(String tagName)
+		{
+			Tag tag = gallery.getTag(tagName);
+
+			if (currentImage.getTags().contains(tag)) {
+				currentImage.removeTag(tag);
+			}
+			else {
+				currentImage.addTag(tag);
+			}
+
+			// Force refresh
+			setImage(currentImage);
+		}
+
+		private class FavouriteTag extends HBox
+		{
+			private final Tag tag;
+			private final Button toggle;
+
+			FavouriteTag(Gallery gallery, Image image, String tagName)
+			{
+				getStyleClass().add("tag-entry");
+
+				tag = gallery.getTag(tagName);
+				Color tagColor = tag.getColor();
+
+				CheckBox isFavourite = new CheckBox();
+				isFavourite.setSelected(true);
+
+				Label tagText = new Label(tag.getName());
+				tagText.setMaxWidth(Double.POSITIVE_INFINITY);
+				tagText.getStyleClass().add("tag");
+				if (tagColor != null)
+					tagText.setStyle("-fx-fill: " + FXUtils.toRGBA(tagColor) + ";");
+
+				toggle = new Button();
+				toggle.setOnAction(e -> toggleTag(tag.getName()));
+				setImage(image);
+
+				getChildren().setAll(isFavourite, tagText, toggle);
+				setAlignment(Pos.BASELINE_LEFT);
+				HBox.setHgrow(isFavourite, Priority.NEVER);UIUtils.debugBorder(isFavourite, Color.RED);
+				HBox.setHgrow(tagText, Priority.ALWAYS);UIUtils.debugBorder(tagText, Color.GREEN);
+				HBox.setHgrow(toggle, Priority.NEVER);UIUtils.debugBorder(toggle, Color.BLUE);
+
+				UIUtils.debugBorder(this, Color.VIOLET);
+			}
+
+			public void setImage(Image image)
+			{
+				toggle.setText(image.getTags().contains(tag) ? "-" : "+");
+			}
 		}
 	}
 	
@@ -930,22 +1062,6 @@ public class SlideShowStage extends Stage
 			showNotificationAction.accept("Volume : %.0f%%".formatted(video.getVolume() * 100));
 		}
 		
-		static private void allowClickWithAltDown(ButtonBase button)
-		{
-			// From com.sun.javafx.scene.control.behavior.ButtonBehavior.mousePressed
-			button.addEventHandler(MouseEvent.MOUSE_PRESSED, e ->
-			{
-				boolean valid = (e.getButton() == MouseButton.PRIMARY
-				        && !(e.isMiddleButtonDown() || e.isSecondaryButtonDown() || e.isShiftDown()
-				                || e.isControlDown() /* || e.isAltDown() */ || e.isMetaDown()));
-				
-				if (!button.isArmed() && valid)
-				{
-					button.arm();
-				}
-			});
-		}
-		
 		private static final DateTimeFormatter SHORT_DURATION_FORMAT = DateTimeFormatter.ofPattern("mm:ss");
 		private static final DateTimeFormatter PADDED_SHORT_DURATION_FORMAT = DateTimeFormatter.ofPattern("   mm:ss");
 		private static final DateTimeFormatter LONG_DURATION_FORMAT         = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -1040,7 +1156,23 @@ public class SlideShowStage extends Stage
 			}
 		}
 	}
-	
+
+	static private void allowClickWithAltDown(ButtonBase button)
+	{
+		// From com.sun.javafx.scene.control.behavior.ButtonBehavior.mousePressed
+		button.addEventHandler(MouseEvent.MOUSE_PRESSED, e ->
+		{
+			boolean valid = (e.getButton() == MouseButton.PRIMARY
+					&& !(e.isMiddleButtonDown() || e.isSecondaryButtonDown() || e.isShiftDown()
+					|| e.isControlDown() /* || e.isAltDown() */ || e.isMetaDown()));
+
+			if (!button.isArmed() && valid)
+			{
+				button.arm();
+			}
+		});
+	}
+
 	private class CurrentImageProperty extends ReadOnlyObjectPropertyBase<Image>
 	{
 		@Override

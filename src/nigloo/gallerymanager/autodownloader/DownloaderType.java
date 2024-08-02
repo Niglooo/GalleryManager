@@ -13,6 +13,7 @@ public enum DownloaderType
     MASONRY(MasonryDownloader.class),
     PATREON(PatreonDownloader.class),
     KEMONO_PATREON(KemonoPatreonDownloader.class),
+    KEMONO_FANBOX(KemonoFanboxDownloader.class),
     SUBSCRIBESTAR(SubscribeStarDownloader.class),
     ;
 

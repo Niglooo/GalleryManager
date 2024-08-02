@@ -20,6 +20,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
@@ -65,14 +66,18 @@ public class AutoCompleteTextField extends TextField
 			if (searchText == null || searchText.isBlank())
 				entriesPopup.hide();
 		};
-		focusedChangeListener = (observableValue, oldValue, newValue) -> entriesPopup.hide();
+		focusedChangeListener = (observableValue, oldValue, newValue) -> {
+			entriesPopup.hide();
+			delayedShowSuggestion.stop();
+		};
+		//TODO check escape in filter instead of handler???
 		keyTypedHandler = event ->
 		{
 			String chars = event.getCharacter();
 			
 			if (chars.equals(" ") && event.isControlDown())
 				showSuggestions(true);
-			else if (!chars.contains("\r") && !chars.contains("\n") && !event.isControlDown())
+			else if (!chars.contains("\r") && !chars.contains("\n") && !event.isControlDown() && !(!chars.isEmpty() && chars.charAt(0) == 27))
 				delayedShowSuggestion.playFromStart();
 		};
 		

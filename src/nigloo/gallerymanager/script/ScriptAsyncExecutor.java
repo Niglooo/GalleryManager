@@ -11,7 +11,7 @@ import java.util.concurrent.Future.State;
 
 @Log4j2
 @RequiredArgsConstructor
-public class ScriptAsyncExecutor implements Executor
+class ScriptAsyncExecutor implements Executor
 {
     private final Executor delegate;
 
