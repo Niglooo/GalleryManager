@@ -2,7 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 public class KemonoFanboxDownloader extends KemonoDownloader {
     public KemonoFanboxDownloader() {
-        super("fanbox", false);
+        super("fanbox");
     }
 
     @Override
