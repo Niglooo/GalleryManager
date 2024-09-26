@@ -41,11 +41,9 @@ public abstract class KemonoDownloader extends Downloader {
             .toFormatter();
 
         private final transient String originalProvider;
-        private final transient boolean skipFirstImage;
 
-    protected KemonoDownloader(String originalProvider, boolean skipFirstImage) {
+    protected KemonoDownloader(String originalProvider) {
         this.originalProvider = originalProvider;
-        this.skipFirstImage = skipFirstImage;
     }
 
     private String buildUrl(String path) {
@@ -113,6 +111,7 @@ public abstract class KemonoDownloader extends Downloader {
 
             // Regular post
             Elements imagesElements = htmlPost.select(".post__thumbnail a");
+            boolean skipFirstImage = skipFirstImage(imagesElements);
             return imagesElements.stream().skip(skipFirstImage ? 1 : 0).map(imageElement ->
             {
                 String url = imageElement.attr("href");
@@ -121,6 +120,18 @@ public abstract class KemonoDownloader extends Downloader {
                 return PostImage.create(imageId, imageFilename, url, null);
             }).toList();
         });
+    }
+
+    private boolean skipFirstImage(Elements imagesElements) {
+        if (imagesElements.size() <= 1)
+            return false;
+
+        try {
+            String firstImgUrl = imagesElements.get(0).selectFirst("img").attr("src");
+            return imagesElements.stream().skip(1).anyMatch(img -> firstImgUrl.equals(img.selectFirst("img").attr("src")));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

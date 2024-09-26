@@ -2,7 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 public class KemonoPatreonDownloader extends KemonoDownloader {
     public KemonoPatreonDownloader() {
-        super("patreon", true);
+        super("patreon");
     }
 
     @Override
