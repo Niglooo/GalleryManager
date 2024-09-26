@@ -100,6 +100,7 @@ public class SlideShowStage extends Stage
 	private ImageCache imageCache;
 	
 	private List<Image> imagesOrdered = null;
+	private List<Image> imagesShuffled = null;
 	private List<Image> images = null;
 	private volatile int currentImageIdx;
 	
@@ -130,14 +131,16 @@ public class SlideShowStage extends Stage
 		Injector.init(this);
 		
 		this.imagesOrdered = List.copyOf(images);
+		this.imagesShuffled = new ArrayList<>(images);
+		Collections.shuffle(imagesShuffled);
+		this.imagesShuffled = List.copyOf(imagesShuffled);
 		
 		currentImageIdx = NO_CURRENT_IMAGE_INDEX;
 		int firstImageIdx;
 		
 		if (gallery.getSlideShowParameter().isShuffled())
 		{
-			this.images = new ArrayList<>(imagesOrdered);
-			Collections.shuffle(this.images);
+			this.images = this.imagesShuffled;
 			firstImageIdx = this.images.indexOf(imagesOrdered.get(startingIndex));
 		}
 		else
@@ -459,10 +462,9 @@ public class SlideShowStage extends Stage
 		autoplay.stop();
 		if (shuffled) // ordered -> shuffled
 		{
-			List<Image> shuffledImages = new ArrayList<>(imagesOrdered);
-			Collections.shuffle(shuffledImages);
-			images = shuffledImages;
-			setCurrent(0);
+			int index = imagesShuffled.indexOf(images.get(currentImageIdx));
+			images = imagesShuffled;
+			setCurrent(index);
 		}
 		else // shuffled -> ordered
 		{
