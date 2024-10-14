@@ -27,11 +27,11 @@ import javax.script.Compilable;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
-import javax.swing.text.StyledEditorKit.BoldAction;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -139,26 +139,30 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 			Path p1 = e1.getPath();
 			Path p2 = e2.getPath();
 
-			String filename1 = p1.getFileName().toString();
-			String filename2 = p2.getFileName().toString();
+			String filename1 = p1.getFileName().toString().toLowerCase(Locale.ROOT);
+			String filename2 = p2.getFileName().toString().toLowerCase(Locale.ROOT);
 
-			int pos1 = 0;
+			List<Integer> pos1 = new ArrayList<>();
+			List<Integer> pos2 = new ArrayList<>();
+			int  i = 0;
 			for (String keyword : keywords) {
-				if (filename1.toLowerCase(Locale.ROOT).contains(keyword))
-					break;
-				pos1++;
-			}
-			int pos2 = 0;
-			for (String keyword : keywords) {
-				if (filename2.toLowerCase(Locale.ROOT).contains(keyword))
-					break;
-				pos2++;
+				if (filename1.contains(keyword))
+					pos1.add(i);
+				if (filename2.contains(keyword))
+					pos2.add(i);
+				i++;
 			}
 
-			if (pos1 == pos2)
+			if (pos1.isEmpty() && pos2.isEmpty())
 				return compareIgnoringExtension(p1, p2);
+			else if (pos1.isEmpty())
+				return 1;
+			else if (pos2.isEmpty())
+				return -1;
 			else
-				return pos1 - pos2;
+				return Arrays.compare(
+						pos1.stream().mapToInt(Integer::intValue).sorted().toArray(),
+						pos2.stream().mapToInt(Integer::intValue).sorted().toArray());
 		}
 	}
 public static final Map<Boolean,List<Long>> times = new HashMap<>(); static{times.put(true, new ArrayList<>());times.put(false, new ArrayList<>());}
