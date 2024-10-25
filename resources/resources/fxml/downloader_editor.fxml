@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
@@ -24,6 +25,7 @@
             <RowConstraints vgrow="NEVER" />
           <RowConstraints vgrow="ALWAYS" />
           <RowConstraints vgrow="ALWAYS" />
+            <RowConstraints vgrow="ALWAYS" />
             <RowConstraints vgrow="ALWAYS" />
             <RowConstraints vgrow="ALWAYS" />
         </rowConstraints>
@@ -81,6 +83,8 @@
             <DatePicker fx:id="mostRecentPostCheckedDate" GridPane.columnIndex="1" GridPane.rowIndex="4" />
             <EditableIntegerSpinner fx:id="minDelayBetweenRequests" GridPane.columnIndex="1" GridPane.rowIndex="5" />
             <TextField fx:id="titleFilterRegex" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+            <Label text="Auto like posts" GridPane.rowIndex="7" />
+            <CheckBox fx:id="autoLikePosts" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.rowIndex="7" />
          </children>
       </GridPane>
    </children>

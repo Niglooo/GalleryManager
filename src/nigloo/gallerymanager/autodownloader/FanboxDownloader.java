@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -101,7 +103,7 @@ public class FanboxDownloader extends Downloader
 										  String postTitle = JsonHelper.followPath(post, "title");
 										  ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "publishedDatetime"));
 
-										  return Post.create(postId, postTitle, publishedDatetime, null);
+										  return Post.create(postId, postTitle, publishedDatetime, post);
 									  })
 									  .iterator();
 
@@ -226,7 +228,36 @@ public class FanboxDownloader extends Downloader
 		
 		return CompletableFuture.completedFuture(files);
 	}
-	
+
+	@Override
+	public boolean supportLikePost()
+	{
+		return true;
+	}
+
+	@Override
+	protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
+	{
+		JsonObject jPost = (JsonObject) post.extraInfo();
+		boolean isLiked = JsonHelper.followPath(jPost, "isLiked", boolean.class);
+
+		// Post already liked
+		if (isLiked)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+
+		HttpRequest request = HttpRequest.newBuilder()
+										 .uri(new URI("https://api.fanbox.cc/post.likePost"))
+										 .POST(BodyPublishers.ofString("{\"postId\":\""+post.id()+"\"}"))
+										 .header("Content-Type", "application/json")
+										 .header("X-Csrf-Token", session.getSecret("fanbox.x-csrf-token"))
+										 .headers(session.getExtraInfo(HEADERS_KEY))
+										 .build();
+
+		return session.sendAsync(request, BodyHandlers.discarding()).thenApply(r -> true);
+	}
+
 	@Override
 	protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
 	{

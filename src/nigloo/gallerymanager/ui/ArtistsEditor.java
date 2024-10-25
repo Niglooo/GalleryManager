@@ -16,7 +16,6 @@ import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.layout.VBox;
-import lombok.RequiredArgsConstructor;
 import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractZip;
@@ -38,8 +37,6 @@ import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -270,6 +267,7 @@ public class ArtistsEditor extends SplitPane {
             downloader.setMinDelayBetweenRequests(editor.minDelayBetweenRequests.getValue());
             String titleFilter = editor.titleFilterRegex.getText();
             downloader.setTitleFilterRegex(Utils.isNotBlank(titleFilter) ? Pattern.compile(titleFilter) : null);
+            downloader.setAutoLikePosts(editor.autoLikePosts.isSelected());
         }
     }
 
@@ -367,7 +365,7 @@ public class ArtistsEditor extends SplitPane {
         }
     }
 
-    private class DownloaderEditor extends VBox
+    private static class DownloaderEditor extends VBox
     {
         private final Downloader downloader;
 
@@ -395,6 +393,8 @@ public class ArtistsEditor extends SplitPane {
         private EditableIntegerSpinner minDelayBetweenRequests;
         @FXML
         private TextField titleFilterRegex;
+        @FXML
+        private CheckBox autoLikePosts;
         //TODO add a "run" button
 
         private final BooleanBinding changed;
@@ -410,6 +410,7 @@ public class ArtistsEditor extends SplitPane {
             fileDownload.getItems().addAll(DownloadFiles.values());
             fileAutoExtractZip.getItems().addAll(AutoExtractZip.values());
             minDelayBetweenRequests.setMin(0);
+            autoLikePosts.setDisable(!downloader.supportLikePost());
 
             reload();
 
@@ -428,7 +429,8 @@ public class ArtistsEditor extends SplitPane {
                          filePathPattern.textProperty(),
                          fileAutoExtractZip.getSelectionModel().selectedItemProperty(),
                          minDelayBetweenRequests.valueProperty(),
-                         titleFilterRegex.textProperty());
+                         titleFilterRegex.textProperty(),
+                         autoLikePosts.selectedProperty());
                 }
 
                 @Override
@@ -490,6 +492,9 @@ public class ArtistsEditor extends SplitPane {
                             !Objects.equals(titleFilterRegex.getText(), pattern))
                         return true;
 
+                    if (downloader.isAutoLikePosts() != autoLikePosts.isSelected())
+                        return true;
+
                     return false;
                 }
             };
@@ -517,7 +522,7 @@ public class ArtistsEditor extends SplitPane {
             mostRecentPostCheckedDate.setValue(downloader.getMostRecentPostCheckedDate() != null ? downloader.getMostRecentPostCheckedDate().toLocalDate() : null);
             minDelayBetweenRequests.setValue((int) downloader.getMinDelayBetweenRequests());
             titleFilterRegex.setText(downloader.getTitleFilterRegex() != null ? downloader.getTitleFilterRegex().pattern() : null);
-
+            autoLikePosts.setSelected(downloader.isAutoLikePosts());
         }
     }
 }

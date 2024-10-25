@@ -118,6 +118,9 @@ public final class Gallery
 						fileConfiguration.setDownload(DownloadFiles.NO);
 					if (fileConfiguration.getDownload() != DownloadFiles.NO &&  Utils.isBlank(fileConfiguration.getPathPattern()))
 						throw new IllegalStateException("Missing fileConfiguration.pathPattern for "+autoDownloader);
+
+					if (!autoDownloader.supportLikePost())
+						autoDownloader.setAutoLikePosts(false);
 				}
 			}
 			

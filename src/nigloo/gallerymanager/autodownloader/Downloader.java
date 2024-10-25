@@ -147,6 +147,9 @@ public abstract class Downloader
 	@Getter
 	@Setter
 	protected Pattern titleFilterRegex = null;
+	@Getter
+	@Setter
+	protected boolean autoLikePosts = true;
 	
 	protected ImagesConfiguration imageConfiguration;
 	protected FilesConfiguration fileConfiguration;
@@ -262,20 +265,34 @@ public abstract class Downloader
 					        ? listFilesFuture.thenCompose(files -> downloadFiles(session, post, files))
 					        : CompletableFuture.completedFuture(null));
 				};
-				
+
+				CompletableFuture<Void> likePostFuture = supportLikePost() && autoLikePosts
+					? likePost(session, post).thenAccept(success -> {
+						if (Boolean.TRUE.equals(success)) {
+							LOGGER.info("Liked post {} ({}) published the {} by {}",
+										post.title(),
+										post.id(),
+										post.publishedDatetime(),
+										this);
+						}
+					})
+					: null;
+
+
+				List<CompletableFuture<?>> postFutureComponents = Stream.of(
+						downloadImagesFuture,
+						downloadFilesFuture,
+						likePostFuture)
+						.filter(Objects::nonNull)
+						.toList();
 				CompletableFuture<?> postFuture;
-				
-				if (downloadImagesFuture != null && downloadFilesFuture != null)
+				if (postFutureComponents.size() > 1)
 				{
-					postFuture = CompletableFuture.allOf(downloadImagesFuture, downloadFilesFuture);
+					postFuture = CompletableFuture.allOf(postFutureComponents.toArray(CompletableFuture[]::new));
 				}
-				else if (downloadImagesFuture != null)
+				else if (postFutureComponents.size() == 1)
 				{
-					postFuture = downloadImagesFuture;
-				}
-				else if (downloadFilesFuture != null)
-				{
-					postFuture = downloadFilesFuture;
+					postFuture = postFutureComponents.getFirst();
 				}
 				else
 				{
@@ -641,7 +658,17 @@ public abstract class Downloader
 	{
 		return null;
 	}
-	
+
+	public boolean supportLikePost()
+	{
+		return false;
+	}
+
+	protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
+	{
+		return CompletableFuture.completedFuture(null);
+	}
+
 	public static class HttpException extends RuntimeException
 	{
 		private final URI requestUri;
