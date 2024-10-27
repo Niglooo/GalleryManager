@@ -242,7 +242,9 @@ public final class Gallery
 	public Image getImage(Path path)
 	{
 		if (!Image.isImage(path))
-			throw new IllegalArgumentException("Not an image: "+path);
+		{
+			throw new IllegalArgumentException("Not an image: " + path);
+		}
 		
 		synchronized (images)
 		{
@@ -258,7 +260,9 @@ public final class Gallery
 	public void saveImage(Image image)
 	{
 		if (image.isSaved())
+		{
 			return;
+		}
 		
 		synchronized (images)
 		{
@@ -300,7 +304,9 @@ public final class Gallery
 			// This last or we break every ImageReference
 			for (Image image : images)
 				if (this.images.remove(image))
+				{
 					deleted.add(image);
+				}
 			
 			unsavedImages().keySet().removeAll(images.stream().map(Image::getPath).toList());
 		}
@@ -333,7 +339,9 @@ public final class Gallery
 	{
 		String nTagName = Tag.normalize(tagName);
 		if (nTagName == null)
-			throw new IllegalArgumentException("Invalid tag name: "+tagName);
+		{
+			throw new IllegalArgumentException("Invalid tag name: " + tagName);
+		}
 
 		synchronized (tags)
 		{
@@ -359,7 +367,9 @@ public final class Gallery
 		{
 			Tag sourceTag = findTag(sourceTagName);
 			if (sourceTag == null)
+			{
 				throw new IllegalArgumentException("tag " + sourceTagName + " not found");
+			}
 
 			Tag targetTag = findTag(targetTagName);
 			if (targetTag == null)
@@ -385,7 +395,9 @@ public final class Gallery
 						newParents.addAll(sourceTag.getParents());
 						newParents.addAll(targetTag.getParents());
 						if (removeUnchecked)
+						{
 							newParents.remove(unchecked);
+						}
 						targetTag.setParents(newParents);
 					}
 				}
@@ -415,7 +427,9 @@ public final class Gallery
 		synchronized (sortOrder)
 		{
 			if (path == null)
+			{
 				return defaultSortOrder;
+			}
 			
 			path = toRelativePath(path);
 			
@@ -429,9 +443,13 @@ public final class Gallery
 		synchronized (sortOrder)
 		{
 			if (order == null)
+			{
 				sortOrder.remove(toRelativePath(path));
+			}
 			else
+			{
 				sortOrder.put(toRelativePath(path), order);
+			}
 		}
 	}
 	
@@ -448,7 +466,9 @@ public final class Gallery
 		synchronized (sortOrder)
 		{
 			if (path == null)
+			{
 				return defaultSortOrder;
+			}
 			
 			path = toRelativePath(path);
 			
@@ -463,9 +483,13 @@ public final class Gallery
 		synchronized (sortOrder)
 		{
 			if (order == null)
+			{
 				sortOrder.remove(toRelativePath(path).resolve(PATH_WILDCARD));
+			}
 			else
+			{
 				sortOrder.put(toRelativePath(path).resolve(PATH_WILDCARD), order);
+			}
 		}
 	}
 	
@@ -549,7 +573,9 @@ public final class Gallery
 				{
 					path = toAbsolutePath(path);
 					if (path.startsWith(fSource))
+					{
 						mapping.put(path, fTarget.resolve(fSource.relativize(path)));
+					}
 				}
 				
 				for (Entry<Path, Path> entry : mapping.entrySet())
