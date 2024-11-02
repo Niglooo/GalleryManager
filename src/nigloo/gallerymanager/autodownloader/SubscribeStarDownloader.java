@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.autodownloader;
 
+import com.github.mizosoft.methanol.MultipartBodyPublisher;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -11,7 +12,9 @@ import org.jsoup.nodes.Element;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -24,10 +27,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SubscribeStarDownloader extends Downloader
 {
     private static final String HEADERS_KEY = "headers";
+    private static final String CSRF_TOKEN_KEY = "Csrf-Token";
+    private static final String NEWRELIC_ID_KEY = "Newrelic-Id";
+
+    private static final Pattern NEWRELIC_ID_PATTERN = Pattern.compile("xpid:\"([^\"]+)\"");
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder().parseStrict()
             .appendText(ChronoField.MONTH_OF_YEAR, TextStyle.SHORT_STANDALONE)
@@ -98,6 +108,20 @@ public class SubscribeStarDownloader extends Downloader
                 postElements = Jsoup.parseBodyFragment(response.body());
                 if (postElements.selectFirst(".top_bar-user-menu_wrapper") == null)
                     throw new DownloaderSessionExpiredException();
+
+                String csrfToken = postElements.selectFirst("meta[name=\"csrf-token\"]").attr("content");
+                session.setExtaInfo(CSRF_TOKEN_KEY, csrfToken);
+
+                for (Element scriptElement : postElements.select("script[type=\"text/javascript\"]"))
+                {
+                    String script = scriptElement.data();
+                    Matcher m = NEWRELIC_ID_PATTERN.matcher(script);
+                    if (m.find()) {
+                        String newrelicId = m.group(1);
+                        session.setExtaInfo(NEWRELIC_ID_KEY, newrelicId);
+                        break;
+                    }
+                }
             }
             else
             {
@@ -156,6 +180,56 @@ public class SubscribeStarDownloader extends Downloader
     }
 
     //TODO implement listFiles
+
+    @Override
+    public boolean supportLikePost()
+    {
+        return true;
+    }
+
+    @Override
+    protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
+    {
+        Element likeElement = ((Element) post.extraInfo()).selectFirst(".reactions.for-post .is-like");
+        boolean isLiked = likeElement.classNames().contains("is-reacted");
+
+        // Post already liked
+        if (isLiked)
+        {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        String url = buildUrl(likeElement.attr("data-url"));
+        String csrfToken = session.getExtraInfo(CSRF_TOKEN_KEY);
+        String newrelicId = session.getExtraInfo(NEWRELIC_ID_KEY);
+
+        MultipartBodyPublisher body = MultipartBodyPublisher.newBuilder()
+                                                            .formPart("authenticity_token",
+                                                                      BodyPublishers.ofString(csrfToken))
+                                                            .build();
+
+        // FIXME the request works (the post is liked) but the server return a 404... (200 in browser)
+        HttpRequest request = HttpRequest.newBuilder()
+                                         .uri(new URI(url))
+                                         .POST(body)
+                                         .header("X-Csrf-Token", csrfToken)
+                                         .header("X-Newrelic-Id", newrelicId)
+                                         .header("Content-Type", body.mediaType().toString())
+                                         .headers(session.getExtraInfo(HEADERS_KEY))
+                                         .build();
+
+        return session.sendAsync(request, BodyHandlers.discarding()).handle((response, error) -> {
+            while (error instanceof CompletionException && error.getCause() != null) {
+                error = error.getCause();
+            }
+            if (error != null && (!(error instanceof HttpException httpError) || httpError.getStatusCode() != 404)) {
+                return CompletableFuture.<Boolean>failedFuture(error);
+            } else {
+                return CompletableFuture.completedFuture(true);
+            }
+        }).thenCompose(f -> f);
+        //.thenApply(r -> true);
+    }
 
     @Override
     protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
