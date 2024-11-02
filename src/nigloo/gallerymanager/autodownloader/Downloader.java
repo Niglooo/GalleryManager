@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -127,6 +128,8 @@ public abstract class Downloader
 	                                                                 .setParents(HTTP_RESPONSE);
 	private static final Marker HTTP_RESPONSE_BODY = MarkerManager.getMarker("HTTP_RESPONSE_BODY")
 	                                                              .setParents(HTTP_RESPONSE);
+
+	private static final int NB_POST_LOG_PROGRESSION = 10;
 	
 	@Inject
 	protected transient Gallery gallery;
@@ -228,7 +231,14 @@ public abstract class Downloader
 				
 				postsToDownload.add(post);
 				session.postDownloadResult.put(post, DownloadSession.PostDownloadResult.NOT_CHECKED);
+				if (postsToDownload.size() % NB_POST_LOG_PROGRESSION == 0) {
+					logPostProgress(postsToDownload);
+				}
 			}
+			if (postsToDownload.size() % NB_POST_LOG_PROGRESSION != 0) {
+				logPostProgress(postsToDownload);
+			}
+
 			// Download from oldest to newest post so we can save our progress in case of a failure
 			postsToDownload.sort(Comparator.comparing(Post::publishedDatetime));
 			
@@ -321,6 +331,16 @@ public abstract class Downloader
 			downloadsProgressView.endSession(session.id(), e);
 			return CompletableFuture.failedFuture(e);
 		}
+	}
+
+	private void logPostProgress(List<Post> posts) {
+		Post lastPost = posts.getLast();
+
+		LOGGER.info("Scanning {} posts for {} ; [{}] {}",
+					posts.size(),
+					this,
+					lastPost.publishedDatetime().withZoneSameInstant(ZoneId.systemDefault()).toLocalDate(),
+					lastPost.title());
 	}
 	
 	public record ImageKey(String postId, String imageId) implements Comparable<ImageKey>
