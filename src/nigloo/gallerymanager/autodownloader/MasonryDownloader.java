@@ -33,7 +33,7 @@ public class MasonryDownloader extends Downloader
 	@Override
 	protected void onStartDownload(DownloadSession session) throws Exception
 	{
-		String host = "http://" + creatorId + ".com";
+		String host = "https://" + creatorId + ".com";
 		
 		HttpRequest request = HttpRequest.newBuilder()
 		                                 .uri(new URI(host))
