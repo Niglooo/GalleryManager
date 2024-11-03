@@ -5,6 +5,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringExpression;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -16,6 +17,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.layout.VBox;
+import lombok.extern.log4j.Log4j2;
 import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractZip;
@@ -42,6 +44,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+@Log4j2
 public class ArtistsEditor extends SplitPane {
 
     @Inject
@@ -57,8 +60,6 @@ public class ArtistsEditor extends SplitPane {
     private TextField artistTag;
     @FXML
     private TabPane downloaders;
-
-
 
     private record ArtistData(
             Artist artist,
@@ -192,6 +193,12 @@ public class ArtistsEditor extends SplitPane {
         return tab;
     }
 
+    private static final ChangeListener<Tab> reloadDownloaderOnSelect = (obs, oldDowloaderTab, newDowloaderTab) -> {
+        if (newDowloaderTab.getContent() instanceof DownloaderEditor downloaderEditor) {
+            downloaderEditor.reload();
+        }
+    };
+
     private void setCurrentArtist(ObservableValue<? extends ArtistData> obs, ArtistData oldArtist, ArtistData newArtist)
     {
         if (oldArtist != null)
@@ -201,6 +208,8 @@ public class ArtistsEditor extends SplitPane {
             downloaders.getTabs().removeListener(oldArtist.listChangeListener);
         }
 
+        // Disable reloadDownloaderOnSelect to avoid double reload with reloadArtist which also reload all downloaders
+        downloaders.getSelectionModel().selectedItemProperty().removeListener(reloadDownloaderOnSelect);
         downloaders.getTabs().subList(0, downloaders.getTabs().size() - 1).clear();
 
         if (newArtist != null)
@@ -213,6 +222,8 @@ public class ArtistsEditor extends SplitPane {
             downloaders.getTabs().addAll(0, newArtist.downloaderEditorTabs);
             downloaders.getTabs().addListener(newArtist.listChangeListener);
             downloaders.getSelectionModel().selectFirst();
+            reloadArtist();
+            downloaders.getSelectionModel().selectedItemProperty().addListener(reloadDownloaderOnSelect);
         }
         else
         {
@@ -309,6 +320,7 @@ public class ArtistsEditor extends SplitPane {
             return;
 
         Artist artist = artistData.artist;
+        log.debug("Reloading artist {}", artist);
 
         artistName.setText(artist.getName());
         artistTag.setText(artist.getTagName());
@@ -365,6 +377,7 @@ public class ArtistsEditor extends SplitPane {
         }
     }
 
+    @Log4j2
     private static class DownloaderEditor extends VBox
     {
         private final Downloader downloader;
@@ -428,6 +441,7 @@ public class ArtistsEditor extends SplitPane {
                          fileDownload.getSelectionModel().selectedItemProperty(),
                          filePathPattern.textProperty(),
                          fileAutoExtractZip.getSelectionModel().selectedItemProperty(),
+                         mostRecentPostCheckedDate.valueProperty(),
                          minDelayBetweenRequests.valueProperty(),
                          titleFilterRegex.textProperty(),
                          autoLikePosts.selectedProperty());
@@ -440,42 +454,34 @@ public class ArtistsEditor extends SplitPane {
                         return true;
 
                     ImagesConfiguration imgConf = downloader.getImageConfiguration();
-                    DownloadImages di = imgConf.getDownload();
-                    DownloadImages dis = imageDownload.getValue();
-                    if ((di == null || di == DownloadImages.NO) && (dis == null || dis == DownloadImages.NO))
-                    {
-                        // No image download: don't validate other image download fields
-                    }
-                    else
-                    {
-                        if (di != dis)
-                            return true;
+                    DownloadImages di = Objects.requireNonNullElse(imgConf.getDownload(), DownloadImages.NO);
+                    DownloadImages dis = Objects.requireNonNullElse(imageDownload.getValue(), DownloadImages.NO);
+                    if (di != dis)
+                        return true;
 
+                    // No image download: don't validate other image download fields
+                    if (di != DownloadImages.NO)
+                    {
                         if (!(Utils.isBlank(imagePathPattern.getText()) && Utils.isBlank(imgConf.getPathPattern())) &&
                                 !Objects.equals(imagePathPattern.getText(), imgConf.getPathPattern()))
                             return true;
                     }
 
                     FilesConfiguration fileConf = downloader.getFileConfiguration();
-                    DownloadFiles df = fileConf.getDownload();
-                    DownloadFiles dfs = fileDownload.getValue();
-                    if ((df == null || df == DownloadFiles.NO) && (dfs == null || dfs == DownloadFiles.NO))
-                    {
-                        // No file download: don't validate other file download fields
-                    }
-                    else
-                    {
-                        if (df != dfs)
-                            return true;
+                    DownloadFiles df = Objects.requireNonNullElse(fileConf.getDownload(), DownloadFiles.NO);
+                    DownloadFiles dfs = Objects.requireNonNullElse(fileDownload.getValue(), DownloadFiles.NO);
+                    if (df != dfs)
+                        return true;
 
+                    // No file download: don't validate other file download fields
+                    if (df != DownloadFiles.NO)
+                    {
                         if (!(Utils.isBlank(filePathPattern.getText()) && Utils.isBlank(fileConf.getPathPattern())) &&
                                 !Objects.equals(filePathPattern.getText(), fileConf.getPathPattern()))
                             return true;
 
-                        AutoExtractZip aez = fileConf.getAutoExtractZip();
-                        AutoExtractZip aezs = fileAutoExtractZip.getValue();
-                        if ((aez == null || aez == AutoExtractZip.NO) && (aezs == null || aezs == AutoExtractZip.NO))
-                            return true;
+                        AutoExtractZip aez = Objects.requireNonNullElse(fileConf.getAutoExtractZip(), AutoExtractZip.NO);
+                        AutoExtractZip aezs = Objects.requireNonNullElse(fileAutoExtractZip.getValue(), AutoExtractZip.NO);
                         if (aez != aezs)
                             return true;
                     }
@@ -507,6 +513,7 @@ public class ArtistsEditor extends SplitPane {
 
         public void reload()
         {
+            log.debug("Reloading downloader {}", downloader);
             creatorId.setText(downloader.getCreatorId());
 
             DownloadImages di = downloader.getImageConfiguration().getDownload();

@@ -19,7 +19,13 @@ public class Artist
 	public Artist()
 	{
 	}
-	
+
+	@Override
+	public String toString()
+	{
+		return name;
+	}
+
 	public Tag getTag()
 	{
 		return tag == null ? null : tag.getTag();
