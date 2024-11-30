@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 
 import javafx.geometry.Rectangle2D;
@@ -197,7 +198,7 @@ public class FXImageVideoWrapper
 		String filename = path.getFileName().toString();
 		int posExt = filename.lastIndexOf('.');
 		String ext = posExt >= 0 ? filename.substring(posExt + 1) : "";
-		if (ext.equals("jpe"))
+		if (List.of("jpe", "jfif").contains(ext))
 			ext = "jpg";
 		Iterator<ImageReader> iter = ImageIO.getImageReadersBySuffix(ext);
 
