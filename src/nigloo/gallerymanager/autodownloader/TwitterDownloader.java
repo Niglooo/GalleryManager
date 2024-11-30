@@ -3,6 +3,7 @@ package nigloo.gallerymanager.autodownloader;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -128,9 +129,8 @@ public class TwitterDownloader extends Downloader
 				ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(JsonHelper.followPath(post,
 				                                                                                  "legacy.created_at"),
 				                                                            ZonedDateTime::from);
-				JsonArray images = JsonHelper.followPath(post, "legacy.entities.media", JsonArray.class);
 				
-				return Post.create(postId, postId, publishedDatetime, images);
+				return Post.create(postId, postId, publishedDatetime, post);
 			}
 			else if (nextPageUrl != null)
 			{
@@ -191,7 +191,7 @@ public class TwitterDownloader extends Downloader
 	@Override
 	protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post)
 	{
-		JsonArray images = (JsonArray) post.extraInfo();
+		JsonArray images = JsonHelper.followPath((JsonElement) post.extraInfo(), "legacy.entities.media", JsonArray.class);
 		
 		return CompletableFuture.completedFuture(JsonHelper.stream(images).map(image ->
 		{
@@ -201,6 +201,36 @@ public class TwitterDownloader extends Downloader
 			
 			return PostImage.create(imageId, imageFilename, url, null);
 		}).toList());
+	}
+
+	@Override
+	public boolean supportLikePost()
+	{
+		return true;
+	}
+
+	@Override
+	protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
+	{
+		JsonObject jPost = (JsonObject) post.extraInfo();
+		boolean isLiked = JsonHelper.followPath(jPost, "legacy.favorited", boolean.class);
+
+		// Post already liked
+		if (isLiked)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+
+		HttpRequest request = HttpRequest.newBuilder()
+										 .uri(new URI("https://x.com/i/api/graphql/lI07N6Otwv1PhnEgXILM7A/FavoriteTweet"))
+										 .POST(BodyPublishers.ofString("{\"variables\":{\"tweet_id\":\""+post.id()+"\"}," +
+																			   "\"queryId\":\"lI07N6Otwv1PhnEgXILM7A\"}"))
+										 .header("Content-Type", "application/json")
+										 .headers(session.getExtraInfo(HEADERS_KEY))
+										 .build();
+
+		return session.sendAsync(request, JsonHelper.httpBodyHandler())
+					  .thenApply(r -> "Done".equals(JsonHelper.followPath(r.body(), "data.favorite_tweet")));
 	}
 
 	@Override
