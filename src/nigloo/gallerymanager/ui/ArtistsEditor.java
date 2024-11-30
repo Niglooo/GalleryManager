@@ -279,7 +279,11 @@ public class ArtistsEditor extends SplitPane {
             String titleFilter = editor.titleFilterRegex.getText();
             downloader.setTitleFilterRegex(Utils.isNotBlank(titleFilter) ? Pattern.compile(titleFilter) : null);
             downloader.setAutoLikePosts(editor.autoLikePosts.isSelected());
+
+            editor.changed.invalidate();
         }
+
+        artistData.changed.invalidate();
     }
 
     private void validate(ArtistData artistData) throws IllegalArgumentException
