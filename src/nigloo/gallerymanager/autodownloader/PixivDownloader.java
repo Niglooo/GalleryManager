@@ -2,6 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.time.ZonedDateTime;
 import java.util.Iterator;
@@ -98,7 +99,7 @@ public class PixivDownloader extends Downloader
 			String postTitle = JsonHelper.followPath(post, "title");
 			ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "createDate"));
 			
-			return Post.create(postId, postTitle, publishedDatetime, null);
+			return Post.create(postId, postTitle, publishedDatetime, post);
 		}
 	}
 	
@@ -144,6 +145,37 @@ public class PixivDownloader extends Downloader
 	}
 
 	@Override
+	public boolean supportLikePost()
+	{
+		return true;
+	}
+
+	@Override
+	protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
+	{
+		JsonObject jPost = (JsonObject) post.extraInfo();
+		boolean isLiked = JsonHelper.followPath(jPost, "bookmarkData.id") != null;
+
+		// Post already liked
+		if (isLiked)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+
+		HttpRequest request = HttpRequest.newBuilder()
+										 .uri(new URI("https://www.pixiv.net/ajax/illusts/bookmarks/add"))
+										 .POST(BodyPublishers.ofString("{\"illust_id\":\""+post.id()+"\"," +
+																	   "\"restrict\":0,\"comment\":\"\",\"tags\":[]}"))
+										 .header("Content-Type", "application/json")
+										 .headers(session.getExtraInfo(HEADERS_KEY))
+										 .header("x-csrf-token", session.getSecret("pixiv.x-csrf-token"))
+										 .build();
+
+		return session.sendAsync(request, JsonHelper.httpBodyHandler())
+					  .thenApply(r -> !JsonHelper.followPath(r.body(), "error", boolean.class));
+	}
+
+	@Override
 	protected String[] getHeadersForImageDownload(DownloadSession session, PostImage image)
 	{
 		return session.getExtraInfo(HEADERS_KEY);
@@ -157,6 +189,8 @@ public class PixivDownloader extends Downloader
 			"accept-encoding", "gzip, deflate",
 			"accept-language", "fr-FR,fr;q=0.9",
 			"cookie", session.getSecret("pixiv.cookie"),
+			"origin", "https://www.pixiv.net",
+			"priority", "u=1, i",
 			"referer", "https://www.pixiv.net/en/users/"+creatorId+"/illustrations",
 			"sec-ch-ua", "\" Not;A Brand\";v=\"99\", \"Google Chrome\";v=\"91\", \"Chromium\";v=\"91\"",
 			"sec-ch-ua-mobile", "?0",
