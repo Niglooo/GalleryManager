@@ -1,7 +1,5 @@
 package nigloo.gallerymanager.autodownloader;
 
-import java.io.Reader;
-import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
@@ -16,14 +14,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import com.google.gson.stream.JsonReader;
 
 import nigloo.tool.gson.JsonHelper;
+import org.jsoup.Jsoup;
 
 public class PatreonDownloader extends Downloader
 {
@@ -63,38 +62,38 @@ public class PatreonDownloader extends Downloader
 			super(session);
 			
 			HttpRequest request = HttpRequest.newBuilder()
-			                    .uri(new URI("https://www.patreon.com/" + creatorId + "/posts"))
+			                    .uri(new URI("https://www.patreon.com/c/" + creatorId + "/posts"))
 			                    .GET()
-			                    .headers(getWebUiHeaders())
+								.headers(session.getExtraInfo(HEADERS_KEY))
 			                    .version(Version.HTTP_1_1)// Avoid cloudflare bullshit
 			                    .build();
-			String response = session.send(request, BodyHandlers.ofString()).body();
+			String homePageHtml = session.send(request, BodyHandlers.ofString()).body();
+			JsonElement bootstrap = JsonParser.parseString(Jsoup.parse(homePageHtml).body().getElementById("__NEXT_DATA__").data());
 			
-			final String JSON_BOOTSTRAP_PREFIX = "Object.assign(window.patreon.bootstrap,";
-			Reader reader = new StringReader(response);
-			reader.skip(response.indexOf(JSON_BOOTSTRAP_PREFIX) + JSON_BOOTSTRAP_PREFIX.length());
-			JsonReader jsonReader = new JsonReader(reader);
-			jsonReader.setLenient(true);
-			JsonElement bootstrap = JsonParser.parseReader(jsonReader);
-			
-			this.campaignId = JsonHelper.followPath(bootstrap, "creator.data.id");
-			this.nextPageUrl = "https://www.patreon.com/api/posts" + 
-					"?include=campaign%2Caccess_rules%2Cattachments%2Caudio%2Cimages%2Cmedia%2Cnative_video_insights%2Cpoll.choices%2Cpoll.current_user_responses.user%2Cpoll.current_user_responses.choice%2Cpoll.current_user_responses.poll%2Cuser%2Cuser_defined_tags%2Cti_checks" +
+			this.campaignId = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.pageBootstrap.campaign.data.id");
+			this.nextPageUrl = "https://www.patreon.com/api/campaigns/"+campaignId+"/posts" +
+					"?include=campaign%2Caccess_rules%2Caccess_rules.tier.null%2Cattachments_media%2Caudio%2Caudio_preview.null%2Cdrop%2Cimages%2Cmedia%2Cnative_video_insights%2Cpoll.choices%2Cpoll.current_user_responses.user%2Cpoll.current_user_responses.choice%2Cpoll.current_user_responses.poll%2Cuser%2Cuser_defined_tags%2Cti_checks%2Cvideo.null%2Ccontent_unlock_options.product_variant.null" +
 					"&fields[campaign]=currency%2Cshow_audio_post_download_links%2Cavatar_photo_url%2Cavatar_photo_image_urls%2Cearnings_visibility%2Cis_nsfw%2Cis_monthly%2Cname%2Curl" +
-					"&fields[post]=change_visibility_at%2Ccomment_count%2Ccommenter_count%2Ccontent%2Ccurrent_user_can_comment%2Ccurrent_user_can_delete%2Ccurrent_user_can_view%2Ccurrent_user_has_liked%2Cembed%2Cimage%2Cinsights_last_updated_at%2Cis_paid%2Clike_count%2Cmeta_image_url%2Cmin_cents_pledged_to_view%2Cpost_file%2Cpost_metadata%2Cpublished_at%2Cpatreon_url%2Cpost_type%2Cpledge_url%2Cpreview_asset_type%2Cthumbnail%2Cthumbnail_url%2Cteaser_text%2Ctitle%2Cupgrade_url%2Curl%2Cwas_posted_by_campaign_owner%2Chas_ti_violation%2Cmoderation_status%2Cpost_level_suspension_removal_date%2Cpls_one_liners_by_category%2Cvideo_preview%2Cview_count" +
+					"&fields[post]=change_visibility_at%2Ccomment_count%2Ccommenter_count%2Ccontent%2Ccreated_at%2Ccurrent_user_can_comment%2Ccurrent_user_can_delete%2Ccurrent_user_can_report%2Ccurrent_user_can_view%2Ccurrent_user_comment_disallowed_reason%2Ccurrent_user_has_liked%2Cembed%2Cimage%2Cinsights_last_updated_at%2Cis_paid%2Clike_count%2Cmeta_image_url%2Cmin_cents_pledged_to_view%2Cmonetization_ineligibility_reason%2Cpost_file%2Cpost_metadata%2Cpublished_at%2Cpatreon_url%2Cpost_type%2Cpledge_url%2Cpreview_asset_type%2Cthumbnail%2Cthumbnail_url%2Cteaser_text%2Ctitle%2Cupgrade_url%2Curl%2Cwas_posted_by_campaign_owner%2Chas_ti_violation%2Cmoderation_status%2Cpost_level_suspension_removal_date%2Cpls_one_liners_by_category%2Cvideo%2Cvideo_preview%2Cview_count%2Ccontent_unlock_options%2Cis_new_to_current_user%2Cwatch_state" +
 					"&fields[post_tag]=tag_type%2Cvalue" +
 					"&fields[user]=image_url%2Cfull_name%2Curl" +
 					"&fields[access_rule]=access_rule_type%2Camount_cents" +
-					"&fields[media]=id%2Cimage_urls%2Cdownload_url%2Cmetadata%2Cfile_name" +
+					"&fields[media]=id%2Cimage_urls%2Cdisplay%2Cdownload_url%2Cmetadata%2Cfile_name" +
 					"&fields[native_video_insights]=average_view_duration%2Caverage_view_pct%2Chas_preview%2Cid%2Clast_updated_at%2Cnum_views%2Cpreview_views%2Cvideo_duration" +
+					"&fields[content-unlock-option]=content_unlock_type" +
+					"&fields[product-variant]=price_cents%2Ccurrency_code%2Ccheckout_url%2Cis_hidden%2Cpublished_at_datetime%2Ccontent_type%2Corders_count%2Caccess_metadata" +
 					"&filter[campaign_id]=" + campaignId +
 					"&filter[contains_exclusive_posts]=true" +
 					"&filter[is_draft]=false" +
+					"&page[cursor]=null" +
+					"&page[count]=6" +
+					"&filter[is_by_creator]=true" +
 					"&sort=-published_at" +
+					"&json-api-use-default-includes=false" +
 					"&json-api-version=1.0";
 			this.postsIt = Collections.emptyIterator();
 			this.currentResourcesIncluded = null;
-			//this.nextPageUrl += "&filter[month]=2018-8";
+
 			computeNextPost();
 		}
 		
@@ -124,7 +123,7 @@ public class PatreonDownloader extends Downloader
 				                    .build();
 				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 				
-				nextPageUrl = JsonHelper.followPath(response, "links.next");
+				nextPageUrl = Optional.ofNullable(JsonHelper.followPath(response, "links.next")).map(link -> "https://" + link).orElse(null);
 				postsIt = JsonHelper.followPath(response, "data", JsonArray.class).iterator();
 				
 				currentResourcesIncluded = new HashMap<>();
@@ -181,7 +180,7 @@ public class PatreonDownloader extends Downloader
 	@Override
 	protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) throws Exception
 	{
-		List<JsonElement> jFiles = getRelationshipElements(post, "attachments");
+		List<JsonElement> jFiles = getRelationshipElements(post, "attachments_media");
 		List<PostFile> files;
 		if (jFiles.isEmpty())
 		{
@@ -195,8 +194,8 @@ public class PatreonDownloader extends Downloader
 			for (JsonElement jFile : jFiles)
 			{
 				String id = JsonHelper.followPath(jFile, "id");
-				String filename = JsonHelper.followPath(jFile, "attributes.name");
-				String url = JsonHelper.followPath(jFile, "attributes.url");
+				String filename = JsonHelper.followPath(jFile, "attributes.file_name");
+				String url = JsonHelper.followPath(jFile, "attributes.download_url");
 				
 				files.add(PostFile.create(id, filename, url, tags));
 			}
@@ -255,44 +254,27 @@ public class PatreonDownloader extends Downloader
 		return session.getExtraInfo(HEADERS_KEY);
 	}
 	
-	private String[] getWebUiHeaders()
-	{
-		// @formatter:off
-		return new String[] {
-				"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:108.0) Gecko/20100101 Firefox/108.0",
-				"Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-				"Accept-Language", "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3",
-				"DNT", "1",
-				"Upgrade-Insecure-Requests", "1",
-				"Sec-Fetch-Dest", "document",
-				"Sec-Fetch-Mode", "navigate",
-				"Sec-Fetch-Site", "none",
-				"Sec-Fetch-User", "?1"
-		};
-		// @formatter:on
-	}
-	
 	private String[] getHeaders(DownloadSession session)
 	{
 		// @formatter:off
 		return new String[] {
 			"accept", "*/*",
 			"accept-encoding", "gzip, deflate",
-			"accept-language", "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6",
+			"accept-language", "fr-FR,fr;q=0.8",
+			"baggage", session.getSecret("patreon.baggage"),
 			"content-type", "application/vnd.api+json",
 			"cookie", session.getSecret("patreon.cookie"),
-			"referer", "https://www.patreon.com/" + creatorId + "/posts",
-			"sec-ch-device-memory", "8",
-			"sec-ch-ua", "\"Not?A_Brand\";v=\"8\", \"Chromium\";v=\"108\", \"Google Chrome\";v=\"108\"",
-			"sec-ch-ua-arch", "\"x86\"",
-			"sec-ch-ua-full-version-list", "\"Not?A_Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"108.0.5359.100\", \"Google Chrome\";v=\"108.0.5359.100\"",
+			"priority", "u=1, i",
+			"referer", "https://www.patreon.com/c/"+creatorId+"/posts",
+			"sec-ch-ua", "\"Brave\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
 			"sec-ch-ua-mobile", "?0",
-			"sec-ch-ua-model" , "",
 			"sec-ch-ua-platform", "\"Windows\"",
 			"sec-fetch-dest", "empty",
 			"sec-fetch-mode", "cors",
 			"sec-fetch-site", "same-origin",
-			"user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+			"sec-gpc", "1",
+			"sentry-trace", session.getSecret("patreon.sentry-trace"),
+			"user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 		};
 		// @formatter:on
 	}
