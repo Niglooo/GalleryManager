@@ -69,6 +69,11 @@ public class PatreonDownloader extends Downloader
 			                    .build();
 			String homePageHtml = session.send(request, BodyHandlers.ofString()).body();
 			JsonElement bootstrap = JsonParser.parseString(Jsoup.parse(homePageHtml).body().getElementById("__NEXT_DATA__").data());
+
+			JsonElement currentUser = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.commonBootstrap.currentUser", JsonElement.class);
+			if (currentUser == null || currentUser.isJsonNull()) {
+				throw new DownloaderSessionExpiredException();
+			}
 			
 			this.campaignId = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.pageBootstrap.campaign.data.id");
 			this.nextPageUrl = "https://www.patreon.com/api/campaigns/"+campaignId+"/posts" +
