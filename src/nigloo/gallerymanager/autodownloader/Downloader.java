@@ -821,7 +821,7 @@ public abstract class Downloader
 			}
 			finally
 			{
-				releaseMaxConcurrentStreamsAndTrySetHTTP2Value();
+				releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
 			}
 			logResponse(response);
 			
@@ -850,7 +850,7 @@ public abstract class Downloader
 				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
 				                     (response, error) ->
 				                     {
-										 releaseMaxConcurrentStreamsAndTrySetHTTP2Value();
+										 releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
 					                     if (error == null)
 						                     logResponse(response);
 				                     })
@@ -858,7 +858,7 @@ public abstract class Downloader
 				                    ? CompletableFuture.failedFuture(new HttpException(response))
 				                    : CompletableFuture.completedFuture(response));
 			} catch (Exception e) {
-				releaseMaxConcurrentStreamsAndTrySetHTTP2Value();
+				releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
 				throw e;
 			}
 		}
@@ -878,10 +878,10 @@ public abstract class Downloader
 		// We don't care about concurrent access. Wort case, this gets initialised several times, but always with the same value.
 		private static MaxConcurrentStreamsRefect mcsCache = null;
 
-		private void releaseMaxConcurrentStreamsAndTrySetHTTP2Value() {
+		private void releaseMaxConcurrentStreamsAndTrySetHTTP2Value(HttpRequest request) {
 			if (firstRequest) {
-				if (httpClient.version() == Version.HTTP_2) {
-
+				int maxStream = MAX_CONCURRENT_STREAMS_FALLBACK;
+				if (httpClient.version() == Version.HTTP_2 && (request.version().isEmpty() || request.version().get() == Version.HTTP_2)) {
 					if (mcsCache == null) {
 						try
 						{
@@ -908,7 +908,6 @@ public abstract class Downloader
 						}
 					}
 
-					int maxStream;
 					if (mcsCache.OK) {
 						try
 						{
@@ -927,16 +926,11 @@ public abstract class Downloader
 						}
 						catch (Exception e) {
 							LOGGER.warn("Cannot read MAX_CONCURRENT_STREAMS", e);
-							maxStream = MAX_CONCURRENT_STREAMS_FALLBACK;
 						}
 					}
-					else {
-						maxStream = MAX_CONCURRENT_STREAMS_FALLBACK;
-					}
-
-					maxConcurrentStreams.release(maxStream);
 				}
 
+				maxConcurrentStreams.release(maxStream);
 				firstRequest = false;
 			}
 			else {
