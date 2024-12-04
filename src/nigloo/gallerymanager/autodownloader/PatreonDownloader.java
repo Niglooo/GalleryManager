@@ -3,6 +3,7 @@ package nigloo.gallerymanager.autodownloader;
 import java.net.URI;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -208,7 +209,38 @@ public class PatreonDownloader extends Downloader
 		
 		return CompletableFuture.completedFuture(files);
 	}
-	
+
+	@Override
+	public boolean supportLikePost()
+	{
+		return true;
+	}
+
+	@Override
+	protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
+	{
+		PostExtraInfo extraInfo = (PostExtraInfo) post.extraInfo();
+		JsonElement jPost = extraInfo.jPost();
+		boolean isLiked = JsonHelper.followPath(jPost, "attributes.current_user_has_liked", boolean.class);
+
+		// Post already liked
+		if (isLiked)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+
+		HttpRequest request = HttpRequest.newBuilder()
+										 .uri(new URI("https://www.patreon.com/api/posts/"+post.id()+"/likes?json-api-version=1.0&json-api-use-default-includes=false&include=[]"))
+										 .POST(BodyPublishers.ofString("{}"))
+										 .header("Content-Type", "application/vnd.api+json")
+										 .headers(session.getExtraInfo(HEADERS_KEY))
+										 .header("X-Csrf-Signature", session.getSecret("patreon.x-csrf-signature"))
+										 .build();
+
+		return session.sendAsync(request, JsonHelper.httpBodyHandler())
+					  .thenApply(r -> JsonHelper.followPath(r.body(), "data.id") != null);
+	}
+
 	private Collection<String> getPostTags(Post post)
 	{
 		return getRelationshipElements(post, "user_defined_tags")
