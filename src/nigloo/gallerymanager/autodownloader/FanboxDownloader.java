@@ -74,20 +74,30 @@ public class FanboxDownloader extends Downloader
 			}
 			else if (nextPageUrl != null)
 			{
-				HttpRequest request = HttpRequest.newBuilder()
-				                                 .uri(new URI(nextPageUrl))
-				                                 .GET()
-				                                 .headers(session.getExtraInfo(HEADERS_KEY))
-				                                 .build();
-				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
-				
-				postIdsIt = JsonHelper.stream(JsonHelper.followPath(response, "body.items", JsonArray.class))
-				                      .map(JsonElement::getAsJsonObject)
-				                      .map(post -> post.get("id").getAsString())
-				                      .iterator();
-				nextPageUrl = JsonHelper.followPath(response, "body.nextUrl");
-				// Recursive call to handle cases where postIdsIt would be empty
-				return findNextPost();
+				try
+				{
+					HttpRequest request = HttpRequest.newBuilder()
+													 .uri(new URI(nextPageUrl))
+													 .GET()
+													 .headers(session.getExtraInfo(HEADERS_KEY))
+													 .build();
+					JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
+
+					postIdsIt = JsonHelper.stream(JsonHelper.followPath(response, "body.items", JsonArray.class))
+										  .map(JsonElement::getAsJsonObject)
+										  .map(post -> post.get("id").getAsString())
+										  .iterator();
+					nextPageUrl = JsonHelper.followPath(response, "body.nextUrl");
+					// Recursive call to handle cases where postIdsIt would be empty
+					return findNextPost();
+				}
+				catch (HttpException e)
+				{
+					if (e.getStatusCode() == 403)
+						throw new DownloaderSessionExpiredException();
+					else
+						throw e;
+				}
 			}
 			else
 			{
@@ -199,18 +209,21 @@ public class FanboxDownloader extends Downloader
 	{
 		// @formatter:off
 		return new String[] {
-			"accept", "application/json, text/plain, */*",
-			"accept-encoding", "gzip, deflate",
-			"accept-language", "fr-FR,fr;q=0.9",
-			"cookie", session.getSecret("fanbox.cookie"),
-			"origin", "https://" + creatorId + ".fanbox.cc",
-			"referer", "https://" + creatorId + ".fanbox.cc/",
-			"sec-ch-ua", "\" Not A;Brand\";v=\"99\", \"Chromium\";v=\"90\", \"Google Chrome\";v=\"90\"",
-			"sec-ch-ua-mobile", "?0",
-			"sec-fetch-dest", "empty",
-			"sec-fetch-mode", "cors",
-			"sec-fetch-site", "same-site",
-			"user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36" };
+			"Accept", "application/json, text/plain, */*",
+			"Accept-Encoding", "gzip, deflate",
+			"Accept-Language", "fr-FR,fr;q=0.9",
+			"Cookie", session.getSecret("fanbox.cookie"),
+			"Origin", "https://www.fanbox.cc",
+			"Priority", "u=1, i",
+			"Referer", "https://www.fanbox.cc/", 
+			"Sec-Ch-Ua", "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Brave\";v=\"126\"",
+			"Sec-Ch-Ua-Mobile", "?0",
+			"Sec-Ch-Ua-Platform", "\"Windows\"",
+			"Sec-Fetch-Dest", "empty",
+			"Sec-Fetch-Mode", "cors",
+			"Sec-Fetch-Site", "same-site",
+			"Sec-Gpc", "1",
+			"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" };
 		// @formatter:on
 	}
 }

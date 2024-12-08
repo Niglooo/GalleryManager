@@ -11,6 +11,8 @@ import javax.script.ScriptEngineManager;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import lombok.Getter;
+import nigloo.gallerymanager.script.ScriptUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -55,10 +57,11 @@ public class ScriptEditor extends SplitPane
 	@Inject
 	private Gallery gallery;
 	
-	private BooleanBinding changed;
+	private final BooleanBinding changed;
 
 	private final BooleanProperty running;
-	
+
+	@Getter
 	private final Script script;
 	
 	public ScriptEditor(Script script)
@@ -121,11 +124,6 @@ public class ScriptEditor extends SplitPane
 	public BooleanExpression changedProperty()
 	{
 		return changed;
-	}
-	
-	public Script getScript()
-	{
-		return script;
 	}
 	
 	@FXML
@@ -191,18 +189,9 @@ public class ScriptEditor extends SplitPane
 		
 		try (ScriptAPI scriptApi = new ScriptAPI(output))
 		{
-			System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
-			ScriptEngine engine = new ScriptEngineManager().getEngineByExtension("js");
-			
-			LOGGER.trace("getEngineName: " + engine.getFactory().getEngineName());
-			LOGGER.trace("getEngineVersion: " + engine.getFactory().getEngineVersion());
-			LOGGER.trace("getLanguageName: " + engine.getFactory().getLanguageName());
-			LOGGER.trace("getLanguageVersion: " + engine.getFactory().getLanguageVersion());
-			
+			ScriptEngine engine = ScriptUtil.createScriptEngine();
 			engine.getContext().setWriter(output);
 			engine.getContext().setErrorWriter(output);
-			engine.getContext().setAttribute("polyglot.js.allowAllAccess", true, ScriptContext.ENGINE_SCOPE);
-			
 			engine.getContext().setAttribute("api", scriptApi, ScriptContext.ENGINE_SCOPE);
 
 			LOGGER.info("Start executing script \"{}\"", scriptTitle.getText());

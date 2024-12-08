@@ -1,49 +1,24 @@
 package nigloo.gallerymanager.ui;
 
-import java.io.*;
-import java.lang.ref.SoftReference;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.text.ChoiceFormat;
-import java.text.MessageFormat;
-import java.text.ParseException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import javafx.scene.control.*;
-import lombok.RequiredArgsConstructor;
-import nigloo.gallerymanager.filter.ImageFilter;
-import nigloo.gallerymanager.model.*;
-import nigloo.gallerymanager.ui.util.UIUtils;
-import nigloo.tool.javafx.component.dialog.ExceptionDialog;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Marker;
-import org.apache.logging.log4j.MarkerManager;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
@@ -55,10 +30,20 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
+import nigloo.gallerymanager.Fixes;
+import nigloo.gallerymanager.autodownloader.Downloader;
+import nigloo.gallerymanager.autodownloader.KemonoFanboxDownloader;
+import nigloo.gallerymanager.filter.ImageFilter;
+import nigloo.gallerymanager.model.Artist;
+import nigloo.gallerymanager.model.Gallery;
+import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.model.Script;
 import nigloo.gallerymanager.model.Script.AutoExecution;
-import nigloo.gallerymanager.ui.AutoCompleteTextField.AutoCompletionBehavior;
+import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.FileSystemElement.Status;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
+import nigloo.gallerymanager.ui.util.AutoCompleteTag;
+import nigloo.gallerymanager.ui.util.UIUtils;
 import nigloo.gallerymanager.ui.util.VScrollablePane;
 import nigloo.tool.StopWatch;
 import nigloo.tool.gson.DateTimeAdapter;
@@ -70,8 +55,47 @@ import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
 import nigloo.tool.javafx.FXUtils;
+import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 import nigloo.tool.thread.SafeThread;
 import nigloo.tool.thread.ThreadStopException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.Writer;
+import java.lang.ref.SoftReference;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.text.ChoiceFormat;
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.WeakHashMap;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Singleton
 public class UIController extends Application
@@ -122,6 +146,20 @@ public class UIController extends Application
 	
 	public static void main(String[] args)
 	{
+//		List<Integer> l = FXCollections.observableArrayList(1,2,3,4);
+//		System.out.println("l: "+l);
+//		List<Integer> sl = l.subList(1, 3);
+//		System.out.println("sl: "+sl);
+//		l.addFirst(0);
+//		System.out.println("l: "+l);
+//		System.out.println("sl: "+sl);
+
+//		MessageFormat mf = new MessageFormat("int: {1} ; datetime: {0,datetime,dd/MM/yyyy}");
+//		String result = mf.format(new Object[]{LocalDateTime.now(), 1});
+//		System.out.println(result);
+
+//		System.exit(42);
+
 		Injector.ENABLE();
 		launch(args);
 	}
@@ -160,16 +198,31 @@ public class UIController extends Application
 		Injector.init(this);
 		
 		openGallery();
+
+		if (false)
+		{
+			Path path = Paths.get("H:\\Data\\Documents\\Favorites\\med_rev2\\ssdssd\\Images\\ZZZ Gallery\\Milkshake");
+			Downloader downloader = gallery.getArtists()
+										   .stream()
+										   .map(Artist::getAutodownloaders)
+										   .flatMap(List::stream)
+										   .filter(KemonoFanboxDownloader.class::isInstance)
+										   .findAny()
+										   .get();
+			Fixes.removeBadFiles(gallery, path, downloader);
+			saveGallery();
+			System.exit(42);
+		}
 		
 //		gallery.compactIds();
-		
+		// Load with fake ressource bundle which is a copy or the real one but with all key=key
 		loadFXML(this, primaryStage, "main_window.fxml");
-		
+		//TODO Recusively scan primaryStage.sccen.root, find all "resource bundle" string and register them in a map<Labeled, LabenInfo{resourceBundleKey}>
 		primaryStage.getScene().getStylesheets().add(STYLESHEET_DEFAULT);
 
 		// ---- Tab "Gallery" ----
 
-		tagFilterField.setAutoCompletionBehavior(getMultiTagsAutocompleteBehavior(true));
+		AutoCompleteTag.tagSearchExpression(gallery, tagFilterField);
 		tagFilterField.setOnAction(e -> requestRefreshThumbnails());
 		
 		TreeItem<FileSystemElement> root = new TreeItem<>(new FileSystemElement(gallery.getRootFolder(), Status.NOT_LOADED));
@@ -330,13 +383,13 @@ public class UIController extends Application
 	
 	private CompletableFuture<Collection<Image>> cancelIfNoChange(Collection<Image> images)
 	{
-		HashSet<Image> thumnails = thumbnailsView.getTiles()
+		List<Image> thumbnails = thumbnailsView.getTiles()
 		                                         .stream()
 		                                         .map(ThumbnailView.class::cast)
 		                                         .map(ThumbnailView::getGalleryImage)
-		                                         .collect(Collectors.toCollection(HashSet::new));
+		                                         .toList();
 		
-		if (new HashSet<>(images).equals(thumnails))
+		if (images.stream().toList().equals(thumbnails))
 			return CompletableFuture.failedFuture(new CancellationException());
 		else
 			return CompletableFuture.completedFuture(images);
@@ -468,132 +521,7 @@ public class UIController extends Application
 		});
 		slideShow.show();
 	}
-	
-	public List<String> autocompleteTags(String tagSearch)
-	{
-		tagSearch = Tag.normalize(tagSearch);
-		if (tagSearch == null)
-			tagSearch = "";
-		
-		List<String> matchingTags = new ArrayList<>();
-		Map<String, Integer> matchingTagPos = new HashMap<>();
-		
-		for (Tag tag : gallery.getTags())
-		{
-			String tagName = tag.getName();
-			
-			int pos = tagName.indexOf(tagSearch);
-			if (pos >= 0)
-			{
-				matchingTags.add(tagName);
-				matchingTagPos.put(tagName, pos);
-			}
-		}
-		
-		matchingTags.sort(Comparator.comparing((String tagName) -> matchingTagPos.get(tagName))
-		                            .thenComparing(String.CASE_INSENSITIVE_ORDER));
-		
-		return matchingTags;
-	}
 
-	public final AutoCompletionBehavior getMultiTagsAutocompleteBehavior(boolean allowMetatag)
-	{
-		return new MultiTagsAutocompleteBehavior(allowMetatag);
-	}
-
-	@RequiredArgsConstructor
-	private class MultiTagsAutocompleteBehavior implements AutoCompletionBehavior
-	{
-		private static final String PATH_PREFIX;
-		private static final Pattern PATH_PATTERN;
-		static
-		{
-			PATH_PREFIX = ImageFilter.META_TAG_TYPE_PATH + ImageFilter.META_TAG_SEPARATOR;
-			String path = Pattern.quote(PATH_PREFIX);
-			String q = Pattern.quote(String.valueOf(ImageFilter.META_TAG_QUOTE));
-			PATH_PATTERN = Pattern.compile(".*\\b(" + path + "(" + q + "[^" + q + "]*" + q + "?|\\S*))");
-		}
-
-		private final boolean allowMetatag;
-
-		@Override
-		public String getSearchText(AutoCompleteTextField field)
-		{
-			int caret = field.getCaretPosition();
-			String text = field.getText();
-
-			if (allowMetatag)
-			{
-				Matcher m = PATH_PATTERN.matcher(text.substring(0, caret));
-				if (m.matches())
-					return m.group(1);
-			}
-
-			if (caret < text.length() && Tag.isCharacterAllowed(text.charAt(caret)))
-				return "";
-
-			int idxBeginTag = findBeginSearchText(field);
-			if (idxBeginTag == caret)
-				return "";
-
-			return text.substring(idxBeginTag, caret);
-		};
-
-		@Override
-		public Collection<String> getSuggestions(AutoCompleteTextField field, String searchText)
-		{
-			if (allowMetatag)
-			{
-				if (searchText.startsWith(PATH_PREFIX))
-					return List.of(searchText);
-
-				if (PATH_PREFIX.startsWith(searchText))
-				{
-					ArrayList<String> suggestions = new ArrayList<>();
-					suggestions.add(PATH_PREFIX);
-					suggestions.addAll(autocompleteTags(searchText));
-					return suggestions;
-				}
-			}
-
-			return autocompleteTags(searchText);
-		}
-
-		@Override
-		public void onSuggestionSelected(AutoCompleteTextField field, String suggestion)
-		{
-			int caret = field.getCaretPosition();
-			int idxBeginTag = findBeginSearchText(field);
-			String text = field.getText();
-
-			String newText = text.substring(0, idxBeginTag) + suggestion + text.substring(caret);
-			field.setText(newText);
-			field.positionCaret(idxBeginTag + suggestion.length());
-		};
-
-		private int findBeginSearchText(AutoCompleteTextField field)
-		{
-			int caret = field.getCaretPosition();
-			if (caret == 0)
-				return 0;
-
-			String text = field.getText();
-
-			if (allowMetatag)
-			{
-				Matcher m = PATH_PATTERN.matcher(text.substring(0, caret));
-				if (m.matches())
-					return caret - m.group(1).length();
-			}
-
-			int idxBeginTag = caret;
-			while (idxBeginTag > 0 && Tag.isCharacterAllowed(text.charAt(idxBeginTag - 1)))
-				idxBeginTag--;
-
-			return idxBeginTag;
-		}
-	}
-	
 	private Predicate<Image> getTagFilter()
 	{
 		String filterExpression = tagFilterField.getText();
@@ -659,7 +587,7 @@ public class UIController extends Application
 		
 		LOGGER.info("Saving gallery {}", galleryFile);
 		String datetime = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH.mm.ss")
-		                                   .format(Instant.now().atZone(ZoneId.systemDefault()));
+		                                   .format(LocalDateTime.now());
 		
 		Path tmpFile = galleryFile.resolveSibling("gallery_" + datetime + ".json");
 		

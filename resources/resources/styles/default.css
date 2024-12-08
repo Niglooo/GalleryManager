@@ -369,6 +369,11 @@
     -fx-pref-height: -1;
 }
 
+#slide_show_content .favourite-tags .tag-entry
+{
+    -fx-spacing: 5px;
+}
+
 #slide_show_content .notification-label
 {
     -fx-font-size: 70px;

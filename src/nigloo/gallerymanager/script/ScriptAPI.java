@@ -44,6 +44,10 @@ public class ScriptAPI implements AutoCloseable
 		this.asyncExecutor = new ScriptAsyncExecutor(Executors.newSingleThreadExecutor(SCRIPT_MAIN_THREAD_FACTORY));
 		Injector.init(this);
 	}
+
+	public ScriptAPIUtils util() {
+		return ScriptAPIUtils.INSTANCE;
+	}
 	
 	public Gallery getGallery()
 	{

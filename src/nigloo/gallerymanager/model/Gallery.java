@@ -329,6 +329,9 @@ public final class Gallery
 	public Tag getTag(String tagName)
 	{
 		String nTagName = Tag.normalize(tagName);
+		if (nTagName == null)
+			throw new IllegalArgumentException("Invalid tag name: "+tagName);
+
 		synchronized (tags)
 		{
 			return tags.stream().filter(tag -> tag.getName().equals(nTagName)).findAny().orElseGet(() ->

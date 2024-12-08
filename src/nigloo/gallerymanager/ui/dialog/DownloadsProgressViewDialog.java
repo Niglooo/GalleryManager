@@ -279,6 +279,27 @@ public class DownloadsProgressViewDialog extends Stage
 			postItem.getChildren().add(fileItem);
 		});
 	}
+
+	public void newExistingOtherFile(long sessionId, String postId, String fileId, Path filePath)
+	{
+		Platform.runLater(() ->
+		{
+			String parentId = id(sessionId, postId);
+			TreeItem<ItemInfo> postItem = idToTreeItem.get(parentId);
+			if (postItem == null)
+			{
+			  LOGGER.error("TreeItem for post " + parentId + " not found");
+			  return;
+			}
+
+			FileInfo fileInfo = new FileInfo(ItemType.OTHER_FILE, fileId, filePath, null, true);
+			fileInfo.setComplete(null);
+			TreeItem<ItemInfo> fileItem = new TreeItem<>(fileInfo);
+			idToTreeItem.put(id(sessionId, postId, fileId), fileItem);
+			postItem.getChildren().add(fileItem);
+		});
+	}
+
 	
 	public void updateFilePath(long sessionId, String postId, String fileId, Path oldFilePath, Path newFilePath)
 	{
