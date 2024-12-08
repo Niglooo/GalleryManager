@@ -71,8 +71,6 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		List<SortBy> allSortBy = new ArrayList<>();
 		allSortBy.add(SortBy.NAME);
 		allSortBy.add(SortBy.DATE);
-		allSortBy.add(SortBy.ROCKSET);
-		allSortBy.add(SortBy.KOUYOU);
 		allSortBy.addAll(gallery.getCustomSortBy());
 
 		List<MenuItem> sortByItems = sortBySeparator.getParentMenu().getItems();
@@ -211,12 +209,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		
 		folderPositionSelected = folderPositionGroup.getSelectedToggle();
 
-		SortBy.times.get(true).clear();
-		SortBy.times.get(false).clear();
 		sort(item, order);
-		SortBy.times.entrySet().forEach(e -> {
-			System.out.println("Avg "+(e.getKey()?"":"NOT ")+"compiled ("+e.getValue().size()+"): "+e.getValue().stream().mapToLong(Long::longValue).average().orElse(-1)+"ns");
-		});
 		uiController.requestRefreshThumbnails();
 	}
 	

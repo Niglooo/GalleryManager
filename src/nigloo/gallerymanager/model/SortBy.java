@@ -15,46 +15,39 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 import lombok.extern.log4j.Log4j2;
 import nigloo.gallerymanager.model.SortBy.CustomSorBy;
-import nigloo.gallerymanager.model.SortBy.HardCodedSorBy;
-import nigloo.gallerymanager.model.SortBy.KeywordSorBy;
 import nigloo.gallerymanager.model.SortBy.SorByReference;
-import nigloo.gallerymanager.script.ScriptUtil;
+import nigloo.gallerymanager.model.SortBy.HardCodedSorBy;
+import nigloo.gallerymanager.script.ScriptAPI.APIFileSystemElement;
 import nigloo.gallerymanager.ui.FileSystemElement;
 import nigloo.tool.Utils;
 
-import javax.script.Bindings;
-import javax.script.Compilable;
-import javax.script.CompiledScript;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
+import javax.tools.JavaCompiler;
+import javax.tools.ToolProvider;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Getter
 @Accessors(fluent = true, makeFinal = true)
 public sealed abstract class SortBy implements Comparator<FileSystemElement>
-		permits HardCodedSorBy, SorByReference, KeywordSorBy, CustomSorBy
+		permits HardCodedSorBy, CustomSorBy, SorByReference
 {
 	private static final Map<String, HardCodedSorBy> HARD_CODED_INSTANCES = new HashMap<>();
-	private static Map<String, SortBy> CUSTOM_INSTANCES = null;
+	private static Map<String, CustomSorBy> CUSTOM_INSTANCES = null;
 
 	public static final SortBy NAME = new HardCodedSorBy("NAME", Comparator.comparing(FileSystemElement::getPath, SortBy::compareIgnoringExtension));
 	public static final SortBy DATE = new HardCodedSorBy("DATE", Comparator.comparingLong(FileSystemElement::getLastModified));
-	public static final SortBy ROCKSET = new HardCodedSorBy("ROCKSET", Comparator.comparing(FileSystemElement::getPath, SortBy::rocksetOrder));
-	public static final SortBy KOUYOU = new HardCodedSorBy("KOUYOU", Comparator.comparing(FileSystemElement::getPath, SortBy::kouyouOrder));
 
-	public static void setCustomInstances(Map<String, SortBy> customInstances) {
+	public static void setCustomInstances(Map<String, CustomSorBy> customInstances) {
 		CUSTOM_INSTANCES = customInstances;
 	}
 
@@ -125,103 +118,77 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 		}
 	}
 
-	static final class KeywordSorBy extends SortBy {
-		private final List<String> keywords;
-
-		private KeywordSorBy(String name, List<String> keywords) {
-			super(name);
-			this.keywords = keywords;
-		}
-
-		@Override
-		public int compare(FileSystemElement e1, FileSystemElement e2) {
-
-			Path p1 = e1.getPath();
-			Path p2 = e2.getPath();
-
-			String filename1 = p1.getFileName().toString().toLowerCase(Locale.ROOT);
-			String filename2 = p2.getFileName().toString().toLowerCase(Locale.ROOT);
-
-			List<Integer> pos1 = new ArrayList<>();
-			List<Integer> pos2 = new ArrayList<>();
-			int  i = 0;
-			for (String keyword : keywords) {
-				if (filename1.contains(keyword))
-					pos1.add(i);
-				if (filename2.contains(keyword))
-					pos2.add(i);
-				i++;
-			}
-
-			if (pos1.isEmpty() && pos2.isEmpty())
-				return compareIgnoringExtension(p1, p2);
-			else if (pos1.isEmpty())
-				return 1;
-			else if (pos2.isEmpty())
-				return -1;
-			else
-				return Arrays.compare(
-						pos1.stream().mapToInt(Integer::intValue).sorted().toArray(),
-						pos2.stream().mapToInt(Integer::intValue).sorted().toArray());
-		}
-	}
-public static final Map<Boolean,List<Long>> times = new HashMap<>(); static{times.put(true, new ArrayList<>());times.put(false, new ArrayList<>());}
 	@Log4j2
-	static final class CustomSorBy extends SortBy {
+	public static final class CustomSorBy extends SortBy {
 
-		private static final ScriptEngine SCRIPT_ENGINE;
-
-		private final String initScript;
-		private final String compareScript;
+		private final String className;
+		private final String source;
 
 		private transient Boolean initSuccess;
-		private transient Bindings initialBindings;
-		private  transient CompiledScript compiledCompareScript;
+		private transient Comparator<APIFileSystemElement> compiledComparator;
 
-		static {
-			ScriptEngine scriptEngine = null;
+
+		private static final String CLASS_PATH_THIS_MODULE = classPathFromClass(SortBy.class);
+		private static final String CLASS_PATH_NIGLOO_TOOL = classPathFromClass(Utils.class);
+
+		private static String classPathFromClass(Class<?> klass) {
 			try {
-				scriptEngine = ScriptUtil.createScriptEngine();
-				if (!(scriptEngine instanceof Compilable)) {
-					log.warn("Script compilation not available for {}", CustomSorBy.class.getSimpleName());
+				Path classPath = Paths.get(klass.getResource(klass.getSimpleName() + ".class").toURI());
+				long nbDot = klass.getName().chars().filter(c -> c == '.').count();
+				for (int i = 0; i < nbDot + 1; i++) {
+					classPath = classPath.getParent();
 				}
-			} catch (Exception e) {
-				log.error("CustomSorBy disabled", e);
+				return classPath.toString();
 			}
-
-			SCRIPT_ENGINE = scriptEngine;
+			catch (Exception e) {
+				throw new ExceptionInInitializerError(e);
+			}
 		}
 
 
-		private CustomSorBy(String name, String initScript, String compareScript) {
+		private CustomSorBy(String name, String className, String source) {
 			super(name);
-			this.initScript = initScript;
-			this.compareScript = compareScript;
+			this.className = className;
+			this.source = source;
 		}
 
 		private boolean checkInit() {
 			if (initSuccess == null) {
-				initialBindings = SCRIPT_ENGINE.createBindings();
-				initialBindings.putAll(SCRIPT_ENGINE.getBindings(ScriptContext.ENGINE_SCOPE));
-				initSuccess = true;
-				if (initScript != null && !initScript.isBlank()) {
-					try {
-						SCRIPT_ENGINE.eval(initScript, initialBindings);
+				try {
+					// Save source in .java file.
+					Path root = Files.createTempDirectory("java");
+					Path sourceFile = root.resolve(className.replace('.', '/')+".java");
+					Files.createDirectories(sourceFile.getParent());
+					Files.writeString(sourceFile, source);
+
+					// Compile source file.
+					ByteArrayOutputStream error = new ByteArrayOutputStream();
+					JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+					int retCode = compiler.run(null, null, error,
+											   "-classpath", CLASS_PATH_THIS_MODULE+";"+CLASS_PATH_NIGLOO_TOOL,
+											   sourceFile.toString());
+					if (retCode != 0) {
+						throw new IllegalArgumentException(error.toString(StandardCharsets.UTF_8));
 					}
-					catch (Exception e) {
-						initSuccess = false;
-						log.error("Error when initializing CustomSorBy {}", name, e);
+
+					// Load and instantiate compiled class.
+					URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{root.toUri().toURL()});
+					Class<?> cls = Class.forName(className, false, classLoader);
+					SortBy.class.getModule().addExports("nigloo.gallerymanager.script", cls.getModule());
+					Object instance = cls.getDeclaredConstructor().newInstance();
+
+					if (instance instanceof Comparator<?> comp) {
+                        //noinspection unchecked
+                        compiledComparator = (Comparator<APIFileSystemElement>) comp;
+						initSuccess = true;
+					}
+					else {
+						throw new IllegalArgumentException(instance + " is not a Comparator<APIFileSystemElement>");
 					}
 				}
-				if (SCRIPT_ENGINE instanceof Compilable c) {
-					try {
-						compiledCompareScript = c.compile(compareScript);
-						log.debug("Successfully compiled compareScript for CustomSorBy {}", name);
-					}
-					catch (Exception e) {
-						initSuccess = false;
-						log.error("Error when compiling compareScript for CustomSorBy {}", name, e);
-					}
+				catch (Exception e) {
+					initSuccess = false;
+					log.error("Error when initializing CustomSorBy {}", name, e);
 				}
 			}
 			return initSuccess;
@@ -233,25 +200,7 @@ public static final Map<Boolean,List<Long>> times = new HashMap<>(); static{time
 				return 0;
 
 			try {
-				Bindings bindings = SCRIPT_ENGINE.createBindings();
-				bindings.putAll(initialBindings);
-				bindings.put("e1", e1);
-				bindings.put("e2", e2);
-
-				boolean runComp = ThreadLocalRandom.current().nextBoolean();
-
-				long s=System.nanoTime();
-				try
-				{
-					if (compiledCompareScript != null && runComp)
-						return (int) compiledCompareScript.eval(bindings);
-					else
-						return (int) SCRIPT_ENGINE.eval(compareScript, bindings);
-				} finally {
-					long e = System.nanoTime();
-					times.get(runComp).add(e-s);
-					//System.out.println((runComp?"Compiled    : ":"Not compiled: ")+(e-s)+"ns");
-				}
+				return compiledComparator.compare(e1, e2);
 			}
 			catch (Exception e) {
 				log.error("Error when comparing {} and {} using {}", e1, e2, name, e);
@@ -283,59 +232,6 @@ public static final Map<Boolean,List<Long>> times = new HashMap<>(); static{time
 		return Utils.NATURAL_ORDER.compare(p1.toString(), p2.toString());
 	}
 
-	private static int rocksetOrder(Path p1, Path p2)
-	{
-		int comp = compareIgnoringExtension(p1, p2);
-
-		for (int i = 0 ; i < p1.getNameCount() && i < p2.getNameCount() ; i++)
-		{
-			String n1 = p1.getName(i).toString();
-			String n2 = p2.getName(i).toString();
-
-			if (n1.equalsIgnoreCase(n2+" alt") ||
-			    n2.equalsIgnoreCase(n1+" alt"))
-			{
-				return -comp;
-			}
-		}
-
-		return comp;
-	}
-
-	private static final Pattern KOUYOU_SEC_PATTERN = Pattern.compile("sec_(\\d{6})_(\\d{2})(.*)\\.\\w+");
-	private static final Pattern KOUYOU_REG_PATTERN = Pattern.compile("(\\d{8})(_.*)\\.\\w+");
-	private static int kouyouOrder(Path p1, Path p2)
-	{
-		int comp = 0;
-
-		for (int i = 0 ; i < p1.getNameCount() && i < p2.getNameCount() ; i++)
-		{
-			String n1 = p1.getName(i).toString();
-			String n2 = p2.getName(i).toString();
-
-			Matcher m;
-			if ((m = KOUYOU_SEC_PATTERN.matcher(n1)).matches()) {
-				n1 = m.group(1) + m.group(2) + "Z" + m.group(3);
-			}
-			else if ((m = KOUYOU_REG_PATTERN.matcher(n1)).matches()) {
-				n1 = m.group(1) + "A" + m.group(2);
-			}
-
-			if ((m = KOUYOU_SEC_PATTERN.matcher(n2)).matches()) {
-				n2 = m.group(1) + m.group(2) + "Z" + m.group(3);
-			}
-			else if ((m = KOUYOU_REG_PATTERN.matcher(n2)).matches()) {
-				n2 = m.group(1) + "A" + m.group(2);
-			}
-
-			comp = Utils.NATURAL_ORDER.compare(n1, n2);
-			if (comp != 0)
-				break;
-		}
-
-		return comp;
-	}
-
 	public static class SortByReferenceTypeAdapter extends TypeAdapter<SortBy>
 	{
 		@Override
@@ -362,67 +258,28 @@ public static final Map<Boolean,List<Long>> times = new HashMap<>(); static{time
 	}
 
 	static class CustomSortByMapSerializer
-			implements JsonSerializer<HashMap<String, SortBy>>, JsonDeserializer<HashMap<String, SortBy>>
+			implements JsonSerializer<HashMap<String, CustomSorBy>>, JsonDeserializer<HashMap<String, CustomSorBy>>
 	{
-		private static final String TYPE_FIELD = "type";
-		private static final Map<String, Class<? extends SortBy>> TYPE_TO_CLASS = new HashMap<>();
-		private static final Map<Class<? extends SortBy>, String> CLASS_TO_TYPE = new HashMap<>();
-		static {
-			TYPE_TO_CLASS.put("KEYWORD", KeywordSorBy.class);
-			TYPE_TO_CLASS.put("CUSTOM", CustomSorBy.class);
-
-			TYPE_TO_CLASS.forEach((type, klass) -> CLASS_TO_TYPE.put(klass, type));
-		}
-
 		@Override
-		public JsonElement serialize(HashMap<String, SortBy> map, Type typeOfSrc, JsonSerializationContext context)
+		public JsonElement serialize(HashMap<String, CustomSorBy> map, Type typeOfSrc, JsonSerializationContext context)
 		{
 			if (map == null)
 				return context.serialize(Map.of());
 
 			JsonObject serialisedMap = context.serialize(map).getAsJsonObject();
-
-			List<String> names = List.copyOf(map.keySet());
-			for (String name : names) {
-				SortBy sortBy = map.get(name);
-				Class<? extends SortBy> klass = sortBy.getClass();
-				String type = CLASS_TO_TYPE.get(klass);
-				JsonObject serialisedSortBy = serialisedMap.getAsJsonObject(name);
-
-				JsonObject targetSerialisedSortBy = new JsonObject();
-				targetSerialisedSortBy.addProperty(TYPE_FIELD, type);
-				serialisedSortBy.asMap().forEach(targetSerialisedSortBy::add);
-				targetSerialisedSortBy.remove("name");
-
-				serialisedMap.add(name, targetSerialisedSortBy);
-			}
-
+			serialisedMap.asMap().values().forEach(e -> e.getAsJsonObject().remove("name"));
 			return serialisedMap;
 		}
 
 		@Override
-		public HashMap<String, SortBy> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+		public HashMap<String, CustomSorBy> deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
 				throws JsonParseException
 		{
-			HashMap<String, SortBy> map = new HashMap<>();
-			if (json == null || json.isJsonNull()) {
-				return map;
-			}
+			if (json == null || json.isJsonNull())
+				return  new HashMap<>();
 
-			JsonObject serialisedMap = json.getAsJsonObject();
-
-			List<String> names = List.copyOf(serialisedMap.keySet());
-			for (String name : names) {
-				JsonObject serialisedSortBy = serialisedMap.getAsJsonObject(name);
-				String type = serialisedSortBy.getAsJsonPrimitive(TYPE_FIELD).getAsString();
-				Class<? extends SortBy> klass = TYPE_TO_CLASS.get(type);
-
-				SortBy sortBy = context.deserialize(serialisedSortBy, klass);
-				sortBy.name = name;
-
-				map.put(name, sortBy);
-			}
-
+			HashMap<String, CustomSorBy> map = context.deserialize(json, typeOfT);
+			map.forEach((name, sortBy) -> sortBy.name = name);
 			return map;
 		}
 	}

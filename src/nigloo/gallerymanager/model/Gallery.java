@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import nigloo.gallerymanager.autodownloader.DownloaderType;
+import nigloo.gallerymanager.model.SortBy.CustomSorBy;
 import nigloo.gallerymanager.model.SortBy.CustomSortByMapSerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,7 +47,7 @@ public final class Gallery
 	@JsonAdapter(SortOrderSerializer.class)
 	private HashMap<Path, FileFolderOrder> sortOrder;
 	@JsonAdapter(CustomSortByMapSerializer.class)
-	private HashMap<String, SortBy> customSortBy;
+	private HashMap<String, CustomSorBy> customSortBy;
 	@Getter
 	private SlideShowParameters slideShowParameter;
 	private ArrayList<Script> scripts;
@@ -501,7 +502,7 @@ public final class Gallery
 		}
 	}
 
-	public List<SortBy> getCustomSortBy()
+	public List<CustomSorBy> getCustomSortBy()
 	{
 		synchronized (customSortBy)
 		{
