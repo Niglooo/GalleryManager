@@ -98,11 +98,13 @@ public class FXImageVideoWrapper
 			int screenHeight = (int) screen.getHeight();
 			if (originalWidth > screenWidth*2 || originalHeight > screenHeight*2)
 			{
-				LOGGER.trace("Loading {} at smaller size: {}x{} ; Original size: {}x{}", absPath, screenWidth, screenHeight, originalWidth, originalHeight);
+				int newWidth = originalWidth / 2;
+				int newHeight = originalHeight / 2;
+				LOGGER.trace("Loading {} at smaller size: {}x{} ; Original size: {}x{}", absPath, newWidth, newHeight, originalWidth, originalHeight);
 				fxImage = new javafx.scene.image.Image(
 						url,
-						screenWidth,
-						screenHeight,
+						newWidth,
+						newHeight,
 						true,
 						true,
 						true);
