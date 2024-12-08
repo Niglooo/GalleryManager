@@ -8,8 +8,9 @@ import java.util.Objects;
 import lombok.Getter;
 import lombok.With;
 import nigloo.gallerymanager.model.Image;
+import nigloo.gallerymanager.script.ScriptAPI.APIFileSystemElement;
 
-public class FileSystemElement
+public class FileSystemElement implements APIFileSystemElement
 {
 	public enum Status
 	{
