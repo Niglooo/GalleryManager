@@ -1,53 +1,52 @@
 package nigloo.gallerymanager.autodownloader;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import nigloo.tool.Utils;
+import nigloo.tool.gson.JsonHelper;
 
+import java.io.IOException;
 import java.net.URI;
-import java.net.URLDecoder;
+import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
-import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
 
 public abstract class KemonoDownloader extends Downloader {
+    // https://kemono.su/documentation/api
+    private static final int PAGE_SIZE = 50; // Forced by the API
+    private static final String POSTS_DETAIL_CACHE_KEY = "posts-detail";
 
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder().parseStrict()
-            .appendValue(ChronoField.YEAR, 4)
-            .appendLiteral('-')
-            .appendValue(ChronoField.MONTH_OF_YEAR, 2)
-            .appendLiteral('-')
-            .appendValue(ChronoField.DAY_OF_MONTH, 2)
-            .appendLiteral(' ')
-            .appendValue(ChronoField.HOUR_OF_DAY, 2)
-            .appendLiteral(':')
-            .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
-            .appendLiteral(':')
-            .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
-            .optionalStart()
-            .appendLiteral('.')
-            .appendValue(ChronoField.NANO_OF_SECOND)
-            .toFormatter();
-
-        private final transient String originalProvider;
+    private final transient String originalProvider;
 
     protected KemonoDownloader(String originalProvider) {
         this.originalProvider = originalProvider;
     }
 
-    private String buildUrl(String path) {
-        return "https://kemono.party" + path;
+    @Override
+    protected void onStartDownload(DownloadSession session) throws Exception
+    {
+        session.setExtaInfo(POSTS_DETAIL_CACHE_KEY, new ConcurrentHashMap<>());
+    }
+
+    private String buildApiUrl(String path) {
+        return "https://kemono.su/api/v1" + path;
+    }
+
+    private String buildDataUrl(String server, String path) {
+        return server + "/data" + path;
     }
 
     @Override
@@ -57,12 +56,11 @@ public abstract class KemonoDownloader extends Downloader {
 
     private class KemonoPostIterator extends BasePostIterator
     {
-        private String getPostListUrl;
+        private int nextPage = 0;
         private Iterator<Post> postsIt;
 
         public KemonoPostIterator(DownloadSession session) throws Exception {
             super(session);
-            getPostListUrl = buildUrl("/" + originalProvider + "/user/" + creatorId);
             postsIt = Collections.emptyIterator();
             computeNextPost();
         }
@@ -72,90 +70,82 @@ public abstract class KemonoDownloader extends Downloader {
             if (postsIt.hasNext())
                 return postsIt.next();
 
-            if (getPostListUrl == null)
+            if (nextPage == -1)
                 return null;
 
-            HttpRequest request = HttpRequest.newBuilder().uri(new URI(getPostListUrl)).GET().build();
-            HttpResponse<String> response = session.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpRequest request = HttpRequest.newBuilder().uri(new URI(buildApiUrl("/" + originalProvider + "/user/" + creatorId+"?o="+(nextPage * PAGE_SIZE)))).GET().build();
+            HttpResponse<JsonElement> response = session.send(request, JsonHelper.httpBodyHandler());
 
-            Document parsedResponse = Jsoup.parseBodyFragment(response.body());
+            if (response.body().getAsJsonArray().isEmpty()) {
+                nextPage = -1;
+                return null;
+            }
+            else {
+                nextPage++;
+            }
 
-            Element nextLink = parsedResponse.selectFirst("#paginator-top a.next");
-            getPostListUrl = nextLink != null ? buildUrl(nextLink.attr("href")) : null;
+            postsIt = JsonHelper.stream(response.body().getAsJsonArray()).map(jPost -> {
+                String postId = JsonHelper.followPath(jPost, "id");
+                String postTitle = JsonHelper.followPath(jPost, "title");
+                ZonedDateTime publishedDatetime = LocalDateTime.parse(JsonHelper.followPath(jPost, "published")).atZone(ZoneOffset.UTC);
 
-            postsIt = parsedResponse.select(".card-list__items .post-card").stream().map(postElement -> {
-                String postId = postElement.attr("data-id");
-                String postUrl = postElement.selectFirst("a").attr("href");
-                String postTitle = postElement.selectFirst(".post-card__header").text();
-                ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(postElement.selectFirst(".timestamp").attr("datetime"), LocalDateTime::from).atZone(ZoneOffset.UTC);
-
-                return Post.create(postId, postTitle, publishedDatetime, postUrl);
+                return Post.create(postId, postTitle, publishedDatetime, null);
             }).iterator();
 
             return findNextPost();
         }
     }
 
-    @Override
-    protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception {
-        String postUrl = buildUrl((String) post.extraInfo());
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(postUrl))
-                .GET()
-                .build();
-
-        return session.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(r ->
-        {
-            Document htmlPost = Jsoup.parseBodyFragment(r.body());
-
-            // Regular post
-            Elements imagesElements = htmlPost.select(".post__thumbnail a");
-            boolean skipFirstImage = skipFirstImage(imagesElements);
-            return imagesElements.stream().skip(skipFirstImage ? 1 : 0).map(imageElement ->
+    private JsonObject getPostDetail(DownloadSession session, Post post)
+    {
+        Map<String, JsonObject> cache = session.getExtraInfo(POSTS_DETAIL_CACHE_KEY);
+        return cache.computeIfAbsent(post.id(), postId -> {
+            try
             {
-                String url = imageElement.attr("href");
-                String imageFilename = URLDecoder.decode(imageElement.attr("download"), StandardCharsets.UTF_8);
-                String imageId = imageFilename;
-                return PostImage.create(imageId, imageFilename, url, null);
-            }).toList();
+                HttpRequest request = HttpRequest.newBuilder().uri(new URI(buildApiUrl("/" + originalProvider + "/user/" + creatorId + "/post/" + postId))).GET().build();
+                return session.send(request, JsonHelper.httpBodyHandler()).body().getAsJsonObject();
+            }
+            catch (URISyntaxException | IOException | InterruptedException e) {
+                throw Utils.asRunTimeException(e);
+            }
         });
     }
 
-    private boolean skipFirstImage(Elements imagesElements) {
-        if (imagesElements.size() <= 1)
-            return false;
+    @Override
+    protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) {
+        JsonObject jPost = getPostDetail(session, post);
+        JsonArray jImages = JsonHelper.followPath(jPost, "previews", JsonArray.class);
 
-        try {
-            String firstImgUrl = imagesElements.get(0).selectFirst("img").attr("src");
-            return imagesElements.stream().skip(1).anyMatch(img -> firstImgUrl.equals(img.selectFirst("img").attr("src")));
-        } catch (Exception e) {
-            return false;
+        List<PostImage> images = JsonHelper.stream(jImages).map( jImage -> {
+            String path = JsonHelper.followPath(jImage, "path");
+            String server = JsonHelper.followPath(jImage, "server");
+            String url = buildDataUrl(server, path);
+            String imageFilename = JsonHelper.followPath(jImage, "name");
+            String imageId = imageFilename;
+            return PostImage.create(imageId, imageFilename, url, null);
+        }).collect(Collectors.toCollection(ArrayList::new));
+
+        if (!images.isEmpty() && images.stream().skip(1).anyMatch(images.getFirst()::equals)) {
+            images.removeFirst();
         }
+
+        return CompletableFuture.completedFuture(images);
     }
 
     @Override
-    protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) throws Exception {
-        String postUrl = buildUrl((String) post.extraInfo());
+    protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) {
+        JsonObject jPost = getPostDetail(session, post);
+        JsonArray jFiles = JsonHelper.followPath(jPost, "attachments", JsonArray.class);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(postUrl))
-                .GET()
-                .build();
+        List<PostFile> files = JsonHelper.stream(jFiles).map( jImage -> {
+            String path = JsonHelper.followPath(jImage, "path");
+            String server = JsonHelper.followPath(jImage, "server");
+            String url = buildDataUrl(server, path);
+            String filename = JsonHelper.followPath(jImage, "name");
+            String fileId = filename;
+            return PostFile.create(fileId, filename, url, null);
+        }).toList();
 
-        return session.sendAsync(request, HttpResponse.BodyHandlers.ofString()).thenApply(r ->
-        {
-            Document htmlPost = Jsoup.parseBodyFragment(r.body());
-
-            // Regular post
-            Elements filesElements = htmlPost.select(".post__attachment > a.post__attachment-link");
-            return filesElements.stream().map(fileElement ->
-            {
-                String url = fileElement.attr("href");
-                String filename = URLDecoder.decode(fileElement.attr("download"), StandardCharsets.UTF_8);
-                String fileId = filename;
-                return PostFile.create(fileId, filename, url, null);
-            }).toList();
-        });
+        return CompletableFuture.completedFuture(files);
     }
 }
