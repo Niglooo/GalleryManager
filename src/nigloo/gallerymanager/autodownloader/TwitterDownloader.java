@@ -88,7 +88,18 @@ public class TwitterDownloader extends Downloader
 			                                 .GET()
 			                                 .headers(session.getExtraInfo(HEADERS_KEY))
 			                                 .build();
-			JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
+			JsonElement response;
+			try {
+				response = session.send(request, JsonHelper.httpBodyHandler()).body();
+			} catch (HttpException e) {
+				if (e.getStatusCode() == 401) {
+					JsonElement body = (JsonElement) e.getBody();
+					if (Integer.valueOf(32).equals(JsonHelper.followPath(body, "errors[0].code", Integer.class))) {
+						throw new DownloaderSessionExpiredException();
+					}
+				}
+				throw e;
+			}
 			
 			this.userId = JsonHelper.followPath(response, "data.user.rest_id");
 			this.currentCursor = null;

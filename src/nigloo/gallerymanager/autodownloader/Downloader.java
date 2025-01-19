@@ -659,7 +659,7 @@ public abstract class Downloader
 	}
 	
 	protected void onStartDownload(DownloadSession session) throws Exception {}
-	//TODO throw on session expired for all implementation (create a specific expetion?)
+
 	protected abstract Iterator<Post> listPosts(DownloadSession session) throws Exception;
 	
 	protected abstract CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) throws Exception;
