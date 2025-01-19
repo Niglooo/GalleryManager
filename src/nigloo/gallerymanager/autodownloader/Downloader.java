@@ -1590,8 +1590,17 @@ public abstract class Downloader
 
 	private void addArtistTag(Image image) {
 		Tag tag = artist.getTag();
-		if (tag != null)
+		if (tag != null) {
+			Collection<Tag> parents = tag.getParents();
+			// TODO put tags name in constants (defined where?)
+			Tag artistTag = gallery.getTag("artist");
+			if (!parents.contains(artistTag)) {
+				parents = new ArrayList<>(parents);
+				parents.add(artistTag);
+				tag.setParents(parents);
+			}
 			image.addTag(tag);
+		}
 	}
 	
 	private Function<HttpResponse<Path>, Path> fixExtension(AtomicReference<String> contentType, String defaultExtention)
