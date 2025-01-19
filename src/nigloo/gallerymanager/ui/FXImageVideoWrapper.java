@@ -9,6 +9,7 @@ import java.util.concurrent.CancellationException;
 
 import javafx.geometry.Rectangle2D;
 import javafx.stage.Screen;
+import nigloo.tool.Utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -207,9 +208,10 @@ public class FXImageVideoWrapper
 		if (iter.hasNext())
 		{
 			ImageReader reader = iter.next();
+			ImageInputStream stream = null;
 			try
 			{
-				ImageInputStream stream = new FileImageInputStream(path.toFile());
+				stream = new FileImageInputStream(path.toFile());
 				reader.setInput(stream);
 				int width = reader.getWidth(reader.getMinIndex());
 				int height = reader.getHeight(reader.getMinIndex());
@@ -222,6 +224,7 @@ public class FXImageVideoWrapper
 			finally
 			{
 				reader.dispose();
+				Utils.closeQuietly(stream);
 			}
 		}
 		else
