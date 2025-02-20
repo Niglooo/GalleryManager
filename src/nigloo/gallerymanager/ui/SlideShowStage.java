@@ -416,19 +416,23 @@ public class SlideShowStage extends Stage
 		autoplay.jumpTo(Duration.ZERO);
 
 		Path currentImageFolder = getCurrentImage().getPath().getParent();
-		Path previousFolder = null;
+		boolean inPreviousFolder = false;
 		for (int offset = 1 ; offset <= images.size(); offset++) {
 			int index = validIndex(currentImageIdx, -offset);
 			Path imageFolder = images.get(index).getPath().getParent();
 
-			if (previousFolder == null && currentImageFolder.equals(imageFolder) == false)
+			if (imageFolder.equals(currentImageFolder) == false)
 			{
-				previousFolder = imageFolder;
-			}
-			else if (previousFolder != null && previousFolder.equals(imageFolder) == false)
-			{
-				setCurrent(validIndex(index, 1));
-				return;
+				if (offset == 1 && !inPreviousFolder)
+				{
+					inPreviousFolder = true;
+					currentImageFolder = imageFolder;
+				}
+				else
+				{
+					setCurrent(validIndex(index, 1));
+					return;
+				}
 			}
 		}
 
@@ -533,8 +537,7 @@ public class SlideShowStage extends Stage
 			else
 				index = nbImages - 1;
 		}
-		while (index < 0)
-			index += nbImages;
+
 		return index % nbImages;
 	}
 	
