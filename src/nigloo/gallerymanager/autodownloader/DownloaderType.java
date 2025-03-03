@@ -11,6 +11,7 @@ public enum DownloaderType
     PIXIV(PixivDownloader.class),
     TWITTER(TwitterDownloader.class),
     MASONRY(MasonryDownloader.class),
+    TOOMICS(ToomicsDownloader.class),
     PATREON(PatreonDownloader.class),
     KEMONO_PATREON(KemonoPatreonDownloader.class),
     KEMONO_FANBOX(KemonoFanboxDownloader.class),
