@@ -24,6 +24,7 @@ public class Tag
 	                                                            .collect(Collectors.toUnmodifiableSet());
 	@Getter
 	String name;
+//	private HashSet<String> aliases;//TODO
 	private HashSet<TagReference> parents;
 	@Setter
 	@JsonAdapter(ColorTypeAdapter.class)

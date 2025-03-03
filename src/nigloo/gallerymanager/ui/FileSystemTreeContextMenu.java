@@ -61,7 +61,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	private Toggle childrenFolderPositionSelected;
 	
 	private final TreeView<FileSystemElement> treeView;
-	
+	//TODO Add "open folder"
 	public FileSystemTreeContextMenu(TreeView<FileSystemElement> treeView)
 	{
 		this.treeView = treeView;

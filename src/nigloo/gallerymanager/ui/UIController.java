@@ -701,6 +701,7 @@ public class UIController extends Application
 			if (tab.getContent() instanceof ScriptEditor scriptEditor
 			        && scriptEditor.getScript().getAutoExecution() == when)
 			{
+				//FIXME run async... (so doesn't have time to actually run before the app stop)
 				scriptEditor.runScript();
 			}
 		}
