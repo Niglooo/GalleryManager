@@ -357,6 +357,7 @@ public class SlideShowStage extends Stage
 			contentRoot.requestFocus();
 		});
 		addEventHandler(WindowEvent.WINDOW_HIDDEN, event -> {
+			infoZone.saveFavourite();
 			fullImageUpdatingThread.safeStop();
 			autoplay.stop();
 		});
@@ -698,17 +699,27 @@ public class SlideShowStage extends Stage
 			lastTagContainer.getStyleClass().add("last-tag-container");
 			lastTagContainer.setAlignment(Pos.BASELINE_LEFT);
 
-			lastTagFavourite.disableProperty().bind(lastTag.textProperty().isNotEmpty().and(new BooleanBinding()
+			lastTagFavourite.disableProperty().bind(new BooleanBinding()
 			{
 				{
-					bind(favouriteTags.getChildren());
+					bind(lastTag.textProperty(), favouriteTags.getChildren());
 				}
 				@Override
 				protected boolean computeValue()
 				{
-					return favouriteTags.getChildren().size() >= MAX_FAVOURITE;
+					String tagName = Tag.normalize(lastTag.getText());
+					if (tagName == null)
+						return true;
+
+					if (favouriteTags.getChildren().stream().anyMatch(n -> ((FavouriteTag) n).tag.getName().equals(tagName)))
+						return true;
+
+					if (favouriteTags.getChildren().size() >= MAX_FAVOURITE)
+						return true;
+
+					return false;
 				}
-			}));
+			});
 			lastTagFavourite.setOnAction(e -> {
 				if (lastTagFavourite.isSelected()) {
 					lastTagFavourite.setSelected(false);
@@ -717,6 +728,14 @@ public class SlideShowStage extends Stage
 			});
 
 			getChildren().setAll(imagePath, imageSize, imageTags, favouriteTags, lastTagContainer);
+
+			int count = 0;
+			for (Tag tag : gallery.getFavouriteTags()) {
+				if (++count >= MAX_FAVOURITE)
+					break;
+
+				addFavourite(tag.getName());
+			}
 		}
 		
 		public void setImage(Image image)
@@ -758,6 +777,11 @@ public class SlideShowStage extends Stage
 			String h = height > 0 ? "%d".formatted(height) : "???";
 			
 			imageSize.setText(w + "x" + h);
+		}
+
+		public void saveFavourite() {
+			List<Tag> favourites = favouriteTags.getChildren().stream().map(n -> ((FavouriteTag) n).tag).toList();
+			gallery.setFavouriteTags(favourites);
 		}
 
 		private void addFavourite(String tagName)

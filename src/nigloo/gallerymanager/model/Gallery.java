@@ -51,6 +51,7 @@ public final class Gallery
 	@Getter
 	private SlideShowParameters slideShowParameter;
 	private ArrayList<Script> scripts;
+	private ArrayList<TagReference> favouriteTags;
 	
 	@Getter
 	private transient Exception validationError = new RuntimeException("Not validated");
@@ -83,6 +84,8 @@ public final class Gallery
 				slideShowParameter.setVideos(new SlideShowParameters.VideoParameters());
 			if (scripts == null)
 				scripts = new ArrayList<>();
+			if (favouriteTags == null)
+				favouriteTags = new ArrayList<>();
 
 			SortBy.setCustomInstances(customSortBy);
 			
@@ -536,6 +539,24 @@ public final class Gallery
 		synchronized (scripts)
 		{
 			scripts.remove(script);
+		}
+	}
+
+	public List<Tag> getFavouriteTags()
+	{
+		synchronized (favouriteTags)
+		{
+			return favouriteTags.stream().map(TagReference::getTag).toList();
+		}
+	}
+
+	public void setFavouriteTags(List<Tag> favouriteTags)
+	{
+		synchronized (this.favouriteTags)
+		{
+			this.favouriteTags.clear();
+			if (favouriteTags != null)
+				this.favouriteTags.addAll(favouriteTags.stream().map(TagReference::new).distinct().toList());
 		}
 	}
 
