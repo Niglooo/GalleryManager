@@ -18,7 +18,6 @@ import nigloo.gallerymanager.model.SortBy.CustomSorBy;
 import nigloo.gallerymanager.model.SortBy.HardCodedSorBy;
 import nigloo.gallerymanager.model.SortBy.SorByReference;
 import nigloo.gallerymanager.script.ScriptAPI.APIFileSystemElement;
-import nigloo.gallerymanager.ui.FileSystemElement;
 import nigloo.tool.Utils;
 
 import javax.tools.JavaCompiler;
@@ -38,14 +37,14 @@ import java.util.Map;
 
 @Getter
 @Accessors(fluent = true, makeFinal = true)
-public sealed abstract class SortBy implements Comparator<FileSystemElement>
+public sealed abstract class SortBy implements Comparator<APIFileSystemElement>
 		permits HardCodedSorBy, CustomSorBy, SorByReference
 {
 	private static final Map<String, HardCodedSorBy> HARD_CODED_INSTANCES = new HashMap<>();
 	private static Map<String, CustomSorBy> CUSTOM_INSTANCES = null;
 
-	public static final SortBy NAME = new HardCodedSorBy("NAME", Comparator.comparing(FileSystemElement::getPath, SortBy::compareIgnoringExtension));
-	public static final SortBy DATE = new HardCodedSorBy("DATE", Comparator.comparingLong(FileSystemElement::getLastModified));
+	public static final SortBy NAME = new HardCodedSorBy("NAME", Comparator.comparing(APIFileSystemElement::getPath, SortBy::compareIgnoringExtension));
+	public static final SortBy DATE = new HardCodedSorBy("DATE", Comparator.comparingLong(APIFileSystemElement::getLastModified));
 
 	public static void setCustomInstances(Map<String, CustomSorBy> customInstances) {
 		CUSTOM_INSTANCES = customInstances;
@@ -87,16 +86,16 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 	}
 
 	static final class HardCodedSorBy extends SortBy {
-		private final Comparator<FileSystemElement> comparator;
+		private final Comparator<APIFileSystemElement> comparator;
 
-        private HardCodedSorBy(String name, Comparator<FileSystemElement> comparator) {
+        private HardCodedSorBy(String name, Comparator<APIFileSystemElement> comparator) {
             super(name);
             this.comparator = comparator;
 			HARD_CODED_INSTANCES.put(name, this);
         }
 
         @Override
-		public int compare(FileSystemElement o1, FileSystemElement o2) {
+		public int compare(APIFileSystemElement o1, APIFileSystemElement o2) {
 			return comparator.compare(o1, o2);
 		}
 	}
@@ -109,7 +108,7 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 		}
 
 		@Override
-		public int compare(FileSystemElement o1, FileSystemElement o2) {
+		public int compare(APIFileSystemElement o1, APIFileSystemElement o2) {
 			if (sortBy == null) {
 				sortBy = valueOf(name);
 			}
@@ -203,7 +202,7 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 		}
 
 		@Override
-		public int compare(FileSystemElement e1, FileSystemElement e2) {
+		public int compare(APIFileSystemElement e1, APIFileSystemElement e2) {
 			if (!checkInit())
 				return 0;
 

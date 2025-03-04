@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
@@ -119,15 +120,24 @@ public class VScrollablePane extends Region
 				end=System.currentTimeMillis();
 				System.out.println("getSource: "+(end-start)+" ms");
 				start=end;
-				
+
+				ArrayList<Long> timesAddNs = new ArrayList<>();
 				ArrayList<Node> allNodes = new ArrayList<>(offset + col.size());
 				allNodes.addAll(source.subList(0, offset));
 				end=System.currentTimeMillis();
 				System.out.println("addAll: "+(end-start)+" ms");
 				start=end;
-				col.stream().map(this::toSource).forEachOrdered(allNodes::add);
+				col.stream().map(n -> {
+					long ts = System.nanoTime();
+					Node w = toSource(n);
+					long te = System.nanoTime();
+					timesAddNs.add(te-ts);
+					return w;
+				}).forEachOrdered(allNodes::add);
 				end=System.currentTimeMillis();
 				System.out.println("add: "+(end-start)+" ms");
+				LongSummaryStatistics stats = timesAddNs.stream().mapToLong(Long::longValue).summaryStatistics();
+				System.out.println("toSource: "+stats);
 				start=end;
 				source.setAll(allNodes);
 				end=System.currentTimeMillis();
@@ -821,7 +831,7 @@ public class VScrollablePane extends Region
 	
 	private TileWrapper wrapNode(Node unwrapped)
 	{
-		if (unwrapped.getParent()instanceof TileWrapper parent)
+		if (unwrapped.getParent() instanceof TileWrapper parent)
 			return parent;
 		else
 			return new TileWrapper(unwrapped);

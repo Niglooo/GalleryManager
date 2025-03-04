@@ -17,6 +17,7 @@
     <ikonli.version>12.3.1</ikonli.version>
     <javafx.version>25.0.3</javafx.version>
     <jsoup.version>1.17.2</jsoup.version>
+    <junit.version>5.13.4</junit.version>
     <junrar.version>7.5.5</junrar.version>
     <log4j.version>2.22.1</log4j.version>
     <lombok.version>1.18.46</lombok.version>
@@ -177,10 +178,42 @@
       <version>${imageio.version}</version>
     </dependency>
 
+    <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-api -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-api</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter-params -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.assertj/assertj-core -->
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.4</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <sourceDirectory>src</sourceDirectory>
+    <resources>
+      <resource>
+        <directory>resources</directory>
+      </resource>
+    </resources>
+    <testSourceDirectory>test/src</testSourceDirectory>
+    <testResources>
+      <testResource>
+        <directory>test/resources</directory>
+      </testResource>
+    </testResources>
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -271,11 +304,5 @@
         </dependencies>
       </plugin>
     </plugins>
-
-    <resources>
-      <resource>
-        <directory>resources</directory>
-      </resource>
-    </resources>
   </build>
 </project>

@@ -19,9 +19,11 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import nigloo.gallerymanager.filesystem.FileSystemElement;
 import nigloo.gallerymanager.model.FileFolderOrder;
 import nigloo.gallerymanager.model.Gallery;
 import nigloo.gallerymanager.model.SortBy;
+import nigloo.gallerymanager.ui.FileSystemTreeManager.ItemValue;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
@@ -60,9 +62,9 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	private Toggle folderPositionSelected;
 	private Toggle childrenFolderPositionSelected;
 	
-	private final TreeView<FileSystemElement> treeView;
+	private final TreeView<ItemValue> treeView;
 	//TODO Add "open folder"
-	public FileSystemTreeContextMenu(TreeView<FileSystemElement> treeView)
+	public FileSystemTreeContextMenu(TreeView<ItemValue> treeView)
 	{
 		this.treeView = treeView;
 		UIController.loadFXML(this, "file_system_tree_context_menu.fxml");
@@ -155,15 +157,15 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		childrenFolderPositionSelected = childrenFolderPositionGroup.getSelectedToggle();
 	}
 	
-	private FileSystemElement selectedElement()
+	private ItemValue selectedElement()
 	{
-		TreeItem<FileSystemElement> selectedItem = treeView.getSelectionModel().getSelectedItem();
+		TreeItem<ItemValue> selectedItem = treeView.getSelectionModel().getSelectedItem();
 		return selectedItem != null ? selectedItem.getValue() : null;
 	}
 	
 	private List<Path> selectedPaths()
 	{
-		return treeView.getSelectionModel().getSelectedItems().stream().map(TreeItem::getValue).map(FileSystemElement::getPath).toList();
+		return treeView.getSelectionModel().getSelectedItems().stream().map(TreeItem::getValue).map(ItemValue::getPath).toList();
 	}
 	
 	@FXML
@@ -175,7 +177,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void updateSortBy(ActionEvent event)
 	{
-		TreeItem<FileSystemElement> item = treeView.getSelectionModel().getSelectedItem();
+		TreeItem<ItemValue> item = treeView.getSelectionModel().getSelectedItem();
 		Path path = item.getValue().getPath();
 		FileFolderOrder order;
 		
@@ -216,7 +218,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 	@FXML
 	protected void updateChildrenSortBy(ActionEvent event)
 	{
-		TreeItem<FileSystemElement> item = treeView.getSelectionModel().getSelectedItem();
+		TreeItem<ItemValue> item = treeView.getSelectionModel().getSelectedItem();
 		Path path = item.getValue().getPath();
 		FileFolderOrder order;
 		
@@ -251,7 +253,7 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		
 		childrenFolderPositionSelected = childrenFolderPositionGroup.getSelectedToggle();
 		
-		for (TreeItem<FileSystemElement> child : item.getChildren())
+		for (TreeItem<ItemValue> child : item.getChildren())
 			if (child.getValue() != null && gallery.isOrderInherited(child.getValue().getPath()))
 				sort(child, order);
 			
@@ -300,14 +302,14 @@ public class FileSystemTreeContextMenu extends ContextMenu
 		uiController.newDirectoryIn(selectedElement().getPath(), true);
 	}
 	
-	private void sort(TreeItem<FileSystemElement> item, FileFolderOrder order)
+	private void sort(TreeItem<ItemValue> item, FileFolderOrder order)
 	{
 		Path path = item.getValue().getPath();
 		
 		item.getChildren().sort(Comparator.comparing(TreeItem::getValue, order));
 		
 		if (gallery.isSubDirectoriesOrderInherited(path))
-			for (TreeItem<FileSystemElement> child : item.getChildren())
+			for (TreeItem<ItemValue> child : item.getChildren())
 				if (child.getValue() != null && gallery.isOrderInherited(child.getValue().getPath()))
 					sort(child, order);
 	}

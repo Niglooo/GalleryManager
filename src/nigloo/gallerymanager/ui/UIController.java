@@ -1,23 +1,21 @@
 package nigloo.gallerymanager.ui;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -33,6 +31,8 @@ import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.Fixes;
 import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.autodownloader.KemonoFanboxDownloader;
+import nigloo.gallerymanager.filesystem.FileSystemElement;
+import nigloo.gallerymanager.filesystem.FileSystemService;
 import nigloo.gallerymanager.filter.ImageFilter;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
@@ -40,21 +40,18 @@ import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.model.Script;
 import nigloo.gallerymanager.model.Script.AutoExecution;
 import nigloo.gallerymanager.model.Tag;
-import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.gallerymanager.ui.FileSystemTreeManager.ItemValue;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
 import nigloo.gallerymanager.ui.util.AutoCompleteTag;
 import nigloo.gallerymanager.ui.util.UIUtils;
 import nigloo.gallerymanager.ui.util.VScrollablePane;
 import nigloo.tool.StopWatch;
-import nigloo.tool.gson.DateTimeAdapter;
-import nigloo.tool.gson.InjectionInstanceCreator;
-import nigloo.tool.gson.PathTypeAdapter;
-import nigloo.tool.gson.PatternTypeAdapter;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 import nigloo.tool.injection.annotation.Singleton;
 import nigloo.tool.injection.impl.SingletonInjectionContext;
 import nigloo.tool.javafx.FXUtils;
+import nigloo.tool.javafx.component.dialog.AlertWithIcon;
 import nigloo.tool.javafx.component.dialog.ExceptionDialog;
 import nigloo.tool.thread.SafeThread;
 import nigloo.tool.thread.ThreadStopException;
@@ -79,23 +76,19 @@ import java.text.ChoiceFormat;
 import java.text.MessageFormat;
 import java.text.ParseException;
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -117,8 +110,9 @@ public class UIController extends Application
 	
 	
 	@FXML
-	private TreeView<FileSystemElement> fileSystemView;
+	private TreeView<ItemValue> fileSystemView;
 	private FileSystemTreeManager fileSystemTreeManager;
+	private FileSystemService fileSystemService;
 	@FXML
 	private AutoCompleteTextField tagFilterField;
 	@FXML
@@ -146,35 +140,17 @@ public class UIController extends Application
 	
 	@Inject
 	private DownloadsProgressViewDialog downloadsProgressDialog;
-	
-	public UIController()
-	{
-	}
 
-	/*
-	 * /!\ IF LOMBOK ERROR /!\
-	 * Go in
-	 * File | Settings | Build, Execution, Deployment | Compiler | Annotation Processors
-	 * Go on Annotation profile for gallery_manager and :
-	 * - Check "Obtain processors from project classpath"
-	 * - Remove (with -) any processor FQ name
-	 */
+    /*
+     * /!\ IF LOMBOK ERROR /!\
+     * Go in
+     * File | Settings | Build, Execution, Deployment | Compiler | Annotation Processors
+     * Go on Annotation profile for gallery_manager and :
+     * - Check "Obtain processors from project classpath"
+     * - Remove (with -) any processor FQ name
+     */
 	public static void main(String[] args)
 	{
-//		List<Integer> l = FXCollections.observableArrayList(1,2,3,4);
-//		System.out.println("l: "+l);
-//		List<Integer> sl = l.subList(1, 3);
-//		System.out.println("sl: "+sl);
-//		l.addFirst(0);
-//		System.out.println("l: "+l);
-//		System.out.println("sl: "+sl);
-
-//		MessageFormat mf = new MessageFormat("int: {1} ; datetime: {0,datetime,dd/MM/yyyy}");
-//		String result = mf.format(new Object[]{LocalDateTime.now(), 1});
-//		System.out.println(result);
-
-//		System.exit(42);
-
 		Injector.ENABLE();
 		launch(args);
 	}
@@ -239,13 +215,12 @@ public class UIController extends Application
 
 		AutoCompleteTag.tagSearchExpression(gallery, tagFilterField);
 		tagFilterField.setOnAction(e -> requestRefreshThumbnails());
+
+		//TODO make configurable (keepEmptyFolder)
+		fileSystemService = new FileSystemService(false);
+		fileSystemService.refresh(List.of(gallery.getRootFolder()), false);
 		
-		TreeItem<FileSystemElement> root = new TreeItem<>(new FileSystemElement(gallery.getRootFolder(), Status.NOT_LOADED));
-		root.setExpanded(true);
-		fileSystemView.setRoot(root);
-		
-		fileSystemTreeManager = new FileSystemTreeManager(fileSystemView);
-		fileSystemTreeManager.refresh(List.of(root.getValue().getPath()), false);
+		fileSystemTreeManager = new FileSystemTreeManager(fileSystemView, fileSystemService);
 		
 		thumbnailsView.setContextMenu(new ThumbnailsContextMenu(thumbnailsView));
 		thumbnailsView.getTiles().addListener((Change<? extends Node> c) -> updateStatusBar());
@@ -328,11 +303,29 @@ public class UIController extends Application
 						{
 							try {
 								updateRequested = false;
-								CompletableFuture.supplyAsync(UIController.this::getThumbnailImages, AsyncPools.FX_APPLICATION)
-										.thenCompose(UIController.this::cancelIfNoChange)
-										.thenCompose(fileSystemTreeManager::refreshAndGetInOrder)
-										.thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
-										.join();
+
+								record InfoFromUI(Collection<Path> selection, Predicate<Image> tagFilter){}
+								CompletableFuture.supplyAsync(() -> new InfoFromUI(
+									fileSystemTreeManager.getSelectionWithoutChildren(),
+									getTagFilter()
+								)).thenApplyAsync(uiInfo -> {
+									List<Path> selection = uiInfo.selection.stream().map(gallery::toRelativePath).toList();
+									Stream<Image> images = gallery.getImages(true).stream();
+									if (!selection.isEmpty()) {
+										images = images.filter(image -> selection.stream().anyMatch(selectedPath -> image.getPath().startsWith(selectedPath)));
+									}
+									return images.filter(uiInfo.tagFilter).toList();
+								}, AsyncPools.DISK_IO)
+								 .thenComposeAsync(fileSystemService::refresh, AsyncPools.DISK_IO)
+								 .thenApply(fileSystemService::sort)
+								 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
+								 .join();
+
+//								CompletableFuture.supplyAsync(UIController.this::getThumbnailImages, AsyncPools.FX_APPLICATION)
+//										.thenCompose(UIController.this::cancelIfNoChange)
+//										.thenCompose(fileSystemTreeManager::refreshAndGetInOrder)
+//										.thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
+//										.join();
 							}
 							catch (CancellationException ignored) {}
 							catch (CompletionException e) {
@@ -415,24 +408,20 @@ public class UIController extends Application
 		assert Platform.isFxApplicationThread();
 		
 		StopWatch timer = new StopWatch().start();
-		
-		List<Image> visibleImages = thumbnailsView
+
+		Image imageToScrollTo = thumbnailsView
 				.getTiles()
 				.stream()
 				.filter(Node::isVisible)
 				.map(tv -> ((ThumbnailView) tv).getGalleryImage())
-				.toList();
-		
-		Image imageToSrollTo = sortedImages
-				.stream()
-				.filter(visibleImages::contains)
+				.filter(sortedImages::contains)
 				.findFirst()
 				.orElse(null);
 		
 		thumbnailsView.getTiles().setAll(sortedImages.stream().map(UIController.this::getImageView).toList());
 		
-		if (imageToSrollTo != null)
-			thumbnailsView.scrollTo(sortedImages.indexOf(imageToSrollTo));
+		if (imageToScrollTo != null)
+			thumbnailsView.scrollTo(sortedImages.indexOf(imageToScrollTo));
 		else
 			thumbnailsView.scrollTo(0);
 		
@@ -587,14 +576,13 @@ public class UIController extends Application
 		LOGGER.info("Opening gallery {}", galleryFile);
 		try (Reader reader = Files.newBufferedReader(galleryFile, StandardCharsets.UTF_8))
 		{
-			gallery = gson().fromJson(reader, Gallery.class);
+			gallery = Gallery.load(reader, galleryFile.getParent());
 		}
-		gallery.postConstruct(galleryFile.getParent());
 	}
 	
 	@FXML
 	public void saveGallery() throws IOException
-	{
+	{if(true)return;
 		if (!gallery.isValid()) {
 			LOGGER.error("Cannot save gallery because it's invalid", gallery.getValidationError());
 			return;
@@ -608,7 +596,7 @@ public class UIController extends Application
 		
 		try (Writer writer = Files.newBufferedWriter(tmpFile, StandardCharsets.UTF_8))
 		{
-			gson().toJson(gallery, writer);
+			gallery.save(writer);
 		}
 		
 		int nbAttempt = 0;
@@ -630,40 +618,72 @@ public class UIController extends Application
 			}
 		}
 	}
-	
-	private Gson gson = null;
-	
-	private Gson gson()
-	{
-		if (gson == null)
-		{
-			gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
-			                        .registerTypeAdapter(Pattern.class, new PatternTypeAdapter())
-			                        .registerTypeAdapter(ZonedDateTime.class, new DateTimeAdapter())
-			                        .registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
-			                        .disableHtmlEscaping()
-			                        .setPrettyPrinting()
-			                        .create();
-		}
-		
-		return gson;
-	}
-	
+
 	public CompletableFuture<Void> refreshFileSystem(Collection<Path> paths, boolean deep)
 	{
-		return fileSystemTreeManager.refresh(paths, deep);
+		return fileSystemService.refresh(paths, deep);
 	}
 	
 	public CompletableFuture<Void> synchronizeFileSystem(Collection<Path> paths, boolean deep)
 	{
-		return fileSystemTreeManager.synchronize(paths, deep);
+		return fileSystemService.synchronize(paths, deep);
 	}
 	
 	public CompletableFuture<Void> delete(Collection<Path> paths, boolean deleteOnDisk)
 	{
-		return fileSystemTreeManager.delete(paths, deleteOnDisk);
+		final Collection<Path> fPaths = withoutChildren(paths);
+
+		boolean fullyLoaded = true;
+		List<FileSystemElement> elements = new ArrayList<>();
+		for (Path path : fPaths) {
+			FileSystemElement element = fileSystemService.findElement(path);
+			if (element != null) {
+				elements.add(element);
+			} else {
+				fullyLoaded = false;
+			}
+		}
+		List<Image> images = new ArrayList<>();
+		while (!elements.isEmpty()) {
+            FileSystemElement element = elements.removeLast();
+			if (element.isImage()) {
+				images.add(element.getImage());
+			}
+			if (element.isDirectory() && element.getStatusDirectory().isNotFullyLoaded()) {
+				fullyLoaded = false;
+			}
+			elements.addAll(element.getChildren());
+		}
+
+		AlertWithIcon warningPopup = new AlertWithIcon(AlertType.WARNING);
+		warningPopup.setTitle("Delete images");
+		if (images.size() == 1 && fullyLoaded) {
+			warningPopup.setHeaderText("Delete \"" + images.getFirst().getPath().getFileName() + "\"?");
+		}
+		else {
+			warningPopup.setHeaderText("Delete " + (!fullyLoaded ? "at least " : "") + images.size() + " image(s)?");
+		}
+		warningPopup.setContentText("This action cannot be undone!");
+		warningPopup.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+		warningPopup.setDefaultButton(ButtonType.NO);
+
+		return CompletableFuture.supplyAsync(() -> {
+			Optional<ButtonType> button = warningPopup.showAndWait();
+			return button.isPresent() && button.get() == ButtonType.YES;
+		}, AsyncPools.FX_APPLICATION).thenComposeAsync(delete -> {
+			if (!delete) {
+				return CompletableFuture.completedFuture(null);
+			}
+			return fileSystemService.delete(paths, deleteOnDisk);
+		}, AsyncPools.DISK_IO);
 	}
-	
+
+	private static Collection<Path> withoutChildren(Collection<Path> paths)
+	{
+		return paths.stream().filter(p -> paths.stream().noneMatch(p2 -> p != p2 && p.startsWith(p2))).toList();
+	}
+
+
 	public void cut(Collection<Path> paths)
 	{
 		fileSystemTreeManager.cut(paths);

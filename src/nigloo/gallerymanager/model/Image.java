@@ -64,7 +64,7 @@ public class Image
 	}
 	
 	public Path getAbsolutePath()
-	{
+	{//TODO cache??
 		return gallery.toAbsolutePath(path);
 	}
 	
