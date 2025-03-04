@@ -5,14 +5,14 @@ import java.util.Objects;
 
 import com.google.gson.annotations.JsonAdapter;
 import nigloo.gallerymanager.model.SortBy.SortByReferenceTypeAdapter;
-import nigloo.gallerymanager.ui.FileSystemElement;
+import nigloo.gallerymanager.script.ScriptAPI.APIFileSystemElement;
 
 public record FileFolderOrder(
 		@JsonAdapter(SortByReferenceTypeAdapter.class)
 		SortBy sortBy,
 		int directoryWeight,
 		boolean ascending)
-        implements Comparator<FileSystemElement>
+        implements Comparator<APIFileSystemElement>
 {
 	public FileFolderOrder
 	{
@@ -21,7 +21,7 @@ public record FileFolderOrder(
 	}
 	
 	@Override
-	public int compare(FileSystemElement e1, FileSystemElement e2)
+	public int compare(APIFileSystemElement e1, APIFileSystemElement e2)
 	{
 		int w1 = e1.isDirectory() ? directoryWeight : 0;
 		int w2 = e2.isDirectory() ? directoryWeight : 0;

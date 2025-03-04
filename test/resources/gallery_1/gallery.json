@@ -1,0 +1,81 @@
+{
+  "artists": [],
+  "images": [
+    {
+      "id": 1,
+      "path": "deleted/deleted_1.png",
+      "tags": []
+    },
+    {
+      "id": 2,
+      "path": "deleted/deleted_2.png",
+      "tags": []
+    },
+    {
+      "id": 3,
+      "path": "deleted/sub/deleted_3.png",
+      "tags": []
+    },
+    {
+      "id": 4,
+      "path": "deleted/sub/deleted_4.png",
+      "tags": []
+    },
+    {
+      "id": 5,
+      "path": "deleted/deleted_1.png/deleted_5.png",
+      "tags": []
+    },
+    {
+      "id": 6,
+      "path": "deleted/deleted_1.png/deleted_6.png",
+      "tags": []
+    },
+    {
+      "id": 7,
+      "path": "image_5.jpg/deleted_7.png",
+      "tags": []
+    },
+    {
+      "id": 8,
+      "path": "saved/image_1.jpg",
+      "tags": []
+    },
+    {
+      "id": 9,
+      "path": "saved/sub1/image_4.jpg",
+      "tags": []
+    },
+    {
+      "id": 10,
+      "path": "saved/sub1/image_3.jpg",
+      "tags": []
+    },
+    {
+      "id": 11,
+      "path": "saved/image_2.jpg",
+      "tags": []
+    }
+  ],
+  "tags": [],
+  "defaultSortOrder": {
+    "sortBy": "NAME",
+    "directoryWeight": 0,
+    "ascending": true
+  },
+  "sortOrder": {},
+  "customSortBy": {},
+  "slideShowParameter": {
+    "autoplay": true,
+    "shuffled": false,
+    "looped": true,
+    "autoplayDelay": 5.0,
+    "videos": {
+      "autoplay": true,
+      "mute": true,
+      "volume": 0.0
+    }
+  },
+  "scripts": [],
+  "favouriteTags": []
+}

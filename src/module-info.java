@@ -28,6 +28,7 @@ module nigloo.gallerymanager
     opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.script;
 	opens nigloo.gallerymanager.autodownloader;
+	opens nigloo.gallerymanager.filesystem to javafx.fxml, javafx.graphics, nigloo.tools;
 	opens nigloo.gallerymanager.ui to javafx.graphics, javafx.fxml, nigloo.tools;
 	opens nigloo.gallerymanager.ui.dialog to javafx.graphics, javafx.fxml, nigloo.tools;
 	opens nigloo.gallerymanager.ui.util to javafx.graphics, javafx.fxml, nigloo.tools;

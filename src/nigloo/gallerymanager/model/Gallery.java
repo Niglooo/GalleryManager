@@ -1,16 +1,33 @@
 package nigloo.gallerymanager.model;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import javafx.fxml.FXML;
 import nigloo.gallerymanager.autodownloader.DownloaderType;
 import nigloo.gallerymanager.model.SortBy.CustomSorBy;
 import nigloo.gallerymanager.model.SortBy.CustomSortByMapSerializer;
+import nigloo.tool.gson.DateTimeAdapter;
+import nigloo.tool.gson.InjectionInstanceCreator;
+import nigloo.tool.gson.PathTypeAdapter;
+import nigloo.tool.gson.PatternTypeAdapter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -62,7 +79,7 @@ public final class Gallery
 	/*
 	 * MUST be called just after deserialization
 	 */
-	public void postConstruct(Path rootFolder)
+	private void postConstruct(Path rootFolder)
 	{
 		try {
 			
@@ -281,7 +298,7 @@ public final class Gallery
 	}
 	
 	private transient Map<Path, Image> unsavedImages = new HashMap<>();
-	transient boolean unsavedImagesValid = true;
+	transient boolean unsavedImagesValid = true;//?????
 	
 	private Map<Path, Image> unsavedImages()
 	{
@@ -634,7 +651,7 @@ public final class Gallery
 				image.id = nextId++;
 		}
 	}
-	
+
 	static private class SortOrderSerializer
 	        implements JsonSerializer<HashMap<Path, FileFolderOrder>>, JsonDeserializer<HashMap<Path, FileFolderOrder>>
 	{
@@ -683,5 +700,37 @@ public final class Gallery
 			                                    (v1, v2) -> v1,
 			                                    HashMap::new));
 		}
+	}
+
+	public static Gallery load(Reader data, Path basePath) throws IOException
+	{
+		Gallery gallery = gson().fromJson(data, Gallery.class);
+		gallery.postConstruct(basePath);
+
+		return gallery;
+	}
+
+	public void save(Appendable target) throws IOException
+	{
+		gson().toJson(this, target);
+	}
+
+	//TODO stable value
+	private static Gson gson = null;
+
+	private static Gson gson()
+	{
+		if (gson == null)
+		{
+			gson = new GsonBuilder().registerTypeHierarchyAdapter(Path.class, new PathTypeAdapter())
+									.registerTypeAdapter(Pattern.class, new PatternTypeAdapter())
+									.registerTypeAdapter(ZonedDateTime.class, new DateTimeAdapter())
+									.registerTypeAdapter(Gallery.class, new InjectionInstanceCreator())
+									.disableHtmlEscaping()
+									.setPrettyPrinting()
+									.create();
+		}
+
+		return gson;
 	}
 }

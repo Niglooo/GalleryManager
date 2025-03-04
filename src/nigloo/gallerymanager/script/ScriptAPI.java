@@ -12,8 +12,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
 import nigloo.gallerymanager.model.Image;
-import nigloo.gallerymanager.ui.FileSystemElement;
-import nigloo.gallerymanager.ui.FileSystemElement.Status;
+import nigloo.gallerymanager.filesystem.FileSystemElement;
+import nigloo.gallerymanager.filesystem.FileSystemElement.Status;
 import org.apache.logging.log4j.Level;
 
 import nigloo.gallerymanager.model.Gallery;
@@ -122,6 +122,6 @@ public class ScriptAPI implements AutoCloseable
 	}
 
 	public APIFileSystemElement getFileSystemElement(String path) {
-		return new FileSystemElement(Paths.get(path), Status.SYNC);
+		return FileSystemElement.ofDirectory(null, Paths.get(path), Status.SYNC, null);
 	}
 }

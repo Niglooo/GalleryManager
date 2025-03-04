@@ -27,6 +27,7 @@
       <AppenderRef ref="STDOUT" />
       <AppenderRef ref="FILE" />
     </Logger>
+    <Logger name="nigloo.gallerymanager.filesystem" level="debug" />
 <!--     <Logger name="nigloo.gallerymanager" level="debug" />
     <Logger name="nigloo.gallerymanager.autodownloader" level="debug">
       <Filters>
