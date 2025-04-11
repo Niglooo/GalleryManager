@@ -116,7 +116,9 @@ public abstract class KemonoDownloader extends Downloader {
         JsonObject jPost = getPostDetail(session, post);
         JsonArray jImages = JsonHelper.followPath(jPost, "previews", JsonArray.class);
 
-        List<PostImage> images = JsonHelper.stream(jImages).map( jImage -> {
+        List<PostImage> images = JsonHelper.stream(jImages)
+                                           .filter(jImage -> !"embed".equals(JsonHelper.followPath(jImage, "type")))
+                                           .map( jImage -> {
             String path = JsonHelper.followPath(jImage, "path");
             String server = JsonHelper.followPath(jImage, "server");
             String url = buildDataUrl(server, path);
