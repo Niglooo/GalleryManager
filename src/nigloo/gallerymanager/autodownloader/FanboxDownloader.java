@@ -102,8 +102,9 @@ public class FanboxDownloader extends Downloader
 										  String postId = JsonHelper.followPath(post, "id");
 										  String postTitle = JsonHelper.followPath(post, "title");
 										  ZonedDateTime publishedDatetime = ZonedDateTime.parse(JsonHelper.followPath(post, "publishedDatetime"));
+										  boolean pinned = JsonHelper.followPath(post, "isPinned", boolean.class);
 
-										  return Post.create(postId, postTitle, publishedDatetime, post);
+										  return Post.create(postId, postTitle, publishedDatetime, pinned, post);
 									  })
 									  .iterator();
 

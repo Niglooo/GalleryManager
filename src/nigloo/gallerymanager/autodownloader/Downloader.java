@@ -47,6 +47,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -63,6 +64,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -216,6 +218,7 @@ public abstract class Downloader
 		{
 			onStartDownload(session);
 			Iterator<Post> postIt = listPosts(session);
+			postIt = new PinnedPostAwareIterator(postIt);
 			
 			final List<Post> postsToDownload = new ArrayList<>();
 			final Collection<CompletableFuture<?>> postsFutures = new ArrayList<>();
@@ -341,6 +344,56 @@ public abstract class Downloader
 					this,
 					lastPost.publishedDatetime().withZoneSameInstant(ZoneId.systemDefault()).toLocalDate(),
 					lastPost.title());
+	}
+
+	@RequiredArgsConstructor
+	private static class PinnedPostAwareIterator implements Iterator<Post>
+	{
+		private final Iterator<Post> iterator;
+
+		final PriorityQueue<Post> postsBuffer = new PriorityQueue<>(Comparator.comparing(Post::publishedDatetime).reversed());
+
+		@Override
+		public boolean hasNext()
+		{
+			return iterator.hasNext() || !postsBuffer.isEmpty();
+		}
+
+		@Override
+		public Post next()
+		{
+			if (!iterator.hasNext())
+			{
+				if (postsBuffer.isEmpty())
+				{
+					throw new NoSuchElementException();
+				}
+
+				return postsBuffer.poll();
+			}
+
+			Post post = iterator.next();
+			if (post.pinned())
+			{
+				postsBuffer.add(post);
+				return next();
+			}
+
+			if (postsBuffer.isEmpty())
+			{
+				return post;
+			}
+
+			Post otherPost = postsBuffer.peek();
+			if (otherPost.publishedDatetime().isAfter(post.publishedDatetime()))
+			{
+				postsBuffer.poll();
+				postsBuffer.add(post);
+				return otherPost;
+			}
+
+			return post;
+		}
 	}
 	
 	public record ImageKey(String postId, String imageId) implements Comparable<ImageKey>
@@ -600,8 +653,8 @@ public abstract class Downloader
 		private AutoExtractZip autoExtractZip = AutoExtractZip.NO;
 	}
 	
-	protected record Post(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
-		public static Post create(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
+	protected record Post(String id, String title, ZonedDateTime publishedDatetime, boolean pinned, Object extraInfo) {
+		public static Post create(String id, String title, ZonedDateTime publishedDatetime, boolean pinned, Object extraInfo) {
 			if (Utils.isBlank(id))
 			{
 				throw new IllegalArgumentException("id cannot be empty");
@@ -615,7 +668,11 @@ public abstract class Downloader
 				throw new IllegalArgumentException("publishedDatetime cannot be null");
 			}
 			
-			return new Post(id, title, publishedDatetime, extraInfo);
+			return new Post(id, title, publishedDatetime, pinned, extraInfo);
+		}
+
+		public static Post create(String id, String title, ZonedDateTime publishedDatetime, Object extraInfo) {
+			return create(id, title, publishedDatetime, false, extraInfo);
 		}
 	}
 	protected record PostImage(String id, String filename, String url, Collection<String> tags) {
