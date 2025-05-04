@@ -128,8 +128,8 @@ public class PatreonDownloader extends Downloader
 				                    .headers(session.getExtraInfo(HEADERS_KEY))
 				                    .build();
 				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
-				
-				nextPageUrl = Optional.ofNullable(JsonHelper.followPath(response, "links.next")).map(link -> "https://" + link).orElse(null);
+
+				nextPageUrl = addHttps(JsonHelper.followPath(response, "links.next"));
 				postsIt = JsonHelper.followPath(response, "data", JsonArray.class).iterator();
 				
 				currentResourcesIncluded = new HashMap<>();
@@ -147,6 +147,16 @@ public class PatreonDownloader extends Downloader
 				return null;
 			}
 		}
+	}
+
+	private static String addHttps(String url) {
+		if (url == null) {
+			return null;
+		}
+		if (url.startsWith("https://")) {
+			return url;
+		}
+		return "https://" + url;
 	}
 	
 	@Override
