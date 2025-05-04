@@ -15,8 +15,8 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 import lombok.extern.log4j.Log4j2;
 import nigloo.gallerymanager.model.SortBy.CustomSorBy;
-import nigloo.gallerymanager.model.SortBy.SorByReference;
 import nigloo.gallerymanager.model.SortBy.HardCodedSorBy;
+import nigloo.gallerymanager.model.SortBy.SorByReference;
 import nigloo.gallerymanager.script.ScriptAPI.APIFileSystemElement;
 import nigloo.gallerymanager.ui.FileSystemElement;
 import nigloo.tool.Utils;
@@ -141,7 +141,8 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 				return classPath.toString();
 			}
 			catch (Exception e) {
-				throw new ExceptionInInitializerError(e);
+				log.warn("Cannot find classPath of {}", klass, e);
+				return null;
 			}
 		}
 
@@ -155,6 +156,13 @@ public sealed abstract class SortBy implements Comparator<FileSystemElement>
 		private boolean checkInit() {
 			if (initSuccess == null) {
 				try {
+					if (CLASS_PATH_THIS_MODULE == null) {
+						throw new RuntimeException("CLASS_PATH_THIS_MODULE not initialized");
+					}
+					if (CLASS_PATH_NIGLOO_TOOL == null) {
+						throw new RuntimeException("CLASS_PATH_NIGLOO_TOOL not initialized");
+					}
+
 					// Save source in .java file.
 					Path root = Files.createTempDirectory("java");
 					Path sourceFile = root.resolve(className.replace('.', '/')+".java");
