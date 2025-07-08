@@ -27,7 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -218,17 +217,8 @@ public class SubscribeStarDownloader extends Downloader
                                          .headers(session.getExtraInfo(HEADERS_KEY))
                                          .build();
 
-        return session.sendAsync(request, BodyHandlers.discarding()).handle((response, error) -> {
-            while (error instanceof CompletionException && error.getCause() != null) {
-                error = error.getCause();
-            }
-            if (error != null && (!(error instanceof HttpException httpError) || httpError.getStatusCode() != 404)) {
-                return CompletableFuture.<Boolean>failedFuture(error);
-            } else {
-                return CompletableFuture.completedFuture(true);
-            }
-        }).thenCompose(f -> f);
-        //.thenApply(r -> true);
+        return session.sendAsync(request, BodyHandlers.discarding(), HttpOption.HANDLE_4XX_AS_2XX)
+                      .thenApply(response -> response.statusCode() == 404);
     }
 
     @Override

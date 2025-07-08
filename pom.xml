@@ -19,7 +19,7 @@
     <jsoup.version>1.17.2</jsoup.version>
     <log4j.version>2.22.1</log4j.version>
     <lombok.version>1.18.30</lombok.version>
-    <methanol.version>1.7.0</methanol.version>
+    <methanol.version>1.8.2</methanol.version>
     <tika.version>2.9.1</tika.version>
   </properties>
 
@@ -132,6 +132,13 @@
       <groupId>com.github.mizosoft.methanol</groupId>
       <artifactId>methanol</artifactId>
       <version>${methanol.version}</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/com.github.mizosoft.methanol/methanol-brotli -->
+    <dependency>
+      <groupId>com.github.mizosoft.methanol</groupId>
+      <artifactId>methanol-brotli</artifactId>
+      <version>${methanol.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.tika/tika-core -->

@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.autodownloader;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.Character.UnicodeBlock;
 import java.lang.reflect.*;
@@ -18,6 +19,7 @@ import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscriber;
 import java.net.http.HttpResponse.ResponseInfo;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -52,6 +54,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Flow;
 import java.util.concurrent.Flow.Subscriber;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
@@ -106,8 +110,6 @@ import nigloo.gallerymanager.model.Tag;
 import nigloo.gallerymanager.ui.dialog.DownloadsProgressViewDialog;
 import nigloo.tool.MetronomeTimer;
 import nigloo.tool.Utils;
-import nigloo.tool.http.DownloadListener;
-import nigloo.tool.http.MonitorBodyHandler;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
 
@@ -746,7 +748,7 @@ public abstract class Downloader
 		return CompletableFuture.completedFuture(null);
 	}
 
-	public static class HttpException extends RuntimeException
+	public static class HttpException extends IOException
 	{
 		private final URI requestUri;
 		private final int statusCode;
@@ -755,15 +757,6 @@ public abstract class Downloader
 		
 		private String prettyBody = null;
 		
-		private HttpException(HttpResponse<?> response)
-		{
-			super("Error "+response.statusCode()+" from "+response.request().uri());
-			requestUri = response.request().uri();
-			statusCode = response.statusCode();
-			headers = response.headers();
-			body = response.body();
-		}
-
 		private HttpException(URI url, ResponseInfo responseInfo)
 		{
 			super("Error "+responseInfo.statusCode()+" from "+url);
@@ -771,6 +764,15 @@ public abstract class Downloader
 			statusCode = responseInfo.statusCode();
 			headers = responseInfo.headers();
 			body = null;
+		}
+
+		private HttpException(URI url, ResponseInfo responseInfo, ByteArrayOutputStream content)
+		{
+			super("Error "+responseInfo.statusCode()+" from "+url);
+			requestUri = url;
+			statusCode = responseInfo.statusCode();
+			headers = responseInfo.headers();
+			body = content;
 		}
 
 		public String getPrettyBody()
@@ -789,6 +791,28 @@ public abstract class Downloader
 		public HttpHeaders getHeaders() {return headers;}
 		public Object getBody() {return body;}
 		// @formatter:on
+	}
+
+	protected enum HttpOption {
+		DISCARD_ERROR_BODY,
+		HANDLE_4XX_AS_2XX,
+	}
+
+	protected interface DownloadListener
+	{
+		default void onStartDownload(ResponseInfo responseInfo) throws IOException
+		{
+		}
+
+		void onProgress(long nbNewBytes, long nbBytesDownloaded, OptionalLong nbBytesTotal) throws IOException;
+
+		default void onComplete() throws IOException
+		{
+		}
+
+		default void onError(Throwable error) throws IOException
+		{
+		}
 	}
 	
 	protected final class DownloadSession
@@ -853,67 +877,54 @@ public abstract class Downloader
 			return Utils.cast(extraInfo.get(key));
 		}
 		
-		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler)
+		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler, HttpOption... options)
 		        throws IOException,
 		        InterruptedException
 		{
-			return send(request, responseBodyHandler, null);
+			return send(request, responseBodyHandler, null, options);
 		}
 		
-		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler, DownloadListener listener)
+		public <T> HttpResponse<T> send(HttpRequest request, BodyHandler<T> responseBodyHandler, DownloadListener listener, HttpOption... options)
 		        throws IOException,
 		        InterruptedException
 		{
 			logRequest(request);
-			HttpResponse<T> response = null;
+			Set<HttpOption> optionsSet = Utils.asSet(options);
+			HttpResponse<T> response;
 			maxConcurrentStreams.acquire();
 			try
 			{
 				if (requestLimiter != null)
 					requestLimiter.waitNextTick();
-				if (listener != null)
-					responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
-				
-				response = httpClient.send(request, MoreBodyHandlers.decoding(responseBodyHandler));
+
+				response = httpClient.send(request, MoreBodyHandlers.decoding(new ThrowHttpErrorBodyHandler<>(request.uri(), responseBodyHandler, listener, optionsSet)));
 			}
 			finally
 			{
 				releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
 			}
-			logResponse(response);
-			
-			if (isErrorResponse(response))
-				throw new HttpException(response);
+			logResponse(response, optionsSet);
 			
 			return response;
 		}
-		
-		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler)
+
+		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler, HttpOption... options)
 		        throws InterruptedException
 		{
-			return sendAsync(request, responseBodyHandler, null);
+			return sendAsync(request, responseBodyHandler, null, options);
 		}
 		
-		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler, DownloadListener listener)
+		public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, BodyHandler<T> responseBodyHandler, DownloadListener listener, HttpOption... options)
 		        throws InterruptedException
 		{
 			logRequest(request);
+			Set<HttpOption> optionsSet = Utils.asSet(options);
 			maxConcurrentStreams.acquire();
 			try {
 				if (requestLimiter != null)
 					requestLimiter.waitNextTick();
-				if (listener != null)
-					responseBodyHandler = new MonitorBodyHandler<>(responseBodyHandler, listener);
-				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(responseBodyHandler)),
-				                     (response, error) ->
-				                     {
-										 releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
-					                     if (error == null)
-						                     logResponse(response);
-				                     })
-				            .thenCompose(response -> isErrorResponse(response)
-				                    ? CompletableFuture.failedFuture(new HttpException(response))
-				                    : CompletableFuture.completedFuture(response));
+				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(new ThrowHttpErrorBodyHandler<>(request.uri(), responseBodyHandler, listener, optionsSet))),
+				                     (response, error) -> releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request));
 			} catch (Exception e) {
 				releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
 				throw e;
@@ -1048,6 +1059,181 @@ public abstract class Downloader
 				                                              .orElse(mostRecentPostCheckedDate);
 			}
 		}
+
+		private record ThrowHttpErrorBodyHandler<T>(
+				URI url,
+				BodyHandler<T> delegate,
+				DownloadListener listener,
+				Set<HttpOption> options
+		) implements BodyHandler<T>
+		{
+			@Override
+			public BodySubscriber<T> apply(ResponseInfo responseInfo)
+			{
+				if (isErrorResponse(responseInfo.statusCode(), options))
+				{
+					return new HttpErrorBodySubscriber(responseInfo);
+				}
+
+				OptionalLong contentLength = responseInfo.headers().firstValueAsLong("Content-Length");
+				BodySubscriber<T> delegateSubscriber = Objects.requireNonNull(delegate.apply(responseInfo),
+																			  delegate.getClass().getSimpleName()
+																					  + ".apply returned null");
+				return new MonitorBodySubscriber<>(delegateSubscriber, listener, contentLength, responseInfo);
+			}
+
+			private static class MonitorBodySubscriber<T> implements BodySubscriber<T>
+			{
+				private static final DownloadListener NO_OP_LISTENER = (n, d, t) -> {};
+
+				private final BodySubscriber<T> delegate;
+				private final DownloadListener listener;
+				private final OptionalLong contentLength;
+
+				private long nbBytesDownloaded = 0L;
+				private boolean onError = false;
+
+				private MonitorBodySubscriber(BodySubscriber<T> delegate, DownloadListener listener, OptionalLong contentLength, ResponseInfo responseInfo)
+				{
+					this.delegate = delegate;
+					this.listener = Objects.requireNonNullElse(listener, NO_OP_LISTENER);
+					this.contentLength = contentLength;
+
+                    try {
+                        this.listener.onStartDownload(responseInfo);
+                    }
+                    catch (Exception e) {
+						onListenerError(e);
+                    }
+                }
+
+				@Override
+				public CompletionStage<T> getBody()
+				{
+					return delegate.getBody();
+				}
+
+				@Override
+				public void onSubscribe(Flow.Subscription subscription)
+				{
+					if (onError)
+						subscription.cancel();
+					else
+						delegate.onSubscribe(subscription);
+				}
+
+				@Override
+				public void onNext(List<ByteBuffer> item)
+				{
+					long nbNewBytes = item.stream().mapToLong(ByteBuffer::remaining).sum();
+					nbBytesDownloaded += nbNewBytes;
+					try {
+						listener.onProgress(nbNewBytes, nbBytesDownloaded, contentLength);
+					}
+					catch (Exception e) {
+						onListenerError(e);
+						return;
+					}
+					delegate.onNext(item);
+				}
+
+				@Override
+				public void onError(Throwable throwable)
+				{
+					try {
+						listener.onError(throwable);
+					}
+					catch (Exception e) {
+						onListenerError(e);
+						return;
+					}
+					delegate.onError(throwable);
+				}
+
+				@Override
+				public void onComplete()
+				{
+                    try {
+                        listener.onComplete();
+                    }
+                    catch (Exception e) {
+						onListenerError(e);
+						return;
+                    }
+					delegate.onComplete();
+                }
+
+				private void onListenerError(Throwable error) {
+					if (!onError) {
+						onError = true;
+						delegate.onError(error);
+					}
+				}
+			}
+
+			private class HttpErrorBodySubscriber implements BodySubscriber<T>
+			{
+				private final ResponseInfo responseInfo;
+				private final ByteArrayOutputStream responseContent = new ByteArrayOutputStream();
+				private final CompletableFuture<T> futureBody = new CompletableFuture<>();
+
+                private HttpErrorBodySubscriber(ResponseInfo responseInfo)
+                {
+                    this.responseInfo = responseInfo;
+
+					if (options.contains(HttpOption.DISCARD_ERROR_BODY)) {
+						onComplete();
+					}
+                }
+
+
+                @Override
+				public CompletionStage<T> getBody()
+				{
+					return futureBody;
+				}
+
+				@Override
+				public void onSubscribe(Flow.Subscription subscription)
+				{
+					if (options.contains(HttpOption.DISCARD_ERROR_BODY)) {
+						subscription.cancel();
+					}
+					else {
+						subscription.request(Long.MAX_VALUE);
+					}
+				}
+
+				@Override
+				public void onNext(List<ByteBuffer> item)
+				{
+					if (options.contains(HttpOption.DISCARD_ERROR_BODY)) {
+						return;
+					}
+
+					item.forEach(buffer -> {
+						byte[] tmp = new byte[buffer.remaining()];
+						buffer.get(tmp);
+						responseContent.writeBytes(tmp);
+					});
+				}
+
+				@Override
+				public void onError(Throwable throwable)
+				{
+					logResponse(url, responseInfo, responseContent, options);
+					futureBody.completeExceptionally(new HttpException(url, responseInfo, responseContent).initCause(
+							throwable));
+				}
+
+				@Override
+				public void onComplete()
+				{
+					logResponse(url, responseInfo, responseContent, options);
+					futureBody.completeExceptionally(new HttpException(url, responseInfo, responseContent));
+				}
+			}
+		}
 	}
 	
 	protected static abstract class BasePostIterator implements Iterator<Post>
@@ -1170,17 +1356,18 @@ public abstract class Downloader
 
 			URI url = new URI(postImage.url());
 			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(url).GET(), getHeadersForImageDownload(session, postImage)).build();
-			return session.sendAsync(request, new MonitorBodyHandler<>(BodyHandlers.ofFile(imageDest), new DownloadListener()
+			return session.sendAsync(request, BodyHandlers.ofFile(imageDest), new DownloadListener()
 			{
 				@Override
-				public void onStartDownload(ResponseInfo responseInfo)
+				public void onStartDownload(ResponseInfo responseInfo) throws HttpException
 				{
 					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
 					downloadsProgressView.newImage(session.id(), post.id(), postImage.id(), imageDest);
+
 					if (responseInfo.statusCode() != 200) {
 						HttpException ex = new HttpException(url, responseInfo);
 						downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), ex);
-						throw ex;
+						throw new HttpException(url, responseInfo);
 					}
 				}
 				
@@ -1201,7 +1388,7 @@ public abstract class Downloader
 				{
 					downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), error);
 				}
-			}))
+			}, HttpOption.HANDLE_4XX_AS_2XX)
 			.thenApplyAsync(fixExtension(contentType, ".jpg"), AsyncPools.DISK_IO)
 			.thenApply(filePath -> {
 				downloadsProgressView.updateFilePath(session.id(), post.id(), postImage.id(), imageDest, filePath);
@@ -1304,7 +1491,7 @@ public abstract class Downloader
 			                                 .build();
 			return session.sendAsync(request, BodyHandlers.ofFile(fileDest), new DownloadListener()
 			{
-				public void onStartDownload(java.net.http.HttpResponse.ResponseInfo responseInfo)
+				public void onStartDownload(java.net.http.HttpResponse.ResponseInfo responseInfo) throws HttpException
 				{
 					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
 					if (isZip)
@@ -1579,10 +1766,10 @@ public abstract class Downloader
 			// @formatter:on
 		}
 	}
-	
-	private static boolean isErrorResponse(HttpResponse<?> response)
+
+	private static boolean isErrorResponse(int statusCode, Set<HttpOption> options)
 	{
-		return response.statusCode() >= 400;
+		return statusCode >= 500 || statusCode >= 400 && !options.contains(HttpOption.HANDLE_4XX_AS_2XX);
 	}
 	
 	private Image saveImageInGallery(DownloadSession session, Post post, PostImage postImage, Path path)
@@ -1721,9 +1908,9 @@ public abstract class Downloader
 		                          .collect(Collectors.joining("\n")));
 	}
 	
-	private static <T> void logResponse(HttpResponse<T> response)
+	private static <T> void logResponse(HttpResponse<T> response, Set<HttpOption> options)
 	{
-		Level level = isErrorResponse(response) ? Level.ERROR : Level.DEBUG;
+		Level level = isErrorResponse(response.statusCode(), options) ? Level.ERROR : Level.DEBUG;
 		if (LOGGER.isEnabled(level, HTTP_RESPONSE))
 		{
 			synchronized (LOGGER)
@@ -1741,6 +1928,30 @@ public abstract class Downloader
 				                         .map(e -> "    " + e.getKey() + ": " + e.getValue())
 				                         .collect(Collectors.joining("\n")));
 				LOGGER.log(level, HTTP_RESPONSE_BODY, "Body: {}", () -> prettyToString(response.body()));
+			}
+		}
+	}
+
+	private static void logResponse(URI url, ResponseInfo responseInfo, ByteArrayOutputStream content, Set<HttpOption> options)
+	{
+		Level level = isErrorResponse(responseInfo.statusCode(), options) ? Level.ERROR : Level.DEBUG;
+		if (LOGGER.isEnabled(level, HTTP_RESPONSE))
+		{
+			synchronized (LOGGER)
+			{
+
+				LOGGER.log(level, HTTP_RESPONSE_URL, "Response: {}", url);
+				LOGGER.log(level, HTTP_RESPONSE_STATUS, "Status: {}", responseInfo.statusCode());
+				LOGGER.log(level,
+						   HTTP_RESPONSE_HEADERS,
+						   "Headers: {}",
+						   () -> responseInfo.headers()
+										 .map()
+										 .entrySet()
+										 .stream()
+										 .map(e -> "    " + e.getKey() + ": " + e.getValue())
+										 .collect(Collectors.joining("\n")));
+				LOGGER.log(level, HTTP_RESPONSE_BODY, "Body: {}", () -> prettyToString(content));
 			}
 		}
 	}
