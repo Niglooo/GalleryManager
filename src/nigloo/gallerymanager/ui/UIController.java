@@ -1,5 +1,6 @@
 package nigloo.gallerymanager.ui;
 
+import com.frogking.chromedriver.UndetectedChromeDriver;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import javafx.application.Application;
@@ -62,6 +63,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Cookie;
+import org.openqa.selenium.InvalidCookieDomainException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,6 +85,7 @@ import java.nio.file.StandardCopyOption;
 import java.text.ChoiceFormat;
 import java.text.MessageFormat;
 import java.text.ParseException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -88,6 +97,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -154,6 +164,66 @@ public class UIController extends Application
 	 */
 	public static void main(String[] args)
 	{
+		if(false) {
+		try
+		{
+			String chrome = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+			String chromeUserDataDir = "C:\\Users\\sebas\\AppData\\Local\\Google\\Chrome\\User Data";
+
+			Process chromeProcess = new ProcessBuilder(chrome, "--incognito").start();
+
+			ChromeOptions options = new ChromeOptions();
+//			options.addArguments("--headless=new");
+			WebDriver driver = new UndetectedChromeDriver(
+					options,
+					false,
+					false,
+					chromeUserDataDir,
+					chromeProcess//chromeProcess
+			);
+//			WebDriver driver = new ChromeDriver(options);
+			driver.manage().timeouts().implicitlyWait(Duration.ofMillis(500));
+
+
+			Properties p = new Properties();
+			try (InputStream is = Files.newInputStream(Paths.get("config.properties")))
+			{
+				InvalidCookieDomainException e;
+				p.load(is);
+			}
+			String rawCookies = p.getProperty("fanbox.cookie");
+			System.out.println("fanbox.cookie: " + rawCookies);
+//			driver.get("https://www.fanbox.cc/");
+			driver.get("https://www.fanbox.cc/@ogyadya/posts/9945805");
+//			driver.get("https://nowsecure.nl");
+			WebElement confirmAdultButton = driver.findElement(By.cssSelector(
+					"div[class*=ConfirmAdultContentModal] > button"));
+			System.out.println(confirmAdultButton);
+			confirmAdultButton.click();
+
+//			driver.manage().deleteAllCookies();
+//			for (String c : rawCookies.split(Pattern.quote("; ")))
+//			{
+//				int pos = c.indexOf('=');
+//				String name = c.substring(0, pos);
+//				String value = c.substring(pos+1);
+//				System.out.println(name);
+//				System.out.println(value);
+//				System.out.println();
+//				driver.manage().addCookie(new Cookie(name, value, ".fanbox.cc", null, null));
+//			}
+//			driver.get("https://www.fanbox.cc/@ogyadya/posts/9945805");
+//			String title = driver.getTitle();
+//			System.out.println(title);
+
+//		driver.quit();
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+		System.exit(0);
+	}
 //		List<Integer> l = FXCollections.observableArrayList(1,2,3,4);
 //		System.out.println("l: "+l);
 //		List<Integer> sl = l.subList(1, 3);
