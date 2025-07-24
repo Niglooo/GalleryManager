@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.file.Paths;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +27,7 @@ public class FanboxDownloader extends Downloader
 {
 	private static final String HEADERS_KEY = "headers";
 	private static final String POSTS_DETAIL_CACHE_KEY = "posts-detail";
+	private static final String POSTS_DETAIL_DISK_CACHE_KEY = "posts-detail-disk";
 
 	@Override
 	public DownloaderType getType()
@@ -38,6 +40,7 @@ public class FanboxDownloader extends Downloader
 	{
 		session.setExtaInfo(HEADERS_KEY, getHeaders(session));
 		session.setExtaInfo(POSTS_DETAIL_CACHE_KEY, new ConcurrentHashMap<>());
+		session.setExtaInfo(POSTS_DETAIL_DISK_CACHE_KEY, new Fanbox403TmpFix(Paths.get(session.getSecret("fanbox.disk-cache"))));
 	}
 	
 	@Override
@@ -124,13 +127,26 @@ public class FanboxDownloader extends Downloader
 		return cache.computeIfAbsent(post.id(), postId -> {
 			try
 			{
+				//FIXME (403)
 				HttpRequest request = HttpRequest.newBuilder()
 												 .uri(new URI("https://api.fanbox.cc/post.info?postId=" + post.id()))
 												 .GET()
 												 .headers(session.getExtraInfo(HEADERS_KEY))
 												 .build();
-				JsonObject jPost = JsonHelper.followPath(session.send(request, JsonHelper.httpBodyHandler()).body()
-						, "body", JsonObject.class);
+//				String s = session.send(HttpRequest.newBuilder()
+//												   .uri(new URI("https://api.fanbox.cc/post.getComments?postId=" + post.id() + "&limit=10"))
+//												   .GET()
+//												   .headers(session.getExtraInfo(HEADERS_KEY))
+//												   .build(), BodyHandlers.ofString()).body();
+//				s = session.send(request, BodyHandlers.ofString()).body();
+				JsonObject jPost;
+				try
+				{
+					jPost = JsonHelper.followPath(session.send(request, JsonHelper.httpBodyHandler()).body(), "body", JsonObject.class);
+				} catch (IOException e) {
+					Fanbox403TmpFix diskCache = session.getExtraInfo(POSTS_DETAIL_DISK_CACHE_KEY);
+					jPost = JsonHelper.followPath(diskCache.getPostDetail(this, post, e), "body", JsonObject.class);
+				}
 				return jPost;
 			}
 			catch (URISyntaxException | IOException | InterruptedException e) {
@@ -282,14 +298,14 @@ public class FanboxDownloader extends Downloader
 			"Origin", "https://www.fanbox.cc",
 			"Priority", "u=1, i",
 			"Referer", "https://www.fanbox.cc/", 
-			"Sec-Ch-Ua", "\"Not/A)Brand\";v=\"8\", \"Chromium\";v=\"126\", \"Brave\";v=\"126\"",
+			"Sec-Ch-Ua", "\"Brave\";v=\"137\", \"Chromium\";v=\"137\", \"Not/A)Brand\";v=\"24\"",
 			"Sec-Ch-Ua-Mobile", "?0",
 			"Sec-Ch-Ua-Platform", "\"Windows\"",
 			"Sec-Fetch-Dest", "empty",
 			"Sec-Fetch-Mode", "cors",
 			"Sec-Fetch-Site", "same-site",
 			"Sec-Gpc", "1",
-			"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" };
+			"User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" };
 		// @formatter:on
 	}
 }
