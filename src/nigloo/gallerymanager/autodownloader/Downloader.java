@@ -1680,7 +1680,6 @@ public abstract class Downloader
 			// Append name
 			if (begin <= end)
 			{
-				// No need to call strip/trim because the first and last characters are guaranteed to be valid.
 				safePath.append(removeForbiddenCharacters(path.substring(begin, end)));
 			}
 			
@@ -1701,7 +1700,7 @@ public abstract class Downloader
 	{
 		StringBuilder sb = new StringBuilder(string.length());
 		string.codePoints().filter(cp -> !FORBIDDEN_CHARS.contains(cp)).forEachOrdered(sb::appendCodePoint);
-		return sb.toString();
+		return sb.toString().strip();
 	}
 	
 	private static class PathPatternResolver
