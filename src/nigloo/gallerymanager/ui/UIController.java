@@ -143,7 +143,15 @@ public class UIController extends Application
 	public UIController()
 	{
 	}
-	
+
+	/*
+	 * /!\ IF LOMBOK ERROR /!\
+	 * Go in
+	 * File | Settings | Build, Execution, Deployment | Compiler | Annotation Processors
+	 * Go on Annotation profile for gallery_manager and :
+	 * - Check "Obtain processors from project classpath"
+	 * - Remove (with -) any processor FQ name
+	 */
 	public static void main(String[] args)
 	{
 //		List<Integer> l = FXCollections.observableArrayList(1,2,3,4);
