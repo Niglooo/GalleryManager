@@ -20,6 +20,7 @@
     <log4j.version>2.22.1</log4j.version>
     <lombok.version>1.18.30</lombok.version>
     <methanol.version>1.8.2</methanol.version>
+    <selenium.version>4.33.0</selenium.version>
     <tika.version>2.9.1</tika.version>
   </properties>
 
@@ -105,6 +106,19 @@
       <groupId>org.jsoup</groupId>
       <artifactId>jsoup</artifactId>
       <version>${jsoup.version}</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java -->
+<!--    <dependency>-->
+<!--      <groupId>org.seleniumhq.selenium</groupId>-->
+<!--      <artifactId>selenium-java</artifactId>-->
+<!--      <version>${selenium.version}</version>-->
+<!--    </dependency>-->
+
+    <dependency>
+      <groupId>com.frogking</groupId>
+      <artifactId>UndetectedChromedriver</artifactId>
+      <version>1.0-SNAPSHOT</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-api -->
