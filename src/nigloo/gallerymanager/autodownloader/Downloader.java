@@ -148,6 +148,9 @@ public abstract class Downloader
 	protected String creatorId;
 	@Getter
 	@Setter
+	protected boolean enabled = true;
+	@Getter
+	@Setter
 	protected ZonedDateTime mostRecentPostCheckedDate = null;
 	@Getter
 	protected long minDelayBetweenRequests = 0;
@@ -196,6 +199,11 @@ public abstract class Downloader
 	
 	public final CompletableFuture<?> download(Properties secrets, DownloadOption... options)
 	{
+		if (!enabled) {
+			LOGGER.info("Skip download for {} (disabled)", this);
+			return CompletableFuture.completedFuture(null);
+		}
+
 		return CompletableFuture
 				.supplyAsync(() -> doDownload(secrets, options), AsyncPools.HTTP_REQUEST)
 				.thenCompose(f -> f);

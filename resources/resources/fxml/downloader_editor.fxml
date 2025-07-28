@@ -23,6 +23,7 @@
             <RowConstraints vgrow="NEVER" />
           <RowConstraints vgrow="NEVER" />
             <RowConstraints vgrow="NEVER" />
+            <RowConstraints vgrow="NEVER" />
           <RowConstraints vgrow="ALWAYS" />
           <RowConstraints vgrow="ALWAYS" />
             <RowConstraints vgrow="ALWAYS" />
@@ -34,7 +35,9 @@
             <Label fx:id="type" GridPane.columnIndex="1" />
             <Label text="Creator ID" GridPane.rowIndex="1" />
             <TextField fx:id="creatorId" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-            <TitledPane fx:id="imagesConfigurationPane" animated="false" layoutX="10.0" layoutY="36.0" text="Images" GridPane.columnSpan="2147483647" GridPane.rowIndex="2">
+            <Label text="Enabled" GridPane.rowIndex="2" />
+            <CheckBox fx:id="enabled" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <TitledPane fx:id="imagesConfigurationPane" animated="false" layoutX="10.0" layoutY="36.0" text="Images" GridPane.columnSpan="2147483647" GridPane.rowIndex="3">
                <content>
                   <GridPane>
                      <columnConstraints>
@@ -54,7 +57,7 @@
                   </GridPane>
                </content>
             </TitledPane>
-            <TitledPane fx:id="filesConfigurationPane" animated="false" text="Files" GridPane.columnSpan="2147483647" GridPane.rowIndex="3">
+            <TitledPane fx:id="filesConfigurationPane" animated="false" text="Files" GridPane.columnSpan="2147483647" GridPane.rowIndex="4">
                <content>
                   <GridPane>
                     <columnConstraints>
@@ -77,14 +80,14 @@
                   </GridPane>
                </content>
             </TitledPane>
-            <Label text="Most recent post" GridPane.rowIndex="4" />
-            <Label text="Min delay" GridPane.rowIndex="5" />
-            <Label text="Title filter regex" GridPane.rowIndex="6" />
-            <DatePicker fx:id="mostRecentPostCheckedDate" GridPane.columnIndex="1" GridPane.rowIndex="4" />
-            <EditableIntegerSpinner fx:id="minDelayBetweenRequests" GridPane.columnIndex="1" GridPane.rowIndex="5" />
-            <TextField fx:id="titleFilterRegex" GridPane.columnIndex="1" GridPane.rowIndex="6" />
-            <Label text="Auto like posts" GridPane.rowIndex="7" />
-            <CheckBox fx:id="autoLikePosts" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+            <Label text="Most recent post" GridPane.rowIndex="5" />
+            <Label text="Min delay" GridPane.rowIndex="6" />
+            <Label text="Title filter regex" GridPane.rowIndex="7" />
+            <DatePicker fx:id="mostRecentPostCheckedDate" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+            <EditableIntegerSpinner fx:id="minDelayBetweenRequests" GridPane.columnIndex="1" GridPane.rowIndex="6" />
+            <TextField fx:id="titleFilterRegex" GridPane.columnIndex="1" GridPane.rowIndex="7" />
+            <Label text="Auto like posts" GridPane.rowIndex="8" />
+            <CheckBox fx:id="autoLikePosts" mnemonicParsing="false" GridPane.columnIndex="1" GridPane.rowIndex="8" />
          </children>
       </GridPane>
    </children>
