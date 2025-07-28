@@ -78,6 +78,8 @@ public final class Gallery
 				defaultSortOrder = new FileFolderOrder(SortBy.NAME, 0, true);
 			if (sortOrder == null)
 				sortOrder = new HashMap<>();
+			if (customSortBy == null)
+				customSortBy = new HashMap<>();
 			if (slideShowParameter == null)
 				slideShowParameter = new SlideShowParameters();
 			if (slideShowParameter.getVideos() == null)
