@@ -261,6 +261,7 @@ public class ArtistsEditor extends SplitPane {
             Downloader downloader = editor.downloader;
 
             downloader.setCreatorId(editor.creatorId.getText());
+            downloader.setEnabled(editor.enabled.isSelected());
             
             ImagesConfiguration ic = new ImagesConfiguration();
             ic.setDownload(editor.imageDownload.getValue());
@@ -391,6 +392,8 @@ public class ArtistsEditor extends SplitPane {
         @FXML
         private TextField creatorId;
         @FXML
+        private CheckBox enabled;
+        @FXML
         private TitledPane imagesConfigurationPane;
         @FXML
         private ComboBox<DownloadImages> imageDownload;
@@ -440,6 +443,7 @@ public class ArtistsEditor extends SplitPane {
             {
                 {
                     bind(creatorId.textProperty(),
+                         enabled.selectedProperty(),
                          imageDownload.getSelectionModel().selectedItemProperty(),
                          imagePathPattern.textProperty(),
                          fileDownload.getSelectionModel().selectedItemProperty(),
@@ -455,6 +459,9 @@ public class ArtistsEditor extends SplitPane {
                 protected boolean computeValue()
                 {
                     if(!creatorId.getText().equals(downloader.getCreatorId()))
+                        return true;
+
+                    if(enabled.isSelected() != downloader.isEnabled())
                         return true;
 
                     ImagesConfiguration imgConf = downloader.getImageConfiguration();
@@ -519,6 +526,7 @@ public class ArtistsEditor extends SplitPane {
         {
             log.debug("Reloading downloader {}", downloader);
             creatorId.setText(downloader.getCreatorId());
+            enabled.setSelected(downloader.isEnabled());
 
             DownloadImages di = downloader.getImageConfiguration().getDownload();
             imageDownload.getSelectionModel().select(di != null ? di : DownloadImages.NO);
