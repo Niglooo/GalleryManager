@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 
 public abstract class KemonoDownloader extends Downloader {
-    // https://kemono.su/documentation/api
+    // https://kemono.cr/documentation/api
     private static final int PAGE_SIZE = 50; // Forced by the API
     private static final String POSTS_DETAIL_CACHE_KEY = "posts-detail";
 
@@ -42,7 +42,7 @@ public abstract class KemonoDownloader extends Downloader {
     }
 
     private String buildApiUrl(String path) {
-        return "https://kemono.su/api/v1" + path;
+        return "https://kemono.cr/api/v1" + path;
     }
 
     private String buildDataUrl(String server, String path) {
@@ -73,7 +73,12 @@ public abstract class KemonoDownloader extends Downloader {
             if (nextPage == -1)
                 return null;
 
-            HttpRequest request = HttpRequest.newBuilder().uri(new URI(buildApiUrl("/" + originalProvider + "/user/" + creatorId+"?o="+(nextPage * PAGE_SIZE)))).GET().build();
+            HttpRequest request = HttpRequest
+                    .newBuilder()
+                    .uri(new URI(buildApiUrl("/" + originalProvider + "/user/" + creatorId + "/posts?o=" + (nextPage * PAGE_SIZE))))
+                    .GET()
+                    .headers(getHeaders(session))
+                    .build();
             HttpResponse<JsonElement> response = session.send(request, JsonHelper.httpBodyHandler());
 
             if (response.body().getAsJsonArray().isEmpty()) {
@@ -102,7 +107,12 @@ public abstract class KemonoDownloader extends Downloader {
         return cache.computeIfAbsent(post.id(), postId -> {
             try
             {
-                HttpRequest request = HttpRequest.newBuilder().uri(new URI(buildApiUrl("/" + originalProvider + "/user/" + creatorId + "/post/" + postId))).GET().build();
+                HttpRequest request = HttpRequest
+                        .newBuilder()
+                        .uri(new URI(buildApiUrl("/" + originalProvider + "/user/" + creatorId + "/post/" + postId)))
+                        .GET()
+                        .headers(getHeaders(session))
+                        .build();
                 return session.send(request, JsonHelper.httpBodyHandler()).body().getAsJsonObject();
             }
             catch (URISyntaxException | IOException | InterruptedException e) {
@@ -111,10 +121,17 @@ public abstract class KemonoDownloader extends Downloader {
         });
     }
 
+    private List<String> extractTags(JsonObject jPost) {
+        return JsonHelper.stream(JsonHelper.followPath(jPost, "post.tags", JsonArray.class))
+                         .map(JsonElement::getAsString)
+                         .toList();
+    }
+
     @Override
     protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) {
         JsonObject jPost = getPostDetail(session, post);
         JsonArray jImages = JsonHelper.followPath(jPost, "previews", JsonArray.class);
+        List<String> tags = extractTags(jPost);
 
         List<PostImage> images = JsonHelper.stream(jImages)
                                            .filter(jImage -> !"embed".equals(JsonHelper.followPath(jImage, "type")))
@@ -124,7 +141,7 @@ public abstract class KemonoDownloader extends Downloader {
             String url = buildDataUrl(server, path);
             String imageFilename = JsonHelper.followPath(jImage, "name");
             String imageId = imageFilename;
-            return PostImage.create(imageId, imageFilename, url, null);
+            return PostImage.create(imageId, imageFilename, url, tags);
         }).collect(Collectors.toCollection(ArrayList::new));
 
         if (!images.isEmpty() && images.stream().skip(1).anyMatch(images.getFirst()::equals)) {
@@ -138,6 +155,7 @@ public abstract class KemonoDownloader extends Downloader {
     protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) {
         JsonObject jPost = getPostDetail(session, post);
         JsonArray jFiles = JsonHelper.followPath(jPost, "attachments", JsonArray.class);
+        List<String> tags = extractTags(jPost);
 
         List<PostFile> files = JsonHelper.stream(jFiles).map( jImage -> {
             String path = JsonHelper.followPath(jImage, "path");
@@ -145,9 +163,18 @@ public abstract class KemonoDownloader extends Downloader {
             String url = buildDataUrl(server, path);
             String filename = JsonHelper.followPath(jImage, "name");
             String fileId = filename;
-            return PostFile.create(fileId, filename, url, null);
+            return PostFile.create(fileId, filename, url, tags);
         }).toList();
 
         return CompletableFuture.completedFuture(files);
+    }
+
+    private String[] getHeaders(DownloadSession session)
+    {
+        // @formatter:off
+        return new String[] {
+                "Accept", "text/css"
+        };
+        // @formatter:on
     }
 }
