@@ -10,8 +10,7 @@ module nigloo.gallerymanager
 	requires javafx.fxml;
 	requires javafx.graphics;
 	requires javafx.media;
-
-	requires com.frogking.chromedriver;
+	
 	requires com.google.gson;
 	requires lombok;
 	requires methanol;
@@ -22,10 +21,8 @@ module nigloo.gallerymanager
 	requires org.apache.tika.core;
 	requires org.jsoup;
 	requires org.kordamp.ikonli.javafx;
-    requires org.seleniumhq.selenium.api;
-	requires org.seleniumhq.selenium.chrome_driver;
-
-    opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
+	
+	opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.script;
 	opens nigloo.gallerymanager.autodownloader;
 	opens nigloo.gallerymanager.ui to javafx.graphics, javafx.fxml, nigloo.tools;
