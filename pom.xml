@@ -17,6 +17,7 @@
     <ikonli.version>12.3.1</ikonli.version>
     <javafx.version>21.0.2</javafx.version>
     <jsoup.version>1.17.2</jsoup.version>
+    <junrar.version>7.5.5</junrar.version>
     <log4j.version>2.22.1</log4j.version>
     <lombok.version>1.18.30</lombok.version>
     <methanol.version>1.8.2</methanol.version>
@@ -139,6 +140,13 @@
       <artifactId>methanol-brotli</artifactId>
       <version>${methanol.version}</version>
       <scope>runtime</scope>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.github.junrar/junrar -->
+    <dependency>
+      <groupId>com.github.junrar</groupId>
+      <artifactId>junrar</artifactId>
+      <version>${junrar.version}</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.tika/tika-core -->

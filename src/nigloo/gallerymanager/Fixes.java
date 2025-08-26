@@ -66,7 +66,7 @@ public class Fixes
                     }
                 }
             }
-            else if (Downloader.isZip(file.getFileName().toString())) {
+            else if (Downloader.isArchive(file.getFileName().toString())) {
                 System.out.print(file);
                 System.out.flush();
                 boolean valid = isValidZip(file);

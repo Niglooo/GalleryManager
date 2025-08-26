@@ -23,7 +23,7 @@
                   <Button mnemonicParsing="false" onAction="#newArtist" text="New artist" />
                </children>
             </HBox>
-            <ListView fx:id="artists" styleClass="artits-list" />
+            <ListView fx:id="artists" maxHeight="1.7976931348623157E308" styleClass="artits-list" VBox.vgrow="ALWAYS" />
          </children>
       </VBox>
       <VBox fx:id="artistEditor" styleClass="artist-editor">

@@ -244,7 +244,7 @@ public class DownloadsProgressViewDialog extends Stage
 		});
 	}
 	
-	public void newZip(long sessionId, String postId, String fileId, Path filePath)
+	public void newArchive(long sessionId, String postId, String fileId, Path filePath)
 	{
 		Platform.runLater(() ->
 		{
@@ -325,40 +325,40 @@ public class DownloadsProgressViewDialog extends Stage
 		});
 	}
 	
-	public void newImageInZip(long sessionId, String postId, String zipFileId, String pathInZip, Path imagePath)
+	public void newImageInArchive(long sessionId, String postId, String archiveFileId, String pathInArchive, Path imagePath)
 	{
 		Platform.runLater(() ->
 		{
-			String parentId = id(sessionId, postId, zipFileId);
-			TreeItem<ItemInfo> zipItem = idToTreeItem.get(parentId);
-			if (zipItem == null)
+			String parentId = id(sessionId, postId, archiveFileId);
+			TreeItem<ItemInfo> archiveItem = idToTreeItem.get(parentId);
+			if (archiveItem == null)
 			{
-				LOGGER.error("TreeItem for zip " + parentId + " not found");
+				LOGGER.error("TreeItem for archive {} not found", parentId);
 				return;
 			}
-			FileInfo fileInfo = new FileInfo(ItemType.IMAGE, pathInZip, imagePath, pathInZip, false);
+			FileInfo fileInfo = new FileInfo(ItemType.IMAGE, pathInArchive, imagePath, pathInArchive, false);
 			fileInfo.setComplete(null);
 			TreeItem<ItemInfo> imageItem = new TreeItem<>(fileInfo);
-			idToTreeItem.put(id(sessionId, postId, zipFileId, pathInZip), imageItem);
-			zipItem.getChildren().add(imageItem);
+			idToTreeItem.put(id(sessionId, postId, archiveFileId, pathInArchive), imageItem);
+			archiveItem.getChildren().add(imageItem);
 		});
 	}
 	
-	public void newFileInZip(long sessionId, String postId, String zipFileId, String pathInZip, Path filePath)
+	public void newFileInArchive(long sessionId, String postId, String archiveFileId, String pathInArchive, Path filePath)
 	{
 		Platform.runLater(() ->
 		{
-			String parentId = id(sessionId, postId, zipFileId);
+			String parentId = id(sessionId, postId, archiveFileId);
 			TreeItem<ItemInfo> zipItem = idToTreeItem.get(parentId);
 			if (zipItem == null)
 			{
-				LOGGER.error("TreeItem for zip " + parentId + " not found");
+				LOGGER.error("TreeItem for archive {} not found", parentId);
 				return;
 			}
-			FileInfo fileInfo = new FileInfo(ItemType.OTHER_FILE, pathInZip, filePath, pathInZip, false);
+			FileInfo fileInfo = new FileInfo(ItemType.OTHER_FILE, pathInArchive, filePath, pathInArchive, false);
 			fileInfo.setComplete(null);
 			TreeItem<ItemInfo> fileItem = new TreeItem<>(fileInfo);
-			idToTreeItem.put(id(sessionId, postId, zipFileId, pathInZip), fileItem);
+			idToTreeItem.put(id(sessionId, postId, archiveFileId, pathInArchive), fileItem);
 			zipItem.getChildren().add(fileItem);
 		});
 	}
@@ -436,9 +436,11 @@ public class DownloadsProgressViewDialog extends Stage
 			}
 			
 			sessionItem.getValue().setComplete(error);
-			
+
 			if (activeSessions.remove(sessionId) && activeSessions.isEmpty())
+			{
 				downloadActive.set(false);
+			}
 		});
 	}
 	
@@ -628,10 +630,14 @@ public class DownloadsProgressViewDialog extends Stage
 			String filename = newFilePath.getFileName().toString();
 			
 			ItemType type = columnNameData.get().type();
-			if (Downloader.isZip(filename))
+			if (Downloader.isArchive(filename))
+			{
 				type = ItemType.ZIP;
+			}
 			else if (Image.isImage(newFilePath))
+			{
 				type = ItemType.IMAGE;
+			}
 			
 			columnNameData.setValue(new ColumnNameData(type, filename, columnNameData.get().styleClasses()));
 			
@@ -701,13 +707,17 @@ public class DownloadsProgressViewDialog extends Stage
 				setGraphic(icon);
 				setText(nameData.name());
 			}
-			
+
 			if (extraStyleClasses != null)
+			{
 				getStyleClass().removeAll(extraStyleClasses);
+			}
 			
 			extraStyleClasses = nameData == null ? null : nameData.styleClasses();
 			if (extraStyleClasses != null)
+			{
 				getStyleClass().addAll(extraStyleClasses);
+			}
 		}
 	}
 	

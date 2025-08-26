@@ -74,8 +74,8 @@
                         <ComboBox fx:id="fileDownload" GridPane.columnIndex="1" />
                         <Label text="Path pattern" GridPane.rowIndex="1" />
                         <TextField fx:id="filePathPattern" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                        <ComboBox fx:id="fileAutoExtractZip" GridPane.columnIndex="1" GridPane.rowIndex="2" />
-                        <Label text="Unzip" GridPane.rowIndex="2" />
+                        <ComboBox fx:id="fileAutoExtractArchive" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                        <Label text="Extract archive" GridPane.rowIndex="2" />
                      </children>
                   </GridPane>
                </content>

@@ -2,6 +2,7 @@ package nigloo.gallerymanager.autodownloader;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.Character.UnicodeBlock;
 import java.lang.reflect.*;
 import java.net.HttpCookie;
@@ -38,6 +39,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -67,6 +69,9 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import com.github.junrar.Junrar;
+import com.github.junrar.exception.UnsupportedRarV5Exception;
+import com.google.gson.annotations.SerializedName;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -99,7 +104,7 @@ import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
 
 import nigloo.gallerymanager.AsyncPools;
-import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractZip;
+import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractArchive;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.DownloadFiles;
 import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration.DownloadImages;
 import nigloo.gallerymanager.model.Artist;
@@ -228,6 +233,7 @@ public abstract class Downloader
 		{
 			onStartDownload(session);
 			Iterator<Post> postIt = listPosts(session);
+			postIt = new SkipPostDuplicateIterator(postIt);
 			postIt = new PinnedPostAwareIterator(postIt);
 			
 			final List<Post> postsToDownload = new ArrayList<>();
@@ -356,12 +362,47 @@ public abstract class Downloader
 					lastPost.title());
 	}
 
+	private static class SkipPostDuplicateIterator implements Iterator<Post>
+	{
+		private final Iterator<Post> iterator;
+		private final HashSet<String> seen = new HashSet<>();
+		private Post next;
+
+		public SkipPostDuplicateIterator(Iterator<Post> iterator) {
+			this.iterator = iterator;
+			this.next = iterator.hasNext() ? iterator.next() : null;
+		}
+
+		@Override
+		public boolean hasNext()
+		{
+			return next != null;
+		}
+
+		@Override
+		public Post next()
+		{
+			Post current = next;
+
+			next = null;
+			while (iterator.hasNext()) {
+				Post post = iterator.next();
+				if (seen.add(post.id())) {
+					next = post;
+					break;
+				}
+			}
+
+			return current;
+		}
+	}
+
 	@RequiredArgsConstructor
 	private static class PinnedPostAwareIterator implements Iterator<Post>
 	{
 		private final Iterator<Post> iterator;
 
-		final PriorityQueue<Post> postsBuffer = new PriorityQueue<>(Comparator.comparing(Post::publishedDatetime).reversed());
+		private final PriorityQueue<Post> postsBuffer = new PriorityQueue<>(Comparator.comparing(Post::publishedDatetime).reversed());
 
 		@Override
 		public boolean hasNext()
@@ -456,8 +497,10 @@ public abstract class Downloader
 		{
 			synchronized (imageFileMapping)
 			{
-				if(imageFileMapping.containsKey(fileKey))
+				if (imageFileMapping.containsKey(fileKey))
+				{
 					return true;
+				}
 			}
 			synchronized (zipMapping)
 			{
@@ -515,12 +558,12 @@ public abstract class Downloader
 			}
 		}
 		
-		public void put(FileKey fileKey, String pathInZip, Image image)
+		public void put(FileKey fileKey, String pathInArchive, Image image)
 		{
 			synchronized (zipMapping)
 			{
 				zipMapping.computeIfAbsent(fileKey, k -> new TreeMap<>(Utils.NATURAL_ORDER))
-				          .put(pathInZip, new ImageReference(image));
+				          .put(pathInArchive, new ImageReference(image));
 			}
 			synchronized (imageFileMapping)
 			{
@@ -534,21 +577,29 @@ public abstract class Downloader
 			{
 				for (ImageReference ref : imageMapping.values())
 					if (ref != null && ref.getImage().equals(image))
+					{
 						return true;
+					}
 			}
 			synchronized (imageFileMapping)
 			{
 				for (ImageReference ref : imageFileMapping.values())
 					if (ref != null && ref.getImage().equals(image))
+					{
 						return true;
+					}
 			}
 			synchronized (zipMapping)
 			{
 				for (Map<String, ImageReference> zipEntry : zipMapping.values())
 					if (zipEntry != null)
+					{
 						for (ImageReference ref : zipEntry.values())
 							if (ref != null && ref.getImage().equals(image))
+							{
 								return true;
+							}
+					}
 			}
 			return false;
 		}
@@ -561,21 +612,29 @@ public abstract class Downloader
 			{
 				for (Entry<ImageKey, ImageReference> entry : imageMapping.entrySet())
 					if (entry.getValue() != null && imageIds.contains(entry.getValue().getImageId()))
+					{
 						entry.setValue(null);
+					}
 			}
 			synchronized (imageFileMapping)
 			{
 				for (Entry<FileKey, ImageReference> entry : imageFileMapping.entrySet())
 					if (entry.getValue() != null && imageIds.contains(entry.getValue().getImageId()))
+					{
 						entry.setValue(null);
+					}
 			}
 			synchronized (zipMapping)
 			{
 				for (Entry<FileKey, Map<String, ImageReference>> entry : zipMapping.entrySet())
 					if (entry.getValue() != null)
+					{
 						for (Entry<String, ImageReference> zipEntry : entry.getValue().entrySet())
 							if (zipEntry.getValue() != null && imageIds.contains(zipEntry.getValue().getImageId()))
+							{
 								zipEntry.setValue(null);
+							}
+					}
 			}
 		}
 
@@ -653,14 +712,16 @@ public abstract class Downloader
 			IF_NO_IMAGES
 		}
 		
-		public enum AutoExtractZip
+		public enum AutoExtractArchive
 		{
 			NO, SAME_DIRECTORY, NEW_DIRECTORY
 		}
 		
 		private DownloadFiles download = DownloadFiles.NO;
 		private String pathPattern;
-		private AutoExtractZip autoExtractZip = AutoExtractZip.NO;
+
+		@SerializedName(value = "autoExtractArchive", alternate = {"autoExtractZip"})
+		private AutoExtractArchive autoExtractArchive = AutoExtractArchive.NO;
 	}
 	
 	protected record Post(String id, String title, ZonedDateTime publishedDatetime, boolean pinned, Object extraInfo) {
@@ -1476,10 +1537,10 @@ public abstract class Downloader
 		
 		try
 		{
-			boolean isZip = isZip(file.filename());
+			boolean isArchive = isArchive(file.filename());
 			
 			// If the file is a zip and has a mapping (deleted or not), don't download it
-			if (isZip && mapping.contains(fileKey))
+			if (isArchive && mapping.contains(fileKey))
 				return CompletableFuture.completedFuture(null);
 
 			// If the file already exist
@@ -1502,8 +1563,8 @@ public abstract class Downloader
 				public void onStartDownload(java.net.http.HttpResponse.ResponseInfo responseInfo) throws HttpException
 				{
 					responseInfo.headers().firstValue("Content-Type").ifPresent(contentType::set);
-					if (isZip)
-						downloadsProgressView.newZip(session.id(), post.id(), file.id(), fileDest);
+					if (isArchive)
+						downloadsProgressView.newArchive(session.id(), post.id(), file.id(), fileDest);
 					else
 						downloadsProgressView.newOtherFile(session.id(), post.id(), file.id(), fileDest);
 
@@ -1543,7 +1604,7 @@ public abstract class Downloader
 				}
 				return filePath;
 			})
-			.thenAccept(filePath -> unZip(session, post, file, filePath));
+			.thenAccept(filePath -> extractArchive(session, post, file, filePath));
 		}
 		catch (Exception e)
 		{
@@ -1551,109 +1612,181 @@ public abstract class Downloader
 		}
 	}
 	
-	public static final boolean isZip(String filename)
+	public static boolean isArchive(String filename)
 	{
-		return filename.toLowerCase(Locale.ROOT).endsWith(".zip");
+		return filename.toLowerCase(Locale.ROOT).endsWith(".zip") ||
+				filename.toLowerCase(Locale.ROOT).endsWith(".rar");
 	}
 
-	private void unZip(DownloadSession session, Post post, PostFile file, Path filePath)
+	private void extractArchive(DownloadSession session, Post post, PostFile file, Path filePath)
 	{
 		String filename = filePath.getFileName().toString();
 		
-		if (!isZip(filename) || fileConfiguration.autoExtractZip == null || fileConfiguration.autoExtractZip == AutoExtractZip.NO)
+		if (!isArchive(filename) || fileConfiguration.autoExtractArchive == null || fileConfiguration.autoExtractArchive == AutoExtractArchive.NO)
 			return;
 		
-		LOGGER.debug("Unziping: " + filePath);
+		LOGGER.debug("Extracting: {}", filePath);
 		
 		try
 		{
-			Path targetDirectory = switch (fileConfiguration.autoExtractZip)
+			String ext = filename.substring(filename.lastIndexOf('.')).toLowerCase(Locale.ROOT);
+
+			Path targetDirectory = switch (fileConfiguration.autoExtractArchive)
 			{
-				case NO -> throw new IllegalStateException(Objects.toString(fileConfiguration.autoExtractZip));
+				case NO -> throw new IllegalStateException(Objects.toString(fileConfiguration.autoExtractArchive));
 				case SAME_DIRECTORY -> filePath.getParent();
-				case NEW_DIRECTORY -> filePath.resolveSibling(filename.substring(0, filename.length() - ".zip".length()));
+				case NEW_DIRECTORY -> filePath.resolveSibling(filename.substring(0, filename.length() - ext.length()));
 			};
 		
 			Files.createDirectories(targetDirectory);
-			//TODO support rar (https://mvnrepository.com/artifact/com.github.junrar/junrar)
-			ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));
-			ZipEntry zipEntry;
-			try {
-				zipEntry= zis.getNextEntry();
-			} catch (Exception e1) {
-				Utils.closeQuietly(zis);
-				try {
-					zis = new ZipInputStream(Files.newInputStream(filePath), Charset.forName("Shift-JIS"));
-					zipEntry= zis.getNextEntry();
-					
-					String name = zipEntry.getName();
-					if (name.lastIndexOf('.') >= 0)
-						name = name.substring(0, name.lastIndexOf('.'));
 
-					Map<String, Long> counts = name.codePoints()
-					                               .mapToObj(Integer::valueOf)
-					                               .collect(Collectors.groupingBy(codepoint ->
-					                               {
-						                               UnicodeBlock block = UnicodeBlock.of(codepoint);
-						                               if (block == UnicodeBlock.HIRAGANA
-						                                       || block == UnicodeBlock.KATAKANA
-															   || block == UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS
-						                                       || block.toString().contains("CJK_") /*Chinese/Japanese/Korean*/)
-							                               return "japanese";
-						                               else if (block == UnicodeBlock.BASIC_LATIN)
-							                               return "basic-latin";
-						                               else
-							                               return "other";
-					                               }, Collectors.counting()));
-					
-					double total = name.length();
-					double nbJapanese = counts.getOrDefault("japanese", 0L);
-					double nbBasicLatin = counts.getOrDefault("basic-latin", 0L);
-					
-					// Less japanese than half are japanese and basic latin less than 70% of non japanese
-					if (nbJapanese < total / 2d && nbBasicLatin / (total - nbJapanese) < 0.7d)
-					{
-						throw new IllegalArgumentException("Not japanese: " + zipEntry.getName());
+			switch (ext) {
+				case ".zip" -> {
+					ZipInputStream zis = new ZipInputStream(Files.newInputStream(filePath));
+					ZipEntry zipEntry;
+					try {
+						zipEntry= zis.getNextEntry();
+					} catch (Exception e1) {
+						Utils.closeQuietly(zis);
+						try {
+							zis = new ZipInputStream(Files.newInputStream(filePath), Charset.forName("Shift-JIS"));
+							zipEntry= zis.getNextEntry();
+
+							String name = zipEntry.getName();
+							if (name.lastIndexOf('.') >= 0)
+								name = name.substring(0, name.lastIndexOf('.'));
+
+							Map<String, Long> counts = name.codePoints()
+														   .mapToObj(Integer::valueOf)
+														   .collect(Collectors.groupingBy(codepoint ->
+																						  {
+																							  UnicodeBlock block = UnicodeBlock.of(codepoint);
+																							  if (block == UnicodeBlock.HIRAGANA
+																									  || block == UnicodeBlock.KATAKANA
+																									  || block == UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS
+																									  || block.toString().contains("CJK_") /*Chinese/Japanese/Korean*/)
+																								  return "japanese";
+																							  else if (block == UnicodeBlock.BASIC_LATIN)
+																								  return "basic-latin";
+																							  else
+																								  return "other";
+																						  }, Collectors.counting()));
+
+							double total = name.length();
+							double nbJapanese = counts.getOrDefault("japanese", 0L);
+							double nbBasicLatin = counts.getOrDefault("basic-latin", 0L);
+
+							// Less japanese than half are japanese and basic latin less than 70% of non japanese
+							if (nbJapanese < total / 2d && nbBasicLatin / (total - nbJapanese) < 0.7d)
+							{
+								throw new IllegalArgumentException("Not japanese: " + zipEntry.getName());
+							}
+						} catch (Exception e2) {
+							throw new IllegalArgumentException("Not suitable charset found to decode filenames in "+filePath, e2);
+						}
 					}
-				} catch (Exception e2) {
-					throw new IllegalArgumentException("Not suitable charset found to decode filenames in "+filePath, e2);
+
+					mapping.putEmptyMapping(new FileKey(post.id, file.id));
+
+					while (zipEntry != null)
+					{
+						Path entryPath = targetDirectory.resolve(makeSafe(zipEntry.getName()));
+
+						if (zipEntry.isDirectory())
+						{
+							Files.createDirectories(entryPath);
+						}
+						else
+						{
+							Files.createDirectories(entryPath.getParent());
+							Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
+
+							if (Image.isImage(entryPath))
+							{
+								saveImageFromArchiveInGallery(session, post, file, zipEntry.getName(), entryPath);
+								downloadsProgressView.newImageInArchive(session.id(), post.id, file.id, zipEntry.getName(), entryPath);
+							}
+							else
+							{
+								downloadsProgressView.newFileInArchive(session.id(), post.id, file.id, zipEntry.getName(), entryPath);
+							}
+						}
+						zipEntry = zis.getNextEntry();
+					}
+					zis.close();
 				}
+				case ".rar" -> {
+					Path tmpDest = filePath.resolveSibling(filePath.getFileName().toString() + "_" + System.currentTimeMillis());
+					Files.createDirectories(tmpDest);
+
+					try
+					{
+						Junrar.extract(filePath.toFile(), tmpDest.toFile());
+					}
+					catch (UnsupportedRarV5Exception e)
+					{
+						// Avoid "Cannot open" because this process still have a handle to filePath
+						Path filePathTmp = filePath.resolveSibling(filePath.getFileName().toString() + "_tmp");
+						Files.copy(filePath, filePathTmp, StandardCopyOption.REPLACE_EXISTING);
+
+						try
+						{
+							// Fallback to CLI... (TODO find something better)
+							Process unrarProcess = new ProcessBuilder()
+									.command("C:\\Program Files\\WinRAR\\UnRAR.exe", //TODO make configurabable
+											 "x",
+											 filePathTmp.toAbsolutePath().toString(),
+											 tmpDest.toAbsolutePath().toString())
+									.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+									.start();
+							StringWriter error = new StringWriter();
+							unrarProcess.errorReader().transferTo(error);
+							int exitCode = unrarProcess.waitFor();
+							Files.delete(filePathTmp);
+							if (exitCode != 0)
+							{
+								throw new RuntimeException("UnRAR exited with " + exitCode + "\n" + error);
+							}
+						}
+						finally
+						{
+							Files.deleteIfExists(filePathTmp);
+						}
+					}
+
+					List<Path> files;
+					try (Stream<Path> stream = Files.walk(tmpDest)) {
+						files = stream.filter(Files::isRegularFile).toList();
+					}
+
+					mapping.putEmptyMapping(new FileKey(post.id, file.id));
+
+					for (Path tmpEntryPath : files) {
+						Path entryPath = targetDirectory.resolve(tmpDest.relativize(tmpEntryPath));
+						String pathInArchive = tmpDest.relativize(tmpEntryPath).toString();
+
+						Files.createDirectories(entryPath.getParent());
+						Files.move(tmpEntryPath, entryPath, StandardCopyOption.REPLACE_EXISTING);
+
+						if (Image.isImage(entryPath))
+						{
+							saveImageFromArchiveInGallery(session, post, file, pathInArchive, entryPath);
+							downloadsProgressView.newImageInArchive(session.id(), post.id, file.id, pathInArchive, entryPath);
+						}
+						else
+						{
+							downloadsProgressView.newFileInArchive(session.id(), post.id, file.id, pathInArchive, entryPath);
+						}
+					}
+				}
+				default -> throw new UnsupportedOperationException("Cannot extract " + ext + " file (" + filename + ")");
 			}
 			
-			mapping.putEmptyMapping(new FileKey(post.id, file.id));
-			
-			while (zipEntry != null)
-			{
-				Path entryPath = targetDirectory.resolve(makeSafe(zipEntry.getName()));
-				
-				if (zipEntry.isDirectory())
-				{
-					Files.createDirectories(entryPath);
-				}
-				else
-				{
-					Files.createDirectories(entryPath.getParent());
-					Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
-					
-					if (Image.isImage(entryPath))
-					{
-						saveImageFromZipInGallery(session, post, file, zipEntry.getName(), entryPath);
-						downloadsProgressView.newImageInZip(session.id(), post.id, file.id, zipEntry.getName(), entryPath);
-					}
-					else
-					{
-						downloadsProgressView.newFileInZip(session.id(), post.id, file.id, zipEntry.getName(), entryPath);
-					}
-				}
-				zipEntry = zis.getNextEntry();
-			}
-			zis.close();
-			
-			Files.delete(filePath);
+			Files.deleteIfExists(filePath);
 		}
 		catch (Exception e)
 		{
-			LOGGER.error("Error when unzipping " + filePath, e);
+			LOGGER.error("Error when extracting {}", filePath, e);
 			mapping.zipMapping.remove(new FileKey(post.id, file.id));
 		}
 	}
@@ -1698,7 +1831,9 @@ public abstract class Downloader
 				begin = endName + 1;
 			}
 			else // No separator = last name
+			{
 				break;
+			}
 		}
 		
 		return Paths.get(safePath.toString());
@@ -1793,10 +1928,10 @@ public abstract class Downloader
 		return image;
 	}
 	
-	private Image saveImageFromZipInGallery(DownloadSession session, Post post, PostFile postFile, String pathInZip, Path path)
+	private Image saveImageFromArchiveInGallery(DownloadSession session, Post post, PostFile postFile, String pathInArchive, Path path)
 	{
 		Image image = doSaveInGallery(session, postFile.tags(), path);
-		mapping.put(new FileKey(post.id(), postFile.id()), pathInZip, image);
+		mapping.put(new FileKey(post.id(), postFile.id()), pathInArchive, image);
 		return image;
 	}
 	

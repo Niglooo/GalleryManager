@@ -21,8 +21,9 @@ module nigloo.gallerymanager
 	requires org.apache.tika.core;
 	requires org.jsoup;
 	requires org.kordamp.ikonli.javafx;
-	
-	opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
+    requires junrar;
+
+    opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.script;
 	opens nigloo.gallerymanager.autodownloader;
 	opens nigloo.gallerymanager.ui to javafx.graphics, javafx.fxml, nigloo.tools;

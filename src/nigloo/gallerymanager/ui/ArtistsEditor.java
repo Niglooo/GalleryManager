@@ -20,7 +20,7 @@ import javafx.scene.layout.VBox;
 import lombok.extern.log4j.Log4j2;
 import nigloo.gallerymanager.autodownloader.Downloader;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration;
-import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractZip;
+import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.AutoExtractArchive;
 import nigloo.gallerymanager.autodownloader.Downloader.FilesConfiguration.DownloadFiles;
 import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration;
 import nigloo.gallerymanager.autodownloader.Downloader.ImagesConfiguration.DownloadImages;
@@ -271,7 +271,7 @@ public class ArtistsEditor extends SplitPane {
             FilesConfiguration fc = new FilesConfiguration();
             fc.setDownload(editor.fileDownload.getValue());
             fc.setPathPattern(editor.filePathPattern.getText());
-            fc.setAutoExtractZip(editor.fileAutoExtractZip.getValue());
+            fc.setAutoExtractArchive(editor.fileAutoExtractArchive.getValue());
             downloader.setFileConfiguration(fc);
 
             LocalDate localDate = editor.mostRecentPostCheckedDate.getValue();
@@ -406,7 +406,7 @@ public class ArtistsEditor extends SplitPane {
         @FXML
         private TextField filePathPattern;
         @FXML
-        private ComboBox<AutoExtractZip> fileAutoExtractZip;
+        private ComboBox<AutoExtractArchive> fileAutoExtractArchive;
         @FXML
         private DatePicker mostRecentPostCheckedDate;
         @FXML
@@ -428,7 +428,7 @@ public class ArtistsEditor extends SplitPane {
             type.setText(downloader.getType().toString());
             imageDownload.getItems().addAll(DownloadImages.values());
             fileDownload.getItems().addAll(DownloadFiles.values());
-            fileAutoExtractZip.getItems().addAll(AutoExtractZip.values());
+            fileAutoExtractArchive.getItems().addAll(AutoExtractArchive.values());
             minDelayBetweenRequests.setMin(0);
             autoLikePosts.setDisable(!downloader.supportLikePost());
 
@@ -448,7 +448,7 @@ public class ArtistsEditor extends SplitPane {
                          imagePathPattern.textProperty(),
                          fileDownload.getSelectionModel().selectedItemProperty(),
                          filePathPattern.textProperty(),
-                         fileAutoExtractZip.getSelectionModel().selectedItemProperty(),
+                         fileAutoExtractArchive.getSelectionModel().selectedItemProperty(),
                          mostRecentPostCheckedDate.valueProperty(),
                          minDelayBetweenRequests.valueProperty(),
                          titleFilterRegex.textProperty(),
@@ -491,9 +491,9 @@ public class ArtistsEditor extends SplitPane {
                                 !Objects.equals(filePathPattern.getText(), fileConf.getPathPattern()))
                             return true;
 
-                        AutoExtractZip aez = Objects.requireNonNullElse(fileConf.getAutoExtractZip(), AutoExtractZip.NO);
-                        AutoExtractZip aezs = Objects.requireNonNullElse(fileAutoExtractZip.getValue(), AutoExtractZip.NO);
-                        if (aez != aezs)
+                        AutoExtractArchive aea = Objects.requireNonNullElse(fileConf.getAutoExtractArchive(), AutoExtractArchive.NO);
+                        AutoExtractArchive aeas = Objects.requireNonNullElse(fileAutoExtractArchive.getValue(), AutoExtractArchive.NO);
+                        if (aea != aeas)
                             return true;
                     }
 
@@ -535,8 +535,8 @@ public class ArtistsEditor extends SplitPane {
             DownloadFiles df = downloader.getFileConfiguration().getDownload();
             fileDownload.getSelectionModel().select(df != null ? df : DownloadFiles.NO);
             filePathPattern.setText(downloader.getFileConfiguration().getPathPattern());
-            AutoExtractZip aez = downloader.getFileConfiguration().getAutoExtractZip();
-            fileAutoExtractZip.getSelectionModel().select(aez != null ? aez : AutoExtractZip.NO);
+            AutoExtractArchive aea = downloader.getFileConfiguration().getAutoExtractArchive();
+            fileAutoExtractArchive.getSelectionModel().select(aea != null ? aea : AutoExtractArchive.NO);
 
             mostRecentPostCheckedDate.setValue(downloader.getMostRecentPostCheckedDate() != null ? downloader.getMostRecentPostCheckedDate().toLocalDate() : null);
             minDelayBetweenRequests.setValue((int) downloader.getMinDelayBetweenRequests());
