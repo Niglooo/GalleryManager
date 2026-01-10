@@ -20,7 +20,7 @@
     <log4j.version>2.22.1</log4j.version>
     <lombok.version>1.18.30</lombok.version>
     <methanol.version>1.7.0</methanol.version>
-    <tika.version>2.9.1</tika.version>
+    <tika.version>3.2.2</tika.version>
   </properties>
 
   <dependencies>
