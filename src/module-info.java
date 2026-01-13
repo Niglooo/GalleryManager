@@ -18,11 +18,13 @@ module nigloo.gallerymanager
 	requires org.apache.commons.io;//For needed for org.apache.tika.core
 	requires org.apache.logging.log4j;
 	requires org.apache.logging.log4j.core;
+	requires org.apache.logging.log4j.jul;
 	requires org.apache.tika.core;
 	requires org.jsoup;
 	requires org.kordamp.ikonli.javafx;
     requires junrar;
 
+	exports nigloo.gallerymanager.log to org.apache.logging.log4j;
     opens nigloo.gallerymanager.model;// to javafx.fxml, com.google.gson, nigloo.tools;
 	opens nigloo.gallerymanager.script;
 	opens nigloo.gallerymanager.autodownloader;

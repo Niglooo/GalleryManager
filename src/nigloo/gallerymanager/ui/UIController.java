@@ -62,6 +62,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.apache.logging.log4j.jul.Constants;
 
 import java.io.File;
 import java.io.IOException;
@@ -96,10 +97,16 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Singleton
 public class UIController extends Application
 {
+	static {
+		System.setProperty(Constants.LOGGER_ADAPTOR_PROPERTY, "nigloo.gallerymanager.log.FormatApiLoggerAdapter");
+		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+	}
+
 	private static final Logger LOGGER = LogManager.getLogger(UIController.class);
 	public static final Marker UPDATE_THUMBNAILS = MarkerManager.getMarker("UPDATE_THUMBNAILS");
 	
