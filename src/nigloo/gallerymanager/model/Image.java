@@ -144,7 +144,7 @@ public class Image
 			sb.append((int) (thumbnail.getProgress() * 100));
 			sb.append("%)");
 		}
-		FXImageVideoWrapper fxImageVideo = imageCache.getAsyncFXImageVideo(this);
+		FXImageVideoWrapper fxImageVideo = imageCache.getCachedFXImageVideo(this);
 		if (fxImageVideo != null)
 		{
 			sb.append(", fxImageVideo(");
