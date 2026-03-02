@@ -25,10 +25,13 @@ import java.net.http.HttpResponse.ResponseInfo;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -1379,7 +1382,7 @@ public abstract class Downloader
 		ImageKey imageKey = new ImageKey(post.id(), postImage.id());
 		ImageReference imageReference;
 		final Path imageDest;
-		
+
 		synchronized (this)
 		{
 			if (mapping.contains(imageKey))
@@ -1403,7 +1406,7 @@ public abstract class Downloader
 				imageReference = null;
 			}
 			
-			if (Files.exists(imageDest))
+			if (!session.has(DownloadOption.DOWNLOAD_ALREADY_DOWNLOADED) && Files.exists(imageDest))
 			{
 				Image image;
 				imageReference = mapping.get(imageKey);
@@ -1431,7 +1434,12 @@ public abstract class Downloader
 
 			URI url = new URI(postImage.url());
 			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(url).GET(), getHeadersForImageDownload(session, postImage)).build();
-			return session.sendAsync(request, BodyHandlers.ofFile(imageDest), new DownloadListener()
+			OpenOption[] options = Stream.of(
+					StandardOpenOption.CREATE,
+					StandardOpenOption.WRITE,
+					session.has(DownloadOption.DOWNLOAD_ALREADY_DOWNLOADED) ? StandardOpenOption.TRUNCATE_EXISTING : null
+			).filter(Objects::nonNull).toArray(OpenOption[]::new);
+			return session.sendAsync(request, BodyHandlers.ofFile(imageDest, options), new DownloadListener()
 			{
 				@Override
 				public void onStartDownload(ResponseInfo responseInfo) throws HttpException
@@ -1464,7 +1472,7 @@ public abstract class Downloader
 					downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), error);
 				}
 			}, HttpOption.HANDLE_4XX_AS_2XX)
-			.thenApplyAsync(fixExtension(contentType, ".jpg"), AsyncPools.DISK_IO)
+			.thenApplyAsync(fixExtension(session, contentType, ".jpg"), AsyncPools.DISK_IO)
 			.thenApply(filePath -> {
 				downloadsProgressView.updateFilePath(session.id(), post.id(), postImage.id(), imageDest, filePath);
 				return filePath;
@@ -1498,7 +1506,8 @@ public abstract class Downloader
 	                                          PostFile file,
 	                                          int fileNumber)
 	{
-		FileKey fileKey = new FileKey(post.id, file.id);
+		boolean forceDownload = session.has(DownloadOption.DOWNLOAD_ALREADY_DOWNLOADED);
+				FileKey fileKey = new FileKey(post.id, file.id);
 		Optional<ImageReference> mappingAsImage;
 		final Path fileDest;
 		
@@ -1526,7 +1535,7 @@ public abstract class Downloader
 				return CompletableFuture.completedFuture(null);
 			}
 			
-			if (Files.exists(fileDest))
+			if (!forceDownload && Files.exists(fileDest))
 			{
 				if ((mappingAsImage == null && Image.isImage(fileDest)) || (mappingAsImage != null && mappingAsImage.isPresent()))
 				{
@@ -1544,16 +1553,19 @@ public abstract class Downloader
 		try
 		{
 			boolean isArchive = isArchive(file.filename());
-			
-			// If the file is a zip and has a mapping (deleted or not), don't download it
-			if (isArchive && mapping.contains(fileKey))
-				return CompletableFuture.completedFuture(null);
 
-			// If the file already exist
-			if (Files.exists(fileDest))
+			if (!forceDownload)
 			{
-				downloadsProgressView.newExistingOtherFile(session.id(), post.id(), file.id(), fileDest);
-				return CompletableFuture.completedFuture(null);
+				// If the file is a zip and has a mapping (deleted or not), don't download it
+				if (isArchive && mapping.contains(fileKey))
+					return CompletableFuture.completedFuture(null);
+
+				// If the file already exist
+				if (Files.exists(fileDest))
+				{
+					downloadsProgressView.newExistingOtherFile(session.id(), post.id(), file.id(), fileDest);
+					return CompletableFuture.completedFuture(null);
+				}
 			}
 
 			Files.createDirectories(fileDest.getParent());
@@ -1564,7 +1576,12 @@ public abstract class Downloader
 			HttpRequest request = withHeaders(HttpRequest.newBuilder().uri(url).GET(),
 			                                 getHeadersForFileDownload(session, file))
 			                                 .build();
-			return session.sendAsync(request, BodyHandlers.ofFile(fileDest), new DownloadListener()
+			OpenOption[] options = Stream.of(
+							StandardOpenOption.CREATE,
+							StandardOpenOption.WRITE,
+							forceDownload ? StandardOpenOption.TRUNCATE_EXISTING : null
+					).filter(Objects::nonNull).toArray(OpenOption[]::new);
+			return session.sendAsync(request, BodyHandlers.ofFile(fileDest, options), new DownloadListener()
 			{
 				public void onStartDownload(java.net.http.HttpResponse.ResponseInfo responseInfo) throws HttpException
 				{
@@ -1599,7 +1616,7 @@ public abstract class Downloader
 					downloadsProgressView.endDownload(session.id(), post.id(), file.id(), error);
 				}
 			})
-			.thenApplyAsync(fixExtension(contentType, null), AsyncPools.DISK_IO)
+			.thenApplyAsync(fixExtension(session, contentType, null), AsyncPools.DISK_IO)
 			.thenApply(filePath -> {
 				downloadsProgressView.updateFilePath(session.id(), post.id(), file.id(), fileDest, filePath);
 				return filePath;
@@ -1995,7 +2012,7 @@ public abstract class Downloader
 		}
 	}
 	
-	private Function<HttpResponse<Path>, Path> fixExtension(AtomicReference<String> contentType, String defaultExtention)
+	private Function<HttpResponse<Path>, Path> fixExtension(DownloadSession session, AtomicReference<String> contentType, String defaultExtention)
 	{
 		return response -> {
 			Path path = response.body();
@@ -2023,7 +2040,7 @@ public abstract class Downloader
 				MimeType mimeType = config.getMimeRepository().forName(mediaType);
 				extension = mimeType.getExtension();
 			}
-			catch (MimeTypeException e) {}
+			catch (MimeTypeException ignored) {}
 			
 			if (Utils.isBlank(extension)) { // mimeType.getExtension() can return blank
 				if (defaultExtention == null) {
@@ -2035,7 +2052,10 @@ public abstract class Downloader
 			}
 			
 			try {
-				return Files.move(path, path.resolveSibling(filename + extension));
+				CopyOption[] options = session.has(DownloadOption.DOWNLOAD_ALREADY_DOWNLOADED)
+						? new CopyOption[] {StandardCopyOption.REPLACE_EXISTING}
+						: new CopyOption[0];
+				return Files.move(path, path.resolveSibling(filename + extension), options);
 			}
 			catch (IOException e) {
 				throw new RuntimeException("Cannot add the extension " + extension + " to " + path, e);
