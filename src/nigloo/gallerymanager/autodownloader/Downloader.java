@@ -1544,6 +1544,7 @@ public abstract class Downloader
 			boolean isArchive = isArchive(file.filename());
 			
 			// If the file is a zip and has a mapping (deleted or not), don't download it
+			//TODO DOWNLOAD_ALREADY_DOWNLOADED
 			if (isArchive && mapping.contains(fileKey))
 				return CompletableFuture.completedFuture(null);
 
@@ -2033,7 +2034,8 @@ public abstract class Downloader
 			}
 			
 			try {
-				return Files.move(path, path.resolveSibling(filename + extension));
+				//FIXME REPLACE_EXISTING only if DOWNLOAD_ALREADY_DOWNLOADED
+				return Files.move(path, path.resolveSibling(filename + extension), StandardCopyOption.REPLACE_EXISTING);
 			}
 			catch (IOException e) {
 				throw new RuntimeException("Cannot add the extension " + extension + " to " + path, e);
