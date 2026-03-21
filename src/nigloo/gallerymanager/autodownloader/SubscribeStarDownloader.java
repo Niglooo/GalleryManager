@@ -138,7 +138,12 @@ public class SubscribeStarDownloader extends Downloader
                     .map(postElement -> {
                         String postId = postElement.attr("data-id");
                         String postTitle = postElement.selectFirst(".post-body").text();
-                        ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(postElement.selectFirst(".post-date").text(), LocalDateTime::from).atZone(ZoneOffset.UTC);
+                        String dateStr = postElement.selectFirst(".post-date").text();
+                        String UPDATE_ON = "Updated on ";
+                        if (dateStr.startsWith(UPDATE_ON)) {
+                            dateStr = dateStr.substring(UPDATE_ON.length());
+                        }
+                        ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(dateStr, LocalDateTime::from).atZone(ZoneOffset.UTC);
 
                         return Post.create(postId, postTitle, publishedDatetime, postElement);
                     })
@@ -190,6 +195,13 @@ public class SubscribeStarDownloader extends Downloader
     protected CompletableFuture<Boolean> likePost(DownloadSession session, Post post) throws Exception
     {
         Element likeElement = ((Element) post.extraInfo()).selectFirst(".reactions.for-post .is-like");
+
+        // Post cannot be liked
+        if (likeElement == null)
+        {
+            return CompletableFuture.completedFuture(null);
+        }
+
         boolean isLiked = likeElement.classNames().contains("is-reacted");
 
         // Post already liked
