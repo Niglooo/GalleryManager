@@ -144,8 +144,9 @@ public class SubscribeStarDownloader extends Downloader
                             dateStr = dateStr.substring(UPDATE_ON.length());
                         }
                         ZonedDateTime publishedDatetime = DATE_TIME_FORMATTER.parse(dateStr, LocalDateTime::from).atZone(ZoneOffset.UTC);
+                        boolean isPinned = postElement.hasClass("is-pinned");
 
-                        return Post.create(postId, postTitle, publishedDatetime, postElement);
+                        return Post.create(postId, postTitle, publishedDatetime, isPinned, postElement);
                     })
                     .iterator();
 
