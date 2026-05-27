@@ -734,6 +734,10 @@ public abstract class Downloader
 			{
 				title = "";
 			}
+			if (title.length() > 80)
+			{
+				title = title.substring(0, 80);
+			}
 			if (publishedDatetime == null)
 			{
 				throw new IllegalArgumentException("publishedDatetime cannot be null");
