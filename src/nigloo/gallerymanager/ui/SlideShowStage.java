@@ -167,6 +167,7 @@ public class SlideShowStage extends Stage
 		fullImageUpdatingThread = new ImageLoaderDaemon();
 		
 		//Don't call next() as it also reset autoplay timer resulting in a double call
+		//FIXME if video, wait at lease the length of the video)
 		autoplay = new Timeline(new KeyFrame(Duration.seconds(1), event -> setCurrent(validIndex(currentImageIdx, 1))));
 		autoplay.setCycleCount(Timeline.INDEFINITE);
 		setAutoplayDelay(gallery.getSlideShowParameter().getAutoplayDelay());

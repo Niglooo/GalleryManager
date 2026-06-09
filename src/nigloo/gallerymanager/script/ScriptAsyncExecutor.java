@@ -22,6 +22,10 @@ class ScriptAsyncExecutor implements Executor
     @Override
     public void execute(Runnable command)
     {
+//        System.out.println(command.getClass());
+//        System.out.println(command);
+//        System.out.println();
+//comandd instanceof CompletableFuture.UniRun with fild fn = js function ()
         if (mainScriptThread == null)
         {
             delegate.execute(() -> {

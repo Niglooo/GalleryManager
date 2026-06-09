@@ -203,7 +203,7 @@ public abstract class Downloader
 	}
 	
 	public final CompletableFuture<?> download(Properties secrets, DownloadOption... options)
-	{
+	{//TODO FIX error handling (try structured concurrency implementation)?
 		if (!enabled) {
 			LOGGER.info("Skip download for {} (disabled)", this);
 			return CompletableFuture.completedFuture(null);

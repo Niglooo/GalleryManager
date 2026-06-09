@@ -13,6 +13,8 @@ import nigloo.tool.injection.annotation.Singleton;
 @Singleton
 public class ImageCache
 {
+	//TODO makethis a proper service (allow force reload, list all image in cache with status, add UI)
+
 	private static final int THUMBNAIL_IMAGE_SIZE = 300;
 	
 	private final Map<Image, SoftReference<javafx.scene.image.Image>> thumbnailCache = new WeakIdentityHashMap<>();
