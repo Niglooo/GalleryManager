@@ -308,13 +308,17 @@ public class UIController extends Application
 								CompletableFuture.supplyAsync(() -> new InfoFromUI(
 									fileSystemTreeManager.getSelectionWithoutChildren(),
 									getTagFilter()
-								)).thenApplyAsync(uiInfo -> {
+								), AsyncPools.FX_APPLICATION).thenApplyAsync(uiInfo -> {
 									List<Path> selection = uiInfo.selection.stream().map(gallery::toRelativePath).toList();
+									System.out.println("selection: "+selection);
+									System.out.println("tagFilter: "+uiInfo.tagFilter());
 									Stream<Image> images = gallery.getImages(true).stream();
 									if (!selection.isEmpty()) {
 										images = images.filter(image -> selection.stream().anyMatch(selectedPath -> image.getPath().startsWith(selectedPath)));
 									}
-									return images.filter(uiInfo.tagFilter).toList();
+								    List<Image> list = images.filter(uiInfo.tagFilter).toList();
+									System.out.println(list.size()+" images matching");
+									return list;
 								}, AsyncPools.DISK_IO)
 								 .thenComposeAsync(fileSystemService::refresh, AsyncPools.DISK_IO)
 								 .thenApply(fileSystemService::sort)
