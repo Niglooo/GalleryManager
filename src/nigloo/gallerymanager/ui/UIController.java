@@ -263,7 +263,35 @@ public class UIController extends Application
 	
 	public void requestRefreshThumbnails()
 	{
-		thumbnailUpdater.requestUpdate();
+		//thumbnailUpdater.requestUpdate();
+System.out.println("requestRefreshThumbnails");
+		record InfoFromUI(Collection<Path> selection, Predicate<Image> tagFilter){}
+		CompletableFuture.supplyAsync(() -> new InfoFromUI(
+								 fileSystemTreeManager.getSelectionWithoutChildren(),
+								 getTagFilter()
+						 ), AsyncPools.FX_APPLICATION).thenApplyAsync(uiInfo -> {
+							 List<Path> selection = uiInfo.selection.stream().map(gallery::toRelativePath).toList();
+							 System.out.println("selection: "+selection);
+							 System.out.println("tagFilter: "+uiInfo.tagFilter());
+							 Stream<Image> images = gallery.getImages(true).stream();
+							 if (!selection.isEmpty()) {
+								 images = images.filter(image -> selection.stream().anyMatch(selectedPath -> image.getPath().startsWith(selectedPath)));
+							 }
+							 List<Image> list = images.filter(uiInfo.tagFilter).toList();
+							 System.out.println(list.size()+" images matching");
+							 return list;
+						 }, AsyncPools.DISK_IO)
+						 .thenComposeAsync(fileSystemService::refresh, AsyncPools.DISK_IO)
+						 .thenApply(fileSystemService::sort)
+						 .thenAcceptAsync(UIController.this::updateThumbnailImages, AsyncPools.FX_APPLICATION)
+						 .exceptionallyAsync(e -> {
+							 if (!(e instanceof CancellationException) && !(e.getCause() instanceof CancellationException)) {
+								 new ExceptionDialog(e, "Error while refreshing thumbnails").show();
+							 }else {
+								 System.out.println("requestRefreshThumbnails end (canceled)");
+							 }
+							return null;
+						 }, AsyncPools.FX_APPLICATION);
 	}
 	
 	private class ThumbnailUpdaterThread extends SafeThread
@@ -303,7 +331,8 @@ public class UIController extends Application
 						{
 							try {
 								updateRequested = false;
-
+//FIXME "debounce" prevent fileSystemService::refresh to be called and cancel previous refresh on selection change
+								//TODO update  refresh(List<Image>) to rturn only image actually refreshed??
 								record InfoFromUI(Collection<Path> selection, Predicate<Image> tagFilter){}
 								CompletableFuture.supplyAsync(() -> new InfoFromUI(
 									fileSystemTreeManager.getSelectionWithoutChildren(),
@@ -535,7 +564,10 @@ public class UIController extends Application
 		String filterExpression = tagFilterField.getText();
 
 		if (filterExpression.isBlank())
-			return image -> true;
+			return new Predicate<>() {
+				@Override public boolean test(Image image) {return true;}
+				@Override public String toString() {return "Predicate[true]";}
+			};
 		else {
 			try {
 				return ImageFilter.parse(filterExpression);

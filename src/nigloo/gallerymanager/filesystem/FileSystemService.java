@@ -36,6 +36,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future.State;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -73,35 +75,59 @@ public class FileSystemService
         );
     }
 
-
+//TODO Make all commands cancellable. If running new command. Cancel previous one
     @RequiredArgsConstructor
     private abstract class FileSystemCommand<T>
     {
         protected CompletableFuture<T> actualTask = null;
         protected final CompletableFuture<T> userTask = new CompletableFuture<>();
+        private final boolean cancellable;
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
         private final String errorMessage;
 
-        protected abstract CompletableFuture<T> buildActualTask();
+        protected abstract CompletableFuture<T> buildActualTask(BooleanSupplier isCancelled);
 
         public void start() {
-            actualTask = buildActualTask();
+            log.debug("Starting {}", this);
+            actualTask = buildActualTask(cancelled::get);
             actualTask.whenCompleteAsync((result, error) -> {
                         tryRunNextTask();
 
                         if (error != null) {
                             userTask.completeExceptionally(error);
-
-                            log.error(errorMessage, error);
+                            log.error("Completing {} with error", this, error);
                             AsyncPools.FX_APPLICATION.execute(new ExceptionDialog(error, errorMessage)::show);
                         } else {
+                            log.debug("Completing {}", this);
                             userTask.complete(result);
                         }
                     }, AsyncPools.SCHEDULED_TASK);
+        }
+
+        public void cancel() {
+            if (cancellable) {
+                if (cancelled.compareAndSet(false, true)) {
+                    log.debug("Cancelling {}", this);
+                }
+            }
         }
     }
 
     private <T> CompletableFuture<T> scheduleCommand(FileSystemCommand<T> fileSystemCommand) {
         synchronized (scheduledCommands) {
+            // When scheduling a new command, cancel any cancellable tasks queued
+            if (runningCommand != null) {
+                runningCommand.cancel();
+            }
+            var it = scheduledCommands.iterator();
+            while (it.hasNext()) {
+                FileSystemCommand<?> nextTask = it.next();
+                if (nextTask.cancellable) {
+                    nextTask.cancel();
+                    it.remove();
+                }
+            }
+
             scheduledCommands.addLast(fileSystemCommand);
             tryRunNextTask();
         }
@@ -139,7 +165,7 @@ public class FileSystemService
 
         public RefreshPathsCommand(Collection<Path> paths, boolean deep)
         {
-            super("Error when refreshing paths");
+            super(true, "Error when refreshing paths");
 
             assert paths != null;
             assert paths.stream().allMatch(Path::isAbsolute);
@@ -150,7 +176,7 @@ public class FileSystemService
         }
 
         @Override
-        protected CompletableFuture<Void> buildActualTask()
+        protected CompletableFuture<Void> buildActualTask(BooleanSupplier isCancelled)
         {
             return CompletableFuture
                     .allOf(paths.stream()
@@ -166,7 +192,8 @@ public class FileSystemService
                                                                                         .filter(p -> p.startsWith(path))
                                                                                         .filter(p -> !p.equals(path))
                                                                                         .collect(Collectors.toSet()),
-                                                                                   null),
+                                                                                   null,
+                                                                                   isCancelled),
                                                              AsyncPools.DISK_IO)
                                                      .thenCompose(f -> f)
                                                      .thenAccept(element -> {
@@ -176,6 +203,15 @@ public class FileSystemService
                                                          }
                                                      }))
                                 .toArray(CompletableFuture[]::new));
+        }
+
+        @Override
+        public String toString()
+        {
+            return "RefreshPathsCommand[paths=%s, deep=%s]".formatted(
+                    paths.stream().map(gallery::toRelativePath).toList(),
+                    deep
+            );
         }
     }
 
@@ -195,7 +231,7 @@ public class FileSystemService
 
         public RefreshImagesCommand(List<Image> images)
         {
-            super("Error when refreshing subImages");
+            super(true, "Error when refreshing subImages");
 
             assert images != null;
             assert gallery.getImages(true).containsAll(images);
@@ -204,10 +240,43 @@ public class FileSystemService
         }
 
         @Override
-        protected CompletableFuture<List<Image>> buildActualTask()
+        protected CompletableFuture<List<Image>> buildActualTask(BooleanSupplier isCancelled)
         {
-            return internalRefresh(root.getPath(), getRoot(), null, null, Integer.MAX_VALUE, Set.of(), images)
+            return internalRefresh(root.getPath(), getRoot(), null, null, Integer.MAX_VALUE, Set.of(), images, isCancelled)
                     .thenApply(element -> images);
+        }
+
+        @Override
+        public String toString()
+        {
+            String longestCommonPrefix = "";
+            if (!images.isEmpty()) {
+                List<String> paths = images
+                        .stream()
+                        .map(Image::getPath)
+                        .sorted()
+                        .map(Path::toString)
+                        .toList();
+                String first = paths.getFirst();
+                String last = paths.getLast();
+                var sb = new StringBuilder();
+                for(int i = 0; i < first.length() ; i++) {
+                    if(first.charAt(i) != last.charAt(i)) {
+                        break;
+                    }
+                    sb.append(first.charAt(i));
+                }
+                if (images.size() > 1) {
+                    sb.append("...");
+                }
+
+                longestCommonPrefix = sb.toString();
+            }
+
+            return "RefreshImagesCommand[images=%s images (%s)]".formatted(
+                    images.size(),
+                    longestCommonPrefix
+            );
         }
     }
 
@@ -226,6 +295,7 @@ public class FileSystemService
      * @param imagesToRefresh images to refresh or null
      * @return The refreshed element
      */
+    //TODO use isCancelled
     private CompletableFuture<FileSystemElement> internalRefresh(
             final Path path,
             FileSystemElement element,
@@ -233,7 +303,8 @@ public class FileSystemService
             BasicFileAttributes fileAttributes,
             int depth,
             Set<Path> excludedPaths,
-            final List<Image> imagesToRefresh)
+            final List<Image> imagesToRefresh,
+            final BooleanSupplier isCancelled)
     {
         assert element == null || element.getPath().equals(path);
         assert imagesToRefresh == null || imagesToRefresh.stream().allMatch(i -> i.getAbsolutePath().startsWith(path));
@@ -301,7 +372,7 @@ public class FileSystemService
                         CompletableFuture.allOf(paramSubRefreshes
                             .stream()
                             .map(p -> CompletableFuture.supplyAsync(
-                                    () ->internalRefresh(p.path, p.element, fElement, null, depth - 1, excludedPaths, p.imagesToRefresh),
+                                    () ->internalRefresh(p.path, p.element, fElement, null, depth - 1, excludedPaths, p.imagesToRefresh, isCancelled),
                                     AsyncPools.DISK_IO).thenCompose(f -> f))
                             .toArray(CompletableFuture[]::new)).thenApply(v -> fElement),
                         (v, error) -> {
@@ -315,6 +386,11 @@ public class FileSystemService
 
         if (fileAttributes == null)
         {
+            if (isCancelled.getAsBoolean())
+            {
+                return CompletableFuture.completedFuture(null);
+            }
+
             try
             {
                 fileAttributes = Files.readAttributes(path, BasicFileAttributes.class);
@@ -374,6 +450,12 @@ public class FileSystemService
                 element.setDirectory(newStatus, fileAttributes);
                 return CompletableFuture.completedFuture(element);
             }
+            if (isCancelled.getAsBoolean()) {
+                if (element != null) {
+                    element.setDirectory(element.getStatusDirectory().isFullyLoaded() ? element.getStatusDirectory() : Status.NOT_FULLY_LOADED, fileAttributes);
+                }
+                return CompletableFuture.completedFuture(element);
+            }
 
             if (element == null) {
                 element = findElement(parentElement, path, true);
@@ -383,6 +465,10 @@ public class FileSystemService
             HashMap<Path, BasicFileAttributes> childrenOnDisk = new HashMap<>();
             try (Stream<Path> list = Files.list(path)) {
                 for (Path child : list.toList()) {
+                    if (isCancelled.getAsBoolean()) {
+                        element.setDirectory(element.getStatusDirectory().isFullyLoaded() ? element.getStatusDirectory() : Status.NOT_FULLY_LOADED, fileAttributes);
+                        return CompletableFuture.completedFuture(element);
+                    }
                     BasicFileAttributes childAttributes = Files.readAttributes(child, BasicFileAttributes.class);
                     childrenOnDisk.put(child, childAttributes);
                 }
@@ -434,7 +520,7 @@ public class FileSystemService
             return Utils.observe(
                     CompletableFuture.allOf(subRefresh.stream()
                                                       .map(p -> CompletableFuture.supplyAsync(
-                                                              () -> internalRefresh(p.path, p.element, fElement, p.fileAttributes, depth - 1, excludedPaths, p.imagesToRefresh),
+                                                              () -> internalRefresh(p.path, p.element, fElement, p.fileAttributes, depth - 1, excludedPaths, p.imagesToRefresh, isCancelled),
                                                               AsyncPools.DISK_IO).thenCompose(f -> f))
                                                       .toArray(CompletableFuture[]::new)).thenApply(v -> fElement),
                     (v, error) -> {
@@ -519,7 +605,7 @@ public class FileSystemService
 
         public SynchronizePathsCommand(Collection<Path> paths, boolean deep)
         {
-            super("Error when synchronizing paths");
+            super(true, "Error when synchronizing paths");
 
             assert paths != null;
             assert paths.stream().allMatch(Path::isAbsolute);
@@ -530,7 +616,7 @@ public class FileSystemService
         }
 
         @Override
-        protected CompletableFuture<Void> buildActualTask()
+        protected CompletableFuture<Void> buildActualTask(BooleanSupplier isCancelled)//TODO use isCancelled
         {
             return CompletableFuture
                     .allOf(paths.stream()
@@ -552,6 +638,15 @@ public class FileSystemService
                                                          }
                                                      }))
                                 .toArray(CompletableFuture[]::new));
+        }
+
+        @Override
+        public String toString()
+        {
+            return "SynchronizePathsCommand[paths=%s, deep=%s]".formatted(
+                    paths.stream().map(gallery::toRelativePath).toList(),
+                    deep
+            );
         }
     }
 
@@ -630,7 +725,7 @@ public class FileSystemService
 
         public DeletePathsCommand(Collection<Path> paths, boolean deleteOnDisk)
         {
-            super("Error when deleting paths");
+            super(false, "Error when deleting paths");
 
             assert paths != null;
             assert paths.stream().allMatch(Path::isAbsolute);
@@ -641,7 +736,7 @@ public class FileSystemService
         }
 
         @Override
-        protected CompletableFuture<Void> buildActualTask()
+        protected CompletableFuture<Void> buildActualTask(BooleanSupplier isCancelled)//TODO use isCancelled
         {
             return CompletableFuture
                     .allOf(paths.stream()
@@ -657,6 +752,15 @@ public class FileSystemService
                                              }
                                         }))
                                 .toArray(CompletableFuture[]::new));
+        }
+
+        @Override
+        public String toString()
+        {
+            return "DeletePathsCommand[paths=%s, deleteOnDisk=%s]".formatted(
+                    paths.stream().map(gallery::toRelativePath).toList(),
+                    deleteOnDisk
+            );
         }
     }
 
@@ -731,7 +835,7 @@ public class FileSystemService
 
         public MovePathCommand(Path source, Path target)
         {
-            super("Error when moving " + source + " to " + target);
+            super(false, "Error when moving " + source + " to " + target);
 
             assert source != null;
             assert source.isAbsolute();
@@ -747,7 +851,7 @@ public class FileSystemService
         }
 
         @Override
-        protected CompletableFuture<FileSystemElement> buildActualTask()
+        protected CompletableFuture<FileSystemElement> buildActualTask(BooleanSupplier isCancelled)//TODO use isCancelled
         {
             return CompletableFuture.supplyAsync(() -> {
 
@@ -787,6 +891,15 @@ public class FileSystemService
                 return targetElement;
 
             }, AsyncPools.DISK_IO);
+        }
+
+        @Override
+        public String toString()
+        {
+            return "MovePathCommand[source=%s, target=%s]".formatted(
+                    gallery.toRelativePath(source),
+                    gallery.toRelativePath(target)
+            );
         }
     }
 
@@ -858,6 +971,7 @@ public class FileSystemService
         return internalSort(root.getPath(), root.getChildren(), new ArrayList<>(images)).toList();
     }
 
+    //TODO javadoc with actual comment
     private Stream<Image> internalSort(Path path, Collection<FileSystemElement> elements, ArrayList<Image> images)
     {
         List<SplitFileSystemElement> splitElements = new ArrayList<>(elements.size() * 2);
@@ -886,7 +1000,7 @@ public class FileSystemService
 
         splitElements.sort(gallery.getSortOrder(path));
 
-        if (log.isWarnEnabled() && !images.isEmpty()) {
+        if (!images.isEmpty()) {
             log.warn("Folder {} was not fully loaded prior to sort ({} unloaded sub subImages)", path, images.size());
         }
 

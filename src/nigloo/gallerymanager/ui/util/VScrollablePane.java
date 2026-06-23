@@ -118,14 +118,14 @@ public class VScrollablePane extends Region
 				start=System.currentTimeMillis();
 				ObservableList<Node> source = Utils.cast(getSource());
 				end=System.currentTimeMillis();
-				System.out.println("getSource: "+(end-start)+" ms");
+//				System.out.println("getSource: "+(end-start)+" ms");
 				start=end;
 
 				ArrayList<Long> timesAddNs = new ArrayList<>();
 				ArrayList<Node> allNodes = new ArrayList<>(offset + col.size());
 				allNodes.addAll(source.subList(0, offset));
 				end=System.currentTimeMillis();
-				System.out.println("addAll: "+(end-start)+" ms");
+//				System.out.println("addAll: "+(end-start)+" ms");
 				start=end;
 				col.stream().map(n -> {
 					long ts = System.nanoTime();
@@ -137,11 +137,11 @@ public class VScrollablePane extends Region
 				end=System.currentTimeMillis();
 				System.out.println("add: "+(end-start)+" ms");
 				LongSummaryStatistics stats = timesAddNs.stream().mapToLong(Long::longValue).summaryStatistics();
-				System.out.println("toSource: "+stats);
+//				System.out.println("toSource: "+stats);
 				start=end;
 				source.setAll(allNodes);
 				end=System.currentTimeMillis();
-				System.out.println("setAll: "+(end-start)+" ms");
+//				System.out.println("setAll: "+(end-start)+" ms");
 				start=end;
 				
 				return true;
