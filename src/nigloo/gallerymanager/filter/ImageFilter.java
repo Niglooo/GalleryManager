@@ -15,7 +15,7 @@ public interface ImageFilter extends Predicate<Image> {
 
     static ImageFilter parse(String filterExpression) throws ParseException {
         ImageFilterTokenizer tokenizer = new ImageFilterTokenizer(filterExpression);
-        return ImageFilterGrammar.COMPILED_GRAMMAR.compile(tokenizer).optimize();
+        return ImageFilterGrammar.COMPILED_GRAMMAR.parse(tokenizer).optimize();
     }
 
     default ImageFilter optimize() {
