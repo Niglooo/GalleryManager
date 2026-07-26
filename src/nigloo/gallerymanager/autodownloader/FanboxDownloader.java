@@ -67,7 +67,7 @@ public class FanboxDownloader extends Downloader
 						.build();
 				this.pagesUrls = JsonHelper.stream(JsonHelper.followPath(
 						session.send(request, JsonHelper.httpBodyHandler()).body(),
-						"body",
+						"body.pageUrls",
 						JsonArray.class))
 						   .map(JsonElement::getAsString)
 						   .iterator();
@@ -100,7 +100,7 @@ public class FanboxDownloader extends Downloader
 												 .build();
 				JsonElement response = session.send(request, JsonHelper.httpBodyHandler()).body();
 
-				postIt = JsonHelper.stream(JsonHelper.followPath(response, "body", JsonArray.class))
+				postIt = JsonHelper.stream(JsonHelper.followPath(response, "body.posts", JsonArray.class))
 									  .map(post -> {
 										  String postId = JsonHelper.followPath(post, "id");
 										  String postTitle = JsonHelper.followPath(post, "title");
@@ -142,10 +142,13 @@ public class FanboxDownloader extends Downloader
 				JsonObject jPost;
 				try
 				{
-					jPost = JsonHelper.followPath(session.send(request, JsonHelper.httpBodyHandler()).body(), "body", JsonObject.class);
+					jPost = JsonHelper.followPath(session.send(request, JsonHelper.httpBodyHandler()).body(), "body.post", JsonObject.class);
 				} catch (IOException e) {
 					Fanbox403TmpFix diskCache = session.getExtraInfo(POSTS_DETAIL_DISK_CACHE_KEY);
 					jPost = JsonHelper.followPath(diskCache.getPostDetail(this, post, e), "body", JsonObject.class);
+					if (jPost.has("post")) {
+						jPost = jPost.getAsJsonObject("post");
+					}
 				}
 				return jPost;
 			}
