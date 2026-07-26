@@ -27,16 +27,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class SubscribeStarDownloader extends Downloader
 {
     private static final String HEADERS_KEY = "headers";
     private static final String CSRF_TOKEN_KEY = "Csrf-Token";
-    private static final String NEWRELIC_ID_KEY = "Newrelic-Id";
-
-    private static final Pattern NEWRELIC_ID_PATTERN = Pattern.compile("xpid:\"([^\"]+)\"");
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder().parseStrict()
             .appendText(ChronoField.MONTH_OF_YEAR, TextStyle.SHORT_STANDALONE)
@@ -110,17 +105,6 @@ public class SubscribeStarDownloader extends Downloader
 
                 String csrfToken = postElements.selectFirst("meta[name=\"csrf-token\"]").attr("content");
                 session.setExtaInfo(CSRF_TOKEN_KEY, csrfToken);
-
-                for (Element scriptElement : postElements.select("script[type=\"text/javascript\"]"))
-                {
-                    String script = scriptElement.data();
-                    Matcher m = NEWRELIC_ID_PATTERN.matcher(script);
-                    if (m.find()) {
-                        String newrelicId = m.group(1);
-                        session.setExtaInfo(NEWRELIC_ID_KEY, newrelicId);
-                        break;
-                    }
-                }
             }
             else
             {
@@ -213,7 +197,6 @@ public class SubscribeStarDownloader extends Downloader
 
         String url = buildUrl(likeElement.attr("data-url"));
         String csrfToken = session.getExtraInfo(CSRF_TOKEN_KEY);
-        String newrelicId = session.getExtraInfo(NEWRELIC_ID_KEY);
 
         MultipartBodyPublisher body = MultipartBodyPublisher.newBuilder()
                                                             .formPart("authenticity_token",
@@ -225,7 +208,6 @@ public class SubscribeStarDownloader extends Downloader
                                          .uri(new URI(url))
                                          .POST(body)
                                          .header("X-Csrf-Token", csrfToken)
-                                         .header("X-Newrelic-Id", newrelicId)
                                          .header("Content-Type", body.mediaType().toString())
                                          .headers(session.getExtraInfo(HEADERS_KEY))
                                          .build();
