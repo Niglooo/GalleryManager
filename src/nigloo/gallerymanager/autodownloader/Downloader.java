@@ -1062,8 +1062,10 @@ public abstract class Downloader
 
 							Object clientSettings = mcsCache.clientSettingsF.get(connection);
 							int maxClient = (int) mcsCache.getParameter.invoke(clientSettings, mcsCache.MAX_CONCURRENT_STREAMS);
+							maxClient = Math.max(MAX_CONCURRENT_STREAMS_FALLBACK, maxClient);
 
 							maxStream = Math.min(maxServer, maxClient);
+							maxStream = Math.max(1, maxStream);
 						}
 						catch (Exception e) {
 							LOGGER.warn("Cannot read MAX_CONCURRENT_STREAMS", e);
