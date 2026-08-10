@@ -102,14 +102,21 @@ public class FXImageVideoWrapper
 				int newWidth = originalWidth / 2;
 				int newHeight = originalHeight / 2;
 				LOGGER.trace("Loading {} at smaller size: {}x{} ; Original size: {}x{}", absPath, newWidth, newHeight, originalWidth, originalHeight);
-				fxImage = new javafx.scene.image.Image(
-						url,
-						newWidth,
-						newHeight,
-						true,
-						true,
-						true);
-			}
+                try
+                {
+                    fxImage = FixLoaderResizedImage.loadResizedImage(
+                            absPath,
+                            newWidth,
+                            newHeight,
+                            true,
+                            true,
+                            true);
+                }
+                catch (MalformedURLException e)
+                {
+                    throw new RuntimeException(e);
+                }
+            }
 			else
 			{
 				fxImage = new javafx.scene.image.Image(url, true);

@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import nigloo.gallerymanager.ui.FXImageVideoWrapper;
+import nigloo.gallerymanager.ui.util.CustomImage;
 import nigloo.gallerymanager.ui.util.ImageCache;
 import nigloo.tool.injection.Injector;
 import nigloo.tool.injection.annotation.Inject;
@@ -136,20 +137,22 @@ public class Image
 		sb.append(path);
 		
 		ImageCache imageCache = Injector.getInstance(ImageCache.class);
-		
-		javafx.scene.image.Image thumbnail = imageCache.getCachedThumbnail(this);
-		if (thumbnail != null)
+		if (imageCache != null)
 		{
-			sb.append(", thumbnail(");
-			sb.append((int) (thumbnail.getProgress() * 100));
-			sb.append("%)");
-		}
-		FXImageVideoWrapper fxImageVideo = imageCache.getCachedFXImageVideo(this);
-		if (fxImageVideo != null)
-		{
-			sb.append(", fxImageVideo(");
-			sb.append((int) (fxImageVideo.getProgressProperty().get() * 100));
-			sb.append("%)");
+			javafx.scene.image.Image thumbnail = imageCache.getCachedThumbnail(this);
+			if (thumbnail != null)
+			{
+				sb.append(", thumbnail(");
+				sb.append((int) (CustomImage.getProgress(thumbnail) * 100));
+				sb.append("%)");
+			}
+			FXImageVideoWrapper fxImageVideo = imageCache.getCachedFXImageVideo(this);
+			if (fxImageVideo != null)
+			{
+				sb.append(", fxImageVideo(");
+				sb.append((int) (fxImageVideo.getProgressProperty().get() * 100));
+				sb.append("%)");
+			}
 		}
 		sb.append("}");
 		
@@ -162,7 +165,8 @@ public class Image
 			"jpe",
 			"jfif",
 			"png",
-			"gif"
+			"gif",
+			"webp"
 	);
 
 	public static boolean isImage(Path file)

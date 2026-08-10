@@ -617,7 +617,7 @@ public class SlideShowStage extends Stage
 						imageView.setVisible(false);
 						imageView.setImage(null);
 						mediaView.setVisible(true);
-						mediaView.setMediaPlayer(video);//FIXME concurrent modification excaption here in Application Tghread (https://bugs.openjdk.org/browse/JDK-8146918)
+						mediaView.setMediaPlayer(video);
 					}
 					else
 					{
