@@ -2,11 +2,15 @@ package nigloo.gallerymanager.ui.util;
 
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import nigloo.gallerymanager.model.Image;
 import nigloo.gallerymanager.ui.FXImageVideoWrapper;
+import nigloo.gallerymanager.ui.FixLoaderResizedImage;
 import nigloo.gallerymanager.ui.VideoThumbnailImage;
+import nigloo.tool.Utils;
 import nigloo.tool.collection.WeakIdentityHashMap;
 import nigloo.tool.injection.annotation.Singleton;
 
@@ -35,14 +39,13 @@ public class ImageCache
 		synchronized (thumbnailCache)
 		{
 			javafx.scene.image.Image thumbnail = get(thumbnailCache, image);
-			if (thumbnail == null || thumbnail.isError())
+			if (thumbnail == null || CustomImage.isError(thumbnail))
 			{
 				if (!image.isActuallyVideo())
 				{
 					try
 					{
-						String imageUrl = image.getAbsolutePath().toUri().toURL().toString();
-						thumbnail = new javafx.scene.image.Image(imageUrl, THUMBNAIL_IMAGE_SIZE, THUMBNAIL_IMAGE_SIZE, true, true, async);
+						thumbnail = FixLoaderResizedImage.loadResizedImage(image.getAbsolutePath(), THUMBNAIL_IMAGE_SIZE, THUMBNAIL_IMAGE_SIZE, true, true, async);
 					}
 					catch (MalformedURLException e)
 					{
@@ -54,7 +57,7 @@ public class ImageCache
 					thumbnail = new VideoThumbnailImage(THUMBNAIL_IMAGE_SIZE, THUMBNAIL_IMAGE_SIZE, image.getAbsolutePath());
 				}
 				
-				thumbnailCache.put(image, new SoftReference<javafx.scene.image.Image>(thumbnail));
+				thumbnailCache.put(image, new SoftReference<>(thumbnail));
 			}
 			
 			return thumbnail;

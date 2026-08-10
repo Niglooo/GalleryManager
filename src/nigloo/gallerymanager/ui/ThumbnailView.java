@@ -73,8 +73,7 @@ public class ThumbnailView extends ImageView
 		if (displayed)
 		{
 			fxImage = imageCache.getThumbnail(galleryImage, true);
-			double progress = fxImage instanceof CustomImage customImage ? customImage.loadingProgressProperty().get() : fxImage.getProgress();
-			if (progress == 1)
+			if (CustomImage.isComplete(fxImage))
 				setImage(fxImage);
 			else
 			{
