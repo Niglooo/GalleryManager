@@ -16,6 +16,7 @@ public enum DownloaderType
     KEMONO_PATREON(KemonoPatreonDownloader.class),
     KEMONO_FANBOX(KemonoFanboxDownloader.class),
     SUBSCRIBESTAR(SubscribeStarDownloader.class),
+    BLUESKY(BlueskyDownloader.class),
     ;
 
 
