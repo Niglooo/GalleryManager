@@ -15,7 +15,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.gson.JsonArray;
@@ -71,7 +70,7 @@ public class PatreonDownloader extends Downloader
 			String homePageHtml = session.send(request, BodyHandlers.ofString()).body();
 			JsonElement bootstrap = JsonParser.parseString(Jsoup.parse(homePageHtml).body().getElementById("__NEXT_DATA__").data());
 
-			JsonElement currentUser = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.commonBootstrap.currentUser", JsonElement.class);
+			JsonElement currentUser = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.core_current_user", JsonElement.class);
 			if (currentUser == null || currentUser.isJsonNull()) {
 				throw new DownloaderSessionExpiredException();
 			}
@@ -308,7 +307,6 @@ public class PatreonDownloader extends Downloader
 			"accept", "*/*",
 			"accept-encoding", "gzip, deflate",
 			"accept-language", "fr-FR,fr;q=0.8",
-			"baggage", session.getSecret("patreon.baggage"),
 			"content-type", "application/vnd.api+json",
 			"cookie", session.getSecret("patreon.cookie"),
 			"priority", "u=1, i",
@@ -320,7 +318,6 @@ public class PatreonDownloader extends Downloader
 			"sec-fetch-mode", "cors",
 			"sec-fetch-site", "same-origin",
 			"sec-gpc", "1",
-			"sentry-trace", session.getSecret("patreon.sentry-trace"),
 			"user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 		};
 		// @formatter:on
