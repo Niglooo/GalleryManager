@@ -830,19 +830,19 @@ public abstract class Downloader
 		
 		private String prettyBody = null;
 		
-		private HttpException(URI url, ResponseInfo responseInfo)
+		private HttpException(HttpRequest request, ResponseInfo responseInfo)
 		{
-			super("Error "+responseInfo.statusCode()+" from "+url);
-			requestUri = url;
+			super("Error "+responseInfo.statusCode()+" from "+request.method()+" "+request.uri());
+			requestUri = request.uri();
 			statusCode = responseInfo.statusCode();
 			headers = responseInfo.headers();
 			body = null;
 		}
 
-		private HttpException(URI url, ResponseInfo responseInfo, ByteArrayOutputStream content)
+		private HttpException(HttpRequest request, ResponseInfo responseInfo, ByteArrayOutputStream content)
 		{
-			super("Error "+responseInfo.statusCode()+" from "+url);
-			requestUri = url;
+			super("Error "+responseInfo.statusCode()+" from "+request.method()+" "+request.uri());
+			requestUri = request.uri();
 			statusCode = responseInfo.statusCode();
 			headers = responseInfo.headers();
 			body = content;
@@ -970,7 +970,7 @@ public abstract class Downloader
 				if (requestLimiter != null)
 					requestLimiter.waitNextTick();
 
-				response = httpClient.send(request, MoreBodyHandlers.decoding(new ThrowHttpErrorBodyHandler<>(request.uri(), responseBodyHandler, listener, optionsSet)));
+				response = httpClient.send(request, MoreBodyHandlers.decoding(new ThrowHttpErrorBodyHandler<>(request, responseBodyHandler, listener, optionsSet)));
 			}
 			finally
 			{
@@ -996,7 +996,7 @@ public abstract class Downloader
 			try {
 				if (requestLimiter != null)
 					requestLimiter.waitNextTick();
-				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(new ThrowHttpErrorBodyHandler<>(request.uri(), responseBodyHandler, listener, optionsSet))),
+				return Utils.observe(httpClient.sendAsync(request, MoreBodyHandlers.decoding(new ThrowHttpErrorBodyHandler<>(request, responseBodyHandler, listener, optionsSet))),
 				                     (response, error) -> releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request));
 			} catch (Exception e) {
 				releaseMaxConcurrentStreamsAndTrySetHTTP2Value(request);
@@ -1136,7 +1136,7 @@ public abstract class Downloader
 		}
 
 		private record ThrowHttpErrorBodyHandler<T>(
-				URI url,
+				HttpRequest request,
 				BodyHandler<T> delegate,
 				DownloadListener listener,
 				Set<HttpOption> options
@@ -1296,16 +1296,16 @@ public abstract class Downloader
 				@Override
 				public void onError(Throwable throwable)
 				{
-					logResponse(url, responseInfo, responseContent, options);
-					futureBody.completeExceptionally(new HttpException(url, responseInfo, responseContent).initCause(
+					logResponse(request, responseInfo, responseContent, options);
+					futureBody.completeExceptionally(new HttpException(request, responseInfo, responseContent).initCause(
 							throwable));
 				}
 
 				@Override
 				public void onComplete()
 				{
-					logResponse(url, responseInfo, responseContent, options);
-					futureBody.completeExceptionally(new HttpException(url, responseInfo, responseContent));
+					logResponse(request, responseInfo, responseContent, options);
+					futureBody.completeExceptionally(new HttpException(request, responseInfo, responseContent));
 				}
 			}
 		}
@@ -1440,9 +1440,9 @@ public abstract class Downloader
 					downloadsProgressView.newImage(session.id(), post.id(), postImage.id(), imageDest);
 
 					if (responseInfo.statusCode() != 200) {
-						HttpException ex = new HttpException(url, responseInfo);
+						HttpException ex = new HttpException(request, responseInfo);
 						downloadsProgressView.endDownload(session.id(), post.id(), postImage.id(), ex);
-						throw new HttpException(url, responseInfo);
+						throw new HttpException(request, responseInfo);
 					}
 				}
 				
@@ -1576,7 +1576,7 @@ public abstract class Downloader
 						downloadsProgressView.newOtherFile(session.id(), post.id(), file.id(), fileDest);
 
 					if (responseInfo.statusCode() != 200) {
-						HttpException ex = new HttpException(url, responseInfo);
+						HttpException ex = new HttpException(request, responseInfo);
 						downloadsProgressView.endDownload(session.id(), post.id(), file.id(), ex);
 						throw ex;
 					}
@@ -2047,7 +2047,7 @@ public abstract class Downloader
 	
 	private static void logRequest(HttpRequest request)
 	{
-		LOGGER.debug(HTTP_REQUEST_URL, "Request: {}", request.uri());
+		LOGGER.debug(HTTP_REQUEST_URL, "Request: {} {}", request.method(), request.uri());
 		LOGGER.debug(HTTP_REQUEST_HEADERS,
 		             "Headers: {}",
 		             () -> request.headers()
@@ -2066,7 +2066,7 @@ public abstract class Downloader
 			synchronized (LOGGER)
 			{
 				
-				LOGGER.log(level, HTTP_RESPONSE_URL, "Response: {}", response.request().uri());
+				LOGGER.log(level, HTTP_RESPONSE_URL, "Response: {} {}", response.request().method(), response.request().uri());
 				LOGGER.log(level, HTTP_RESPONSE_STATUS, "Status: {}", response.statusCode());
 				LOGGER.log(level,
 				           HTTP_RESPONSE_HEADERS,
@@ -2082,7 +2082,7 @@ public abstract class Downloader
 		}
 	}
 
-	private static void logResponse(URI url, ResponseInfo responseInfo, ByteArrayOutputStream content, Set<HttpOption> options)
+	private static void logResponse(HttpRequest request, ResponseInfo responseInfo, ByteArrayOutputStream content, Set<HttpOption> options)
 	{
 		Level level = isErrorResponse(responseInfo.statusCode(), options) ? Level.ERROR : Level.DEBUG;
 		if (LOGGER.isEnabled(level, HTTP_RESPONSE))
@@ -2090,7 +2090,7 @@ public abstract class Downloader
 			synchronized (LOGGER)
 			{
 
-				LOGGER.log(level, HTTP_RESPONSE_URL, "Response: {}", url);
+				LOGGER.log(level, HTTP_RESPONSE_URL, "Response: {} {}", request.method(), request.uri());
 				LOGGER.log(level, HTTP_RESPONSE_STATUS, "Status: {}", responseInfo.statusCode());
 				LOGGER.log(level,
 						   HTTP_RESPONSE_HEADERS,
