@@ -32,7 +32,7 @@ import javafx.stage.WindowEvent;
 import nigloo.gallerymanager.AsyncPools;
 import nigloo.gallerymanager.Fixes;
 import nigloo.gallerymanager.autodownloader.Downloader;
-import nigloo.gallerymanager.autodownloader.KemonoFanboxDownloader;
+import nigloo.gallerymanager.autodownloader.ArchiveFanboxDownloader;
 import nigloo.gallerymanager.filter.ImageFilter;
 import nigloo.gallerymanager.model.Artist;
 import nigloo.gallerymanager.model.Gallery;
@@ -221,7 +221,7 @@ public class UIController extends Application
 										   .stream()
 										   .map(Artist::getAutodownloaders)
 										   .flatMap(List::stream)
-										   .filter(KemonoFanboxDownloader.class::isInstance)
+										   .filter(ArchiveFanboxDownloader.class::isInstance)
 										   .findAny()
 										   .get();
 			Fixes.removeBadFiles(gallery, path, downloader);

@@ -24,14 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 
-public abstract class KemonoDownloader extends Downloader {
-    // https://kemono.cr/documentation/api
+public abstract class ArchiveDownloader extends Downloader {
+    // https://pawchive.pw/api/swagger_schema
     private static final int PAGE_SIZE = 50; // Forced by the API
     private static final String POSTS_DETAIL_CACHE_KEY = "posts-detail";
 
     private final transient String originalProvider;
 
-    protected KemonoDownloader(String originalProvider) {
+    protected ArchiveDownloader(String originalProvider) {
         this.originalProvider = originalProvider;
     }
 
@@ -42,11 +42,11 @@ public abstract class KemonoDownloader extends Downloader {
     }
 
     private String buildApiUrl(String path) {
-        return "https://kemono.cr/api/v1" + path;
+        return "https://pawchive.pw/api/v1" + path;
     }
 
-    private String buildDataUrl(String server, String path) {
-        return server + "/data" + path;
+    private String buildDataUrl(String path) {
+        return "https://file.pawchive.pw/data" + path;
     }
 
     @Override
@@ -130,6 +130,7 @@ public abstract class KemonoDownloader extends Downloader {
     @Override
     protected CompletableFuture<List<PostImage>> listImages(DownloadSession session, Post post) {
         JsonObject jPost = getPostDetail(session, post);
+        //FIXME image are no long in preview... (all together with files..., make the difference with extension??)
         JsonArray jImages = JsonHelper.followPath(jPost, "previews", JsonArray.class);
         List<String> tags = extractTags(jPost);
 
@@ -137,8 +138,7 @@ public abstract class KemonoDownloader extends Downloader {
                                            .filter(jImage -> !"embed".equals(JsonHelper.followPath(jImage, "type")))
                                            .map( jImage -> {
             String path = JsonHelper.followPath(jImage, "path");
-            String server = JsonHelper.followPath(jImage, "server");
-            String url = buildDataUrl(server, path);
+            String url = buildDataUrl(path);
             String imageFilename = JsonHelper.followPath(jImage, "name");
             String imageId = imageFilename;
             return PostImage.create(imageId, imageFilename, url, tags);
@@ -154,13 +154,13 @@ public abstract class KemonoDownloader extends Downloader {
     @Override
     protected CompletableFuture<List<PostFile>> listFiles(DownloadSession session, Post post) {
         JsonObject jPost = getPostDetail(session, post);
+        //FIXME image are no long in preview... (all together with files..., make the difference with extension??)
         JsonArray jFiles = JsonHelper.followPath(jPost, "attachments", JsonArray.class);
         List<String> tags = extractTags(jPost);
 
         List<PostFile> files = JsonHelper.stream(jFiles).map( jImage -> {
             String path = JsonHelper.followPath(jImage, "path");
-            String server = JsonHelper.followPath(jImage, "server");
-            String url = buildDataUrl(server, path);
+            String url = buildDataUrl(path);
             String filename = JsonHelper.followPath(jImage, "name");
             String fileId = filename;
             return PostFile.create(fileId, filename, url, tags);
