@@ -1062,13 +1062,15 @@ public abstract class Downloader
 
 							Object serverSettings = mcsCache.serverSettingsF.get(connection);
 							int maxServer = (int) mcsCache.getParameter.invoke(serverSettings, mcsCache.MAX_CONCURRENT_STREAMS);
+							LOGGER.debug("MAX_CONCURRENT_STREAMS from serveur: {}", maxServer);
 
 							Object clientSettings = mcsCache.clientSettingsF.get(connection);
 							int maxClient = (int) mcsCache.getParameter.invoke(clientSettings, mcsCache.MAX_CONCURRENT_STREAMS);
-							maxClient = Math.max(MAX_CONCURRENT_STREAMS_FALLBACK, maxClient);
+							LOGGER.debug("MAX_CONCURRENT_STREAMS from client: {}", maxClient);
 
-							maxStream = Math.min(maxServer, maxClient);
+							maxStream = Math.min(maxServer, Math.max(MAX_CONCURRENT_STREAMS_FALLBACK, maxClient));
 							maxStream = Math.max(1, maxStream);
+							LOGGER.debug("MAX_CONCURRENT_STREAMS set: {}", maxStream);
 						}
 						catch (Exception e) {
 							LOGGER.warn("Cannot read MAX_CONCURRENT_STREAMS", e);
