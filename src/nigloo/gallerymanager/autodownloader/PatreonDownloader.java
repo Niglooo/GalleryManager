@@ -1,5 +1,7 @@
 package nigloo.gallerymanager.autodownloader;
 
+import java.io.BufferedReader;
+import java.io.StringReader;
 import java.net.URI;
 import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
@@ -23,6 +25,7 @@ import com.google.gson.JsonParser;
 
 import nigloo.tool.gson.JsonHelper;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 
 public class PatreonDownloader extends Downloader
 {
@@ -62,37 +65,44 @@ public class PatreonDownloader extends Downloader
 			super(session);
 			
 			HttpRequest request = HttpRequest.newBuilder()
-			                    .uri(new URI("https://www.patreon.com/c/" + creatorId + "/posts"))
+			                    .uri(new URI("https://www.patreon.com/cw/" + creatorId + "/posts"))
 			                    .GET()
 								.headers(session.getExtraInfo(HEADERS_KEY))
 			                    .version(Version.HTTP_1_1)// Avoid cloudflare bullshit
 			                    .build();
 			String homePageHtml = session.send(request, BodyHandlers.ofString()).body();
-			JsonElement bootstrap = JsonParser.parseString(Jsoup.parse(homePageHtml).body().getElementById("__NEXT_DATA__").data());
 
-			JsonElement currentUser = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.core_current_user", JsonElement.class);
-			if (currentUser == null || currentUser.isJsonNull()) {
+			JsonElement bootstrap = findBootstrapData(homePageHtml);
+
+			String currentUserId = JsonHelper.followPath(bootstrap, "currentUser.data.id");
+			if (currentUserId == null) {
 				throw new DownloaderSessionExpiredException();
 			}
-			
-			this.campaignId = JsonHelper.followPath(bootstrap, "props.pageProps.bootstrapEnvelope.pageBootstrap.campaign.data.id");
-			this.nextPageUrl = "https://www.patreon.com/api/campaigns/"+campaignId+"/posts" +
-					"?include=campaign%2Caccess_rules%2Caccess_rules.tier.null%2Cattachments_media%2Caudio%2Caudio_preview.null%2Cdrop%2Cimages%2Cmedia%2Cnative_video_insights%2Cpoll.choices%2Cpoll.current_user_responses.user%2Cpoll.current_user_responses.choice%2Cpoll.current_user_responses.poll%2Cuser%2Cuser_defined_tags%2Cti_checks%2Cvideo.null%2Ccontent_unlock_options.product_variant.null" +
-					"&fields[campaign]=currency%2Cshow_audio_post_download_links%2Cavatar_photo_url%2Cavatar_photo_image_urls%2Cearnings_visibility%2Cis_nsfw%2Cis_monthly%2Cname%2Curl" +
-					"&fields[post]=change_visibility_at%2Ccomment_count%2Ccommenter_count%2Ccontent%2Ccreated_at%2Ccurrent_user_can_comment%2Ccurrent_user_can_delete%2Ccurrent_user_can_report%2Ccurrent_user_can_view%2Ccurrent_user_comment_disallowed_reason%2Ccurrent_user_has_liked%2Cembed%2Cimage%2Cinsights_last_updated_at%2Cis_paid%2Clike_count%2Cmeta_image_url%2Cmin_cents_pledged_to_view%2Cmonetization_ineligibility_reason%2Cpost_file%2Cpost_metadata%2Cpublished_at%2Cpatreon_url%2Cpost_type%2Cpledge_url%2Cpreview_asset_type%2Cthumbnail%2Cthumbnail_url%2Cteaser_text%2Ctitle%2Cupgrade_url%2Curl%2Cwas_posted_by_campaign_owner%2Chas_ti_violation%2Cmoderation_status%2Cpost_level_suspension_removal_date%2Cpls_one_liners_by_category%2Cvideo%2Cvideo_preview%2Cview_count%2Ccontent_unlock_options%2Cis_new_to_current_user%2Cwatch_state" +
+
+			this.campaignId = JsonHelper.followPath(bootstrap, "campaign.data.id");
+			this.nextPageUrl = "https://www.patreon.com/api/posts" +
+					"?include=campaign%2Caccess_rules%2Caccess_rules.tier.null%2Cattachments_media%2Caudio%2Caudio_preview.null%2Ccustom_thumbnail_media.null%2Cdrop%2Cimages%2Cmedia%2Cnative_video_insights%2Cprimary_image%2Cpoll.choices%2Cpoll.current_user_responses.user%2Cpoll.current_user_responses.choice%2Cpoll.current_user_responses.poll%2Cshows.null%2Cuser%2Cuser_defined_tags%2Cvideo.null%2Ccontent_unlock_options.product_variant.null%2Ccontent_unlock_options.reward.null%2Ccontent_unlock_options.product_variant.collection.null%2Clivestream%2Clivestream.state%2Clivestream.display%2Crss_synced_feed%2Cpost_new_comment_identity%2Cpost_new_comment_identity.avatar%2Cpost_new_comment_identity.community_profile%2Cpost_new_comment_identity.identity_badges%2Cauthors%2Cauthors.avatar%2Cauthors.community_profile" +
+					"&fields[campaign]=currency%2Cshow_audio_post_download_links%2Cavatar_photo_url%2Cavatar_photo_image_urls%2Cis_nsfw%2Cis_monthly%2Cname%2Curl%2Cpatron_count%2Cprimary_theme_color%2Cshow_free_membership_cta" +
+					"&fields[post]=attachments_preview_metadata%2Cchange_visibility_at%2Ccomment_count%2Ccommenter_count%2Ccontent_json_string%2Ccreated_at%2Cedited_at%2Ccurrent_user_can_comment%2Ccurrent_user_can_delete%2Ccurrent_user_can_edit%2Ccurrent_user_can_report%2Ccurrent_user_can_view%2Ccurrent_user_comment_disallowed_reason%2Ccurrent_user_has_liked%2Ccurrent_user_has_reshared%2Cembed%2Cimage%2Cinsights_last_updated_at%2Cis_paid%2Cis_preview_blurred%2Chas_custom_thumbnail%2Clike_count%2Creshare_count%2Cmeta_image_url%2Cmin_cents_pledged_to_view%2Cmonetization_ineligibility_reason%2Cpost_file%2Cpost_metadata%2Cpublished_at%2Cpatreon_url%2Cpost_type%2Cpledge_url%2Cpreview_asset_type%2Cthumbnail%2Cthumbnail_url%2Cteaser_text_json_string%2Ccontent_teaser_text%2Ccleaned_teaser_text%2Ctitle%2Cupgrade_url%2Curl%2Cwas_posted_by_campaign_owner%2Chas_ti_violation%2Cmoderation_status%2Cpost_level_suspension_removal_date%2Cpls_one_liners_by_category%2Cvideo%2Cvideo_preview%2Cview_count%2Ccontent_unlock_options%2Cis_new_to_current_user%2Cwatch_state%2Cauthors%2Cis_fan_giftable%2Cis_header_media_free" +
 					"&fields[post_tag]=tag_type%2Cvalue" +
 					"&fields[user]=image_url%2Cfull_name%2Curl" +
 					"&fields[access_rule]=access_rule_type%2Camount_cents" +
-					"&fields[media]=id%2Cimage_urls%2Cdisplay%2Cdownload_url%2Cmetadata%2Cfile_name" +
+					"&fields[livestream]=display%2Cstate" +
+					"&fields[media]=id%2Cimage_urls%2Cdisplay%2Cdownload_url%2Cmetadata%2Cfile_name%2Cstate" +
 					"&fields[native_video_insights]=average_view_duration%2Caverage_view_pct%2Chas_preview%2Cid%2Clast_updated_at%2Cnum_views%2Cpreview_views%2Cvideo_duration" +
-					"&fields[content-unlock-option]=content_unlock_type" +
-					"&fields[product-variant]=price_cents%2Ccurrency_code%2Ccheckout_url%2Cis_hidden%2Cpublished_at_datetime%2Ccontent_type%2Corders_count%2Caccess_metadata" +
+					"&fields[content-unlock-option]=content_unlock_type%2Cis_current_user_eligible%2Creward_benefit_categories" +
+					"&fields[product-variant]=price_cents%2Ccurrency_code%2Ccheckout_url%2Cis_hidden%2Cpublished_at_datetime%2Ccontent_type%2Corders_count%2Caccess_metadata%2Clive_sale_discounted_price_info" +
+					"&fields[shows]=id%2Ctitle%2Cdescription%2Cthumbnail" +
+					"&fields[display-identity]=name%2Clink_url" +
+					"&fields[community-profile]=name%2Centity_id" +
+					"&fields[primary-image]=image_icon%2Cimage_small%2Cimage_medium%2Cimage_large%2Cprimary_image_type%2Calt_text%2Cimage_colors%2Cis_fallback%2Cprefer_alternate_display%2Cid" +
+					"&fields[identity-badge]=badge_type" +
 					"&filter[campaign_id]=" + campaignId +
 					"&filter[contains_exclusive_posts]=true" +
 					"&filter[is_draft]=false" +
-					"&page[cursor]=null" +
-					"&page[count]=6" +
-					"&filter[is_by_creator]=true" +
+					"&filter[include_lives]=true" +
+					"&filter[include_drops]=true" +
+					"&filter[accessible_by_user_id]=" + currentUserId +
 					"&sort=-published_at" +
 					"&json-api-use-default-includes=false" +
 					"&json-api-version=1.0";
@@ -100,6 +110,42 @@ public class PatreonDownloader extends Downloader
 			this.currentResourcesIncluded = null;
 
 			computeNextPost();
+		}
+
+		private JsonElement findBootstrapData(String homePageHtml)
+		{
+			Element homePageBody = Jsoup.parse(homePageHtml).body();
+
+			Element bootstrapDataElement = homePageBody.getElementById("__NEXT_DATA__");
+			if (bootstrapDataElement != null) {
+				JsonElement data = JsonParser.parseString(bootstrapDataElement.data());
+				data = JsonHelper.followPath(data, "props.pageProps.bootstrapEnvelope.pageBootstrap", JsonElement.class);
+				return data;
+			}
+
+			return homePageBody
+					.select("script")
+					.stream()
+					.map(script -> script.data().strip())
+					.filter(script -> script.startsWith("self.__next_f.push("))
+					.map(script -> script.substring("self.__next_f.push(".length(), script.lastIndexOf(")")))
+					.map(JsonParser::parseString)
+					.flatMap(json -> json.getAsJsonArray().asList().stream())
+					.filter(json -> json.isJsonPrimitive() && json.getAsJsonPrimitive().isString())
+					.flatMap(json -> new BufferedReader(new StringReader(json.getAsString())).lines())
+					.map(line -> {
+						try {
+							JsonElement data = JsonParser.parseString(line.substring(line.indexOf(':') + 1));
+							data = JsonHelper.followPath(data, "[0][3].value", JsonElement.class);
+							return data;
+						}
+						catch (RuntimeException e){
+							return null;
+						}
+					})
+					.filter(Objects::nonNull)
+					.findFirst()
+					.orElseThrow(() -> new RuntimeException("Couldn't extract bootstrap data from home page"));
 		}
 		
 		@Override
